@@ -14,9 +14,8 @@ const NAV = [
   { id: 'uzakydb', label: 'UZAKYDB', short: 'YDB', icon: 'globe' },
   // Ekstra: telefonda alt çubukta yok (Ana Sayfa kısayollarında)
   { id: 'ekstra', label: 'Ekstra', short: 'Ekstra', icon: 'star', rare: true, items: [
-    ['acilan', 'Açılan Dersler'], ['takvim', 'Akademik Takvim'], ['kadro', 'Akademik Kadro'], ['yabanci-diller', 'Yabancı Diller']] },
-  { id: 'mevzuat', label: 'Mevzuat', short: 'Mevzuat', icon: 'scale', rare: true, items: [
-    ['yanitlar', 'Hızlı Yanıtlar ve Arama'], ['tumu', 'Tüm Mevzuat'], ['duyurular', 'Öğrenci İşleri Duyuruları']] },
+    ['acilan', 'Açılan Dersler'], ['takvim', 'Akademik Takvim'], ['kadro', 'Akademik Kadro'], ['yabanci-diller', 'Yabancı Diller'],
+    ['mevzuat', 'Mevzuat'], ['duyurular', 'Öğrenci İşleri Duyuruları']] },
   { id: 'cap', label: 'ÇAP/YAP - Başvurular', short: 'Başvuru', icon: 'arrows', bottom: true, rare: true, items: [
     ['capyap', 'ÇAP / YAP'], ['staj', 'Staj Hareketliliği'], ['ogrenim', 'Öğrenim Hareketliliği'], ['mezun', 'Mezuniyet Sonrası Staj']] },
   { id: 'hakkinda', label: 'Hakkında ve SSS', short: 'Hakkında', icon: 'help', rare: true, items: [
@@ -359,7 +358,7 @@ async function viewDerslerim(r) {
   return header('Derslerim', `${d.courses.length} ders · Ortam, Uzak ve Piazza bir arada`) + sourcesBanner(d) + `<div class="list">${d.courses.map(c =>
     `<a class="card course-row" href="#/donem/derslerim/${encodeURIComponent(c.key)}">
       <span class="cr-name"><span class="code">${esc(c.code)}</span><span>${esc(c.name)}</span></span>
-      <span class="badges">${notif.byCourse[c.key] ? `<span class="nbadge" title="Yeni içerik">${notif.byCourse[c.key]} yeni</span>` : ''}${c.uzak ? '<span class="pill gray">Uzak</span>' : ''}${c.piazza ? `<span class="pill ${c.piazza.fresh ? 'info' : 'gray'}">Piazza${c.piazza.fresh ? ` · ${c.piazza.fresh} yeni` : ''}</span>` : ''}
+      <span class="badges">${srcDots(notif.byCourseSrc?.[c.key])}${c.uzak ? '<span class="pill src-uzak">Uzak</span>' : ''}${c.piazza ? `<span class="pill src-piazza">Piazza${c.piazza.fresh ? ` · ${c.piazza.fresh} yeni` : ''}</span>` : ''}
         ${icon('chevron-right', 'go')}</span>
     </a>`).join('')}</div>`;
 }
@@ -394,7 +393,7 @@ async function viewCourse(r) {
   } else body = tab === 'bakis' ? await overview() : tab === 'uzak' ? await courseUzak(c) : await coursePiazza(c);
   const news = notif.items.filter(n => !n.read && n.course === c.key);
   if (news.length) post('/api/notifications/read', { course: c.key }).then(r => r.json()).then(j => { notif = j; renderNav(route()); }).catch(() => {});
-  const newsBox = news.length ? `<div class="card news"><b>Yeni</b><ul>${news.map(n => `<li><a href="${esc(n.link)}">${esc(n.source === 'piazza' ? 'Piazza' : 'Uzak')}</a> · ${esc(n.text)} <span class="muted small">${whenTR(n.t)}</span></li>`).join('')}</ul></div>` : '';
+  const newsBox = news.length ? `<div class="card news"><b>Yeni</b><ul>${news.map(n => `<li><span class="sdot src-${esc(n.source)}"></span><a href="${esc(n.link)}">${esc(n.source === 'piazza' ? 'Piazza' : 'Uzak')}</a> · ${esc(n.text)} <span class="muted small">${whenTR(n.t)}</span></li>`).join('')}</ul></div>` : '';
   return back + header(`${c.code} · ${c.name}`) + newsBox + bar + body;
 }
 
@@ -570,11 +569,19 @@ async function viewSinav() {
   const now = Date.now();
   const next = e.exams.find(x => examAt(x, x.end) > now);
   const left = e.exams.filter(x => examAt(x, x.end) > now).length;
-  return header(`Sınav Takvimi (${e.active.label})`, `${e.exams.length} sınav · ${left ? `${left} sınav kaldı` : 'hepsi bitti'}`) + `<div class="list">${e.exams.map(x =>
-    `<div class="card exam ${x === next ? 'next' : ''} ${examAt(x, x.end) < now ? 'past' : ''}">${examDate(x)}
-      <div style="flex:1"><div><b>${esc(x.code)}</b> · ${esc(x.name)}</div>
-        <div class="muted">${esc(x.start)}–${esc(x.end)} · ${esc(x.room || '—')} · ${esc(x.type)}</div></div>
-      <span class="pill ${examUrgency(x, now)}">${examRel(x, now)}</span></div>`).join('')}</div>`;
+  // Her sınav tek satır: tarih (gün adıyla), ders kodu, adı, saat, yer, kalan süre. Yüz yüze dışındaki sınav türü küçük etiketle.
+  return header(`Sınav Takvimi (${e.active.label})`, `${e.exams.length} sınav · ${left ? `${left} sınav kaldı` : 'hepsi bitti'}`) + `<div class="list xlist">${e.exams.map(x => {
+    const [dd, mm] = x.dateText.split('.');
+    const wd = x.ts ? new Date(x.ts).toLocaleDateString('tr-TR', { weekday: 'short', timeZone: 'Europe/Istanbul' }) : '';
+    const other = x.type && !/yüz\s*yüze/i.test(x.type);
+    return `<div class="card exam xrow ${x === next ? 'next' : ''} ${examAt(x, x.end) < now ? 'past' : ''}">
+      <div class="date"><b>${dd}</b><span>${MONTHS[mm - 1] ?? ''}${wd ? `<i class="wd">${esc(wd)}</i>` : ''}</span></div>
+      <div class="x-code">${esc(x.code)}</div>
+      <div class="x-name">${esc(x.name)}${other ? ` <span class="x-type">${esc(x.type)}</span>` : ''}</div>
+      <div class="x-time">${icon('clock')}<span>${esc(x.start)}–${esc(x.end)}</span></div>
+      <div class="x-room">${icon('pin')}<span>${esc(x.room || 'Yer belli değil')}</span></div>
+      <span class="pill ${examUrgency(x, now)}">${examRel(x, now)}</span></div>`;
+  }).join('')}</div>`;
 }
 
 // ---------- Profil ----------
@@ -591,7 +598,9 @@ async function viewNotlar() {
         ['Tür', r => esc(r.type)], ['Dal', r => esc(r.branch)], ['Tekrar', r => esc(r.repeat)], ['Not', r => gradeChip(r.grade)]], t.courses)}</div>`).join('')
     : `<div class="grid">${n.donemlik.map(t => `<div class="card"><h2 style="margin-top:0">${esc(t.term)}</h2>${
         table([['Kod', r => `<b>${esc(r.code)}</b>`], ['Not', r => gradeChip(r.grade)]], t.courses)}</div>`).join('')}</div>`;
-  return header('Not Görüntüleme') + identityCard(n.identity) + tabs([['liste', 'Liste'], ['donemlik', 'Dönemlik']], state.notTab, 'notTab') + body;
+  const survey = n.survey ? `<div class="banner mv-banner"><span><b>Anket gerekiyor.</b> ${esc(n.survey.text)}</span>
+    <a class="btn" href="${esc(n.survey.link)}" target="_blank" rel="noopener">${icon('external')}Anketi Ortam'da doldur</a></div>` : '';
+  return header('Not Görüntüleme') + survey + identityCard(n.identity) + tabs([['liste', 'Liste'], ['donemlik', 'Dönemlik']], state.notTab, 'notTab') + body;
 }
 
 async function viewMufredat() {
@@ -821,7 +830,7 @@ function planNotes(d) {
     <li>CC, CB, BB, BA notlu derslerden lisans boyunca en fazla 5 ders tekrar edilebilir (md. 25/3); kullanılan: ${d.improveUsed}. FF alınan ders tekrar edilmek zorundadır, DD/DC ortalamayı yükseltmek için tekrar edilebilir.</li>
     <li>Dönem kredi yükü program kredisinin en az %9'u, en çok %16'sıdır${d.limits ? ` (${d.programCredits} kredilik program için ${d.limits.min}–${d.limits.max})` : ''}; tekrar edilen dersler de yüke dahildir (md. 16). GNO 2,00'ın altına düşerse yeni ders sınırları daralır (md. 32).</li>
     <li>"Sonraki dönem" dersleri müfredattaki yarıyıla göre önerilir; o dönem gerçekten açılan dersler ders kayıtlanmada kesinleşir.</li>
-  </ul><p class="muted small">Kaynak: <a href="#/mevzuat/tumu/mg-8-15287">TOBB ETÜ Lisans Eğitim-Öğretim ve Sınav Yönetmeliği</a></p></details>`;
+  </ul><p class="muted small">Kaynak: <a href="#/ekstra/mevzuat/belge/mg-8-15287">TOBB ETÜ Lisans Eğitim-Öğretim ve Sınav Yönetmeliği</a></p></details>`;
 }
 
 const drawPlan = () => { const el = document.getElementById('plan'); if (el && planData) el.innerHTML = planBody(); };
@@ -844,7 +853,7 @@ $view.addEventListener('click', e => {
 // Her hareketlilik sayfası iki bölüm: başvuru formu (gerçek alanlar) ve Başvurularım. Kapalıyken okulun mesajı görünür.
 // Gönderim iki tıklama ister; form doğrulama (reCAPTCHA) ya da dosya istiyorsa gönderim okulun sitesinde yapılır.
 const CAP_RULES = `<div class="card"><p style="margin:0">Başvuru şartları, hangi dönemlerde başvurulabildiği ve takvimdeki tarihler:
-  <a href="#/mevzuat/yanitlar">Mevzuat → Hızlı Yanıtlar</a></p></div>`;
+  <a href="#/ekstra/mevzuat">Mevzuat → Hızlı Yanıtlar</a></p></div>`;
 async function viewCap() {
   const c = await api('cap');
   if (!c.active) return header('ÇAP / YAP Başvuru') + `<div class="card msg">${esc(c.message)}</div>` + CAP_RULES;
@@ -1197,13 +1206,14 @@ function ydbItem(x, label, extra = '') {
   return `<div class="mi"><span>${esc(x.name)}</span>${extra}</div>`;
 }
 
-async function viewUzakydb(r) {
+async function viewUzakydb(r, ctx) {
   const y = await api('uzakydb');
+  if (!r?.param && ctx) ctx.after = loadYdbExtra;
   if (r?.param) {
     const c = y.courses.find(x => String(x.id) === r.param) ?? { id: r.param, name: 'Ders' };
     return '<p><a href="#/uzakydb">← UZAKYDB</a></p>' + header(c.name, c.category || '') + await courseUzak({ uzak: { id: c.id } }, { site: 'uzakydb' });
   }
-  return header('UZAKYDB', 'Yabancı Diller') +
+  return header('UZAKYDB', 'Yabancı Diller') + `<div id="ydb-extra"></div>` +
     `<h2>Derslerim</h2><div class="list">${y.courses.map(c => `<a class="card course-row" href="#/uzakydb/${c.id}"><span><b>${esc(c.name)}</b>
       <span class="muted small">${esc(c.category)}</span></span><span class="badges">${c.progress !== null ? `<span class="pill gray">%${c.progress} tamamlandı</span>` : ''}</span></a>`).join('')
       || '<div class="card msg">Ders yok.</div>'}</div>` +
@@ -1489,19 +1499,45 @@ function shortcuts() {
   return out;
 }
 
+// Ana Sayfanın üstü: Ortam ana sayfasındaki anket/duyurular, UZAKYDB'deki ek içerik ve Akademik Takvimde yaklaşan
+// son tarihler. Hepsi arka planda gelir; bir şey yoksa alan boş kalır.
+async function loadHomeNotices() {
+  const get = name => fetch('/api/' + name).then(r => (r.ok ? r.json() : null)).catch(() => null);
+  const [o, y, d] = await Promise.all([get('ortam-duyuru'), get('uzakydb-ek'), get('hatirlatmalar')]);
+  const box = document.getElementById('home-notices');
+  if (!box) return;
+  const parts = [];
+  for (const x of o?.items ?? []) parts.push(`<div class="banner hn"><span>${icon(x.kind === 'anket' ? 'clipboard' : 'megaphone')}<span><b>Ortam'da seni bekleyen ${x.kind === 'anket' ? 'anket' : 'duyuru'}:</b>
+    ${esc(x.title)}</span></span><a class="btn" href="${esc(o.url)}" target="_blank" rel="noopener">${icon('external')}Ortam'da aç</a></div>`);
+  if (y?.items?.length) parts.push(`<div class="banner hn"><span>${icon('globe')}<span><b>UZAKYDB'de ek içerik:</b> ${y.items.map(b => esc(b.title)).join(', ')}</span></span>
+    <a class="btn" href="#/uzakydb">Göster</a></div>`);
+  if (d?.items?.length) parts.push(`<section class="card hn-dates"><div class="hc-h"><a href="#/ekstra/takvim">Yaklaşan son tarihler</a><a class="muted" href="#/ekstra/takvim">Takvim →</a></div>
+    <ul>${d.items.map(i => `<li class="${i.live ? 'live' : ''}">${icon('calendar')}<span><b>${esc(i.when)}</b> · ${esc(i.what)}${
+      i.last ? ' <span class="pill due-now">bugün son gün</span>' : i.live ? ' <span class="pill due-soon">sürüyor</span>' : ''}</span></li>`).join('')}</ul></section>`);
+  box.innerHTML = parts.join('');
+}
+async function loadYdbExtra() {
+  const box = document.getElementById('ydb-extra');
+  if (!box) return;
+  const y = await fetch('/api/uzakydb-ek').then(r => (r.ok ? r.json() : null)).catch(() => null);
+  if (!y?.items?.length || !document.getElementById('ydb-extra')) return;
+  box.innerHTML = `<h2>Sitede ek içerik</h2>${y.items.map(b => `<div class="card ydb-x"><b>${esc(b.title)}</b><p>${esc(b.text)}</p>${
+    b.links.length ? `<p>${b.links.map(l => `<a class="btn" href="${esc(l.url)}" target="_blank" rel="noopener">${icon('external')}${esc(l.text)}</a>`).join(' ')}</p>` : ''}</div>`).join('')}`;
+}
+
 async function viewHome(r, ctx) {
   const now = new Date();
   const h = now.getHours();
   const greet = h < 5 ? 'İyi geceler' : h < 12 ? 'Günaydın' : h < 18 ? 'İyi günler' : 'İyi akşamlar';
   const note = flash ? `<div class="banner">${flash} <a href="#/hesap">Hesap</a></div>` : '';
   flash = null;
-  ctx.after = () => HOME_CARDS.forEach(c => loadCard(c));
-  return header(greet, now.toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long' })) + note +
+  ctx.after = () => { HOME_CARDS.forEach(c => loadCard(c)); loadHomeNotices(); };
+  return header(greet, now.toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long' })) + note + '<div id="home-notices"></div>' +
     `<div class="home">${HOME_CARDS.map(c => `<section class="card hc" data-card="${c.id}">
       <div class="hc-h"><a href="${c.link}">${esc(c.title)}</a><a class="muted" href="${c.link}">Tümü →</a></div>
       <div class="hc-b">${homeData[c.id] ? c.body(homeData[c.id]) : '<p class="muted">Yükleniyor…</p>'}</div></section>`).join('')}</div>` +
     `<h2>Son kullanılanlar</h2><div class="chips">${shortcuts().map(([href, label]) => `<a class="chip" href="${esc(href)}">${esc(label)}</a>`).join('')}</div>` +
-    `<p class="muted small home-more">Diğer bölümler: <a href="#/ekstra/acilan">Ekstra</a> · <a href="#/mevzuat/yanitlar">Mevzuat</a> · <a href="#/cap/capyap">ÇAP/YAP - Başvurular</a> · <a href="#/hakkinda/hakkimizda">Hakkında ve SSS</a></p>`;
+    `<p class="muted small home-more">Diğer bölümler: <a href="#/ekstra/acilan">Ekstra</a> · <a href="#/ekstra/mevzuat">Mevzuat</a> · <a href="#/cap/capyap">ÇAP/YAP - Başvurular</a> · <a href="#/hakkinda/hakkimizda">Hakkında ve SSS</a></p>`;
 }
 
 // Kart birden çok uçtan besleniyorsa (api dizi) gövde her ucun sonucunu alır: { site, data | login, siteName }.
@@ -1539,7 +1575,16 @@ let lastLogin = null;            // son giriş denemesinin site sonuçları (ekr
 // ---------- Bildirimler ----------
 // Sunucu Piazza'yı 30, Uzak'ı 60 dakikada bir kontrol eder; yeni içerik Windows bildirimi ve (açıksa) e-postayla gelir.
 // Burada: menüdeki ve derslerin üzerindeki işaretler için okunmamış sayıları, Hesap'taki ayarlar.
-let notif = { items: [], unread: 0, byCourse: {}, settings: { toast: true, mail: true }, last: {} };
+let notif = { items: [], unread: 0, byCourse: {}, bySource: {}, byCourseSrc: {}, settings: { toast: true, mail: true, takvim: true }, last: {} };
+// Kaynağa göre renkli bildirim noktaları (Uzak: kırmızımsı turuncu, Piazza: mavi); ikisi de varsa iki nokta
+const SRC_LABEL = { uzak: 'Uzak', piazza: 'Piazza' };
+// plain: menüde sayısız renkli nokta; derslerin üzerinde sayılı rozet
+const srcDots = (counts, plain = false) => {
+  const html = ['uzak', 'piazza'].filter(s => counts?.[s]).map(s => plain
+    ? `<span class="ndot src-${s}" title="${counts[s]} yeni ${SRC_LABEL[s]} bildirimi"></span>`
+    : `<span class="nbadge src-${s}" title="${counts[s]} yeni ${SRC_LABEL[s]} bildirimi">${counts[s]}</span>`).join('');
+  return html ? `<span class="ndots${plain ? ' plain' : ''}">${html}</span>` : '';
+};
 async function loadNotif() {
   try {
     const r = await fetch('/api/notifications');
@@ -1558,13 +1603,16 @@ function notifSection() {
   const recent = notif.items.slice(0, 8);
   return `<h2>Bildirimler</h2><div class="card notif-set">
     <p class="muted" style="margin-top:0">Piazza'ya (30 dakikada bir) ve Uzak'a (saatte bir) eklenen yeni gönderi ve içerikler için haber verilir.
-      Kontroller uygulama (sunucu) açıkken yapılır. Yeni içerik, Derslerim'de dersin üzerinde de işaretlenir.</p>
+      Kontroller uygulama (sunucu) açıkken yapılır. Yeni içerik menüde ve Derslerim'de dersin üzerinde renkli noktayla işaretlenir:
+      <span class="sdot src-uzak"></span>Uzak, <span class="sdot src-piazza"></span>Piazza.</p>
+    <label class="check"><input type="checkbox" data-notif="takvim"${notif.settings.takvim !== false ? ' checked' : ''}> <span>Akademik takvim hatırlatmaları
+      <span class="muted">(ders kaydı, ekle-sil, dersten vazgeçme, ÇAP/YAP başvurusu, sınavlar: 3 gün kala, başladığı gün ve son gün)</span></span></label>
     <label class="check"><input type="checkbox" data-notif="toast"${notif.settings.toast ? ' checked' : ''}> Windows bildirimi</label>
     <label class="check"><input type="checkbox" data-notif="mail"${notif.settings.mail ? ' checked' : ''}> E-posta <span class="muted">(kendi adresinize, her kontrolde tek özet)</span></label>
     <div class="row" style="justify-content:flex-start;gap:8px;margin-top:10px"><button type="button" class="btn" data-notif-check>Şimdi kontrol et</button>
       <button type="button" class="btn ghost" data-notif-test>Deneme bildirimi</button></div>
     <p class="muted small">Son kontrol — Piazza: ${ago2(notif.last.piazza)} · Uzak: ${ago2(notif.last.uzak)}</p>
-    ${recent.length ? `<ul class="notif-list">${recent.map(n => `<li class="${n.read ? 'read' : ''}"><a href="${esc(n.link)}"><b>${esc(n.title)}</b> ${esc(n.text)}</a> <span class="muted small">${whenTR(n.t)}</span></li>`).join('')}</ul>`
+    ${recent.length ? `<ul class="notif-list">${recent.map(n => `<li class="${n.read ? 'read' : ''}"><span class="sdot src-${esc(n.source)}"></span><a href="${esc(n.link)}"><b>${esc(n.title)}</b> ${esc(n.text)}</a> <span class="muted small">${whenTR(n.t)}</span></li>`).join('')}</ul>`
       : '<p class="muted small">Henüz bildirim yok.</p>'}</div>`;
 }
 
@@ -1729,7 +1777,7 @@ const SSS = [
   ['Şifrem nerede duruyor, güvende mi?', '"Beni hatırla" seçiliyse yalnızca bu bilgisayarda, Windows\'un şifreli kasasında saklanır; başka bir yere gönderilmez. Seçili değilse yalnızca uygulama açıkken bellekte tutulur. Hesap sayfasındaki "Kayıtlı bilgileri sil" ile istediğin an silebilirsin.'],
   ['Şifrelerim her sitede aynı değil, ne yapmalıyım?', 'Hesap sayfasında "Siteye özel şifreler" bölümünü aç; farklı olan sitenin şifresini oraya yaz. Boş bıraktığın siteler ana şifreni kullanır.'],
   ['Okulun sunucularını yorar mı?', 'Hayır, normal kullanıma yakındır. Yalnızca açtığın ekran okuldan istenir ve kısa süre önbellekte tutulur. Arka planda oturumu açık tutmak için seyrek kontroller yapılır; siteye zaten bir istek gittiyse o kontrol atlanır. Bildirimler için Piazza yarım saatte, Uzak saatte bir sorulur.'],
-  ['Bildirimler nasıl geliyor?', 'Uygulama açıkken Piazza ve Uzak\'taki yeni içerikleri kontrol eder; yenilik varsa Windows bildirimi gösterir ve (açıksa) okul adresine "[Ortam Sade · Bildirim]" konulu bir özet e-posta yollar. Uygulama kapalıyken kontrol yapılmaz. Hesap > Bildirimler\'den kapatabilirsin.'],
+  ['Bildirimler nasıl geliyor?', 'Uygulama açıkken Piazza ve Uzak\'taki yeni içerikleri ve Akademik Takvimde yaklaşan önemli tarihleri kontrol eder (Uzak turuncu, Piazza mavi noktayla gösterilir); yenilik varsa Windows bildirimi gösterir ve (açıksa) okul adresine "[Ortam Sade · Bildirim]" konulu bir özet e-posta yollar. Uygulama kapalıyken kontrol yapılmaz. Hesap > Bildirimler\'den kapatabilirsin.'],
   ['Otomatik silme e-postalarımı kalıcı olarak siler mi?', 'Hayır. Ayar açıksa okunmuş e-postalar 12 saat sonra Çöp kutusuna taşınır, oradan geri alınabilir. Yıldızlı e-postalar ve yanındaki "otomatik silme" yazısına basıp maviye çevirdiğin e-postalar hiç taşınmaz. Ayar varsayılan olarak kapalıdır.'],
   ['Bazı bilgiler neden yok (ör. açılan derslerin şube ve saatleri)?', 'Ortam bu bilgileri yalnızca doğrulamalı (reCAPTCHA) aramayla veriyor. Uygulama doğrulamaları aşmadığı için bu bilgiler için okulun sayfasına bağlantı verilir.'],
   ['Uzak\'ta sınav, ödev yükleme ya da Safe Exam Browser isteyen içerik olursa?', 'İçeriğin kendisi (açıklama, dosyalar, bağlantılar, Safe Exam Browser indirme bağlantısı ve yapılandırma dosyası) uygulamada görünür. Sınava başlama, ödev yükleme, foruma yazma gibi işlemler okulun sitesinde yapılır; sayfanın üstünde "Sitede aç" bağlantısı çıkar.'],
@@ -1750,11 +1798,12 @@ const viewSorumluluk = () => header('Sorumluluk Reddi') + aboutCard('Lütfen oku
 
 // ---------- Mevzuat ----------
 // Okulun Mevzuat sayfasındaki kanun, yönetmelik ve yönergeler uygulamanın içinde madde madde okunur ve aranır.
-// #/mevzuat/yanitlar[/<arama>] · #/mevzuat/tumu[/<belge>[/<madde | p<paragraf>>]] · #/mevzuat/duyurular[/<duyuru>]
+// Ekstra altında: #/ekstra/mevzuat[/ara/<arama> | /tumu | /belge/<belge>[/<madde | p<paragraf>>]] · #/ekstra/duyurular[/<duyuru>]
+// (Eski #/mevzuat/… bağlantıları yönlendirmede yenisine çevrilir.)
 const fmtDay = s => s ? new Date(s + 'T12:00:00').toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
 const mdBold = s => esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
 const artLabel = a => !a ? '' : a.startsWith('ek') ? `Ek madde ${a.slice(2)}` : a.startsWith('g') ? `Geçici madde ${a.slice(1)}` : `Madde ${a}`;
-const mvHref = (id, at) => `#/mevzuat/tumu/${encodeURIComponent(id)}${at ? '/' + encodeURIComponent(at) : ''}`;
+const mvHref = (id, at) => `#/ekstra/mevzuat/belge/${encodeURIComponent(id)}${at ? '/' + encodeURIComponent(at) : ''}`;
 const MV_KIND = { mg: 'mevzuat.gov.tr', rg: 'Resmî Gazete', pdf: 'PDF', docx: 'Word', doc: 'Word', link: 'Okulun sitesi' };
 // Aranan sözleri metinde işaretler (şapka/nokta ve büyük-küçük harf farkı gözetmeden)
 const FOLDS = { a: 'aâAÂ', c: 'cçCÇ', g: 'gğGĞ', i: 'iıİIîÎ', o: 'oöOÖ', s: 'sşSŞ', u: 'uüûUÜÛ' };
@@ -1766,7 +1815,7 @@ function markTerms(text, terms) {
 const mvSearchBox = (q = '') => `<form class="card ac-search mv-search" data-mv-search><input type="search" name="q" value="${esc(q)}" autocomplete="off"
   placeholder="Mevzuatta ara: yandal başvuru, kayıt dondurma, dersten vazgeçme…" aria-label="Mevzuatta ara"><button class="btn primary" type="submit">Ara</button></form>`;
 
-function mvAnswerCard(x, open) {
+function mvAnswerCard(x, open, plan) {
   const cites = x.cites.map(c => {
     const label = `${esc(c.title)}, ${artLabel(c.a).toLocaleLowerCase('tr')}${c.t ? ` <span class="muted">(${esc(c.t)})</span>` : ''}`;
     const warn = c.ok === false ? ' <span class="mv-warn">Bu maddenin metni değişmiş görünüyor; yanıtı maddeden kontrol et.</span>'
@@ -1778,17 +1827,20 @@ function mvAnswerCard(x, open) {
     const live = c.start && c.end && c.start <= now && now <= c.end, next = c.start > now;
     return `<li class="${live ? 'live' : ''}">${icon('calendar')}<span><b>${esc(c.when)}</b> · ${esc(c.what)} <span class="muted">(${esc(c.term)}${live ? ', şu an açık' : next ? '' : ', geçti'})</span></span></li>`;
   }).join('');
-  const news = x.news.map(n => `<li>${icon('megaphone')}<span><a href="#/mevzuat/duyurular/${encodeURIComponent(n.path.split('/').pop())}">${esc(n.title)}</a> <span class="muted">${esc(n.ago)}</span></span></li>`).join('');
+  const news = x.news.map(n => `<li>${icon('megaphone')}<span><a href="#/ekstra/duyurular/${encodeURIComponent(n.path.split('/').pop())}">${esc(n.title)}</a> <span class="muted">${esc(n.ago)}</span></span></li>`).join('');
   return `<details class="card mv-ans" data-keep="mv-${esc(x.id)}"${open ? ' open' : ''}><summary>${esc(x.q)}</summary>
     <p>${mdBold(x.a)}</p>
     ${cal ? `<div class="mv-sub">Akademik Takvim</div><ul class="mv-list">${cal}</ul>` : ''}
     ${news ? `<div class="mv-sub">Öğrenci İşleri duyurusu</div><ul class="mv-list">${news}</ul>` : ''}
+    ${mvMine(x.id, plan)}
     <div class="mv-sub">Kaynak</div><ul class="mv-cites">${cites}</ul></details>`;
 }
 
-async function viewMvYanitlar(r) {
+async function viewMvYanitlar(r, bar = '') {
   const q = (r.param || '').trim();
-  const [ans, res] = await Promise.all([api('mevzuat-yanitlar'), q ? api('mevzuat-ara?q=' + encodeURIComponent(q)) : null]);
+  // Transkript (UBS) varsa yanıtların altında "senin durumun" gösterilir; UBS yavaşsa ya da kapalıysa beklenmez
+  const planP = Promise.race([api('plan').catch(() => null), new Promise(ok => setTimeout(() => ok(null), 4000))]);
+  const [ans, res, plan] = await Promise.all([api('mevzuat-yanitlar'), q ? api('mevzuat-ara?q=' + encodeURIComponent(q)) : null, planP]);
   if (!q) fetch('/api/mevzuat-ara?q=').catch(() => {});      // arama dizinini arka planda hazırla (ilk aramada beklenmesin)
   // Hızlı yanıt eşleşmesi: sözlerin kökü (son ekleri kırpılmış hâli) soruda, etiketlerde ya da yanıtta geçmeli.
   // Eş anlamlı karşılık ("kayıt dondurma" → "izin") yalnızca soru ve etiketlerde aranır; yoksa her yanıt eşleşir.
@@ -1801,9 +1853,9 @@ async function viewMvYanitlar(r) {
       : alt.some(ws => ws.length && ws.every(w => head.includes(w))) ? 1 : 0;
   };
   const list = q ? ans.answers.map(x => [x, hit(x)]).filter(([, s]) => s).sort((a, b) => b[1] - a[1]).map(([x]) => x) : ans.answers;
-  let html = header('Mevzuat', 'Sık sorulan kurallar, dayandıkları maddeyle; ya da bütün mevzuatta ara') + mvSearchBox(q);
+  let html = header('Mevzuat', 'Sık sorulan kurallar, dayandıkları maddeyle; ya da bütün mevzuatta ara') + bar + mvSearchBox(q);
   if (q) {
-    html += list.length ? `<h2>Hızlı yanıtlar</h2>${list.map(x => mvAnswerCard(x, true)).join('')}` : '';
+    html += list.length ? `<h2>Hızlı yanıtlar</h2>${list.map(x => mvAnswerCard(x, true, plan)).join('')}` : '';
     html += `<h2>Mevzuatta “${esc(q)}”</h2>`;
     html += res.results.length
       ? `<p class="muted small">${res.total > res.results.length ? `En ilgili ${res.results.length} sonuç (toplam ${res.total})` : `${res.total} sonuç`}, ${res.docs} belgede${res.also?.length ? ` · “${esc(res.also.join('”, “'))}” olarak da arandı` : ''}</p>
@@ -1814,13 +1866,12 @@ async function viewMvYanitlar(r) {
     return html;
   }
   html += `<h2>Hızlı yanıtlar</h2><p class="muted small">Her yanıt, altında yazan maddeye dayanır. Uygulama her açılışta maddenin hâlâ aynı olduğunu denetler; değişmişse uyarır.</p>` +
-    list.map(x => mvAnswerCard(x, false)).join('') +
+    list.map(x => mvAnswerCard(x, false, plan)).join('') +
     `<p class="muted small">Yanıtlar bilgi amaçlıdır. Resmî işlemlerde güncel mevzuat ve Öğrenci İşleri esastır.</p>`;
   return html;
 }
 
-async function viewMvTumu(r) {
-  if (r.param) { const [id, at] = r.param.split('/'); return viewMvDoc(id, at); }
+async function viewMvTumu(bar = '') {
   const ix = await api('mevzuat');
   const row = i => {
     const d = i.dates;
@@ -1831,7 +1882,7 @@ async function viewMvTumu(r) {
       : `<a class="mi-main" href="${esc(i.url)}" target="_blank" rel="noopener">${icon('external')}<span>${esc(i.title)}</span></a>`;
     return `<div class="mi">${main}<div class="muted small">${esc([MV_KIND[i.kind], when].filter(Boolean).join(' · '))}</div></div>`;
   };
-  return header('Tüm Mevzuat', 'Okulun Mevzuat sayfasındaki belgeler; uygulamanın içinde madde madde açılır') + mvSearchBox() +
+  return header('Mevzuat', 'Okulun Mevzuat sayfasındaki bütün belgeler; uygulamanın içinde madde madde açılır') + bar + mvSearchBox() +
     ix.sections.map(s => {
       const main = s.items.filter(i => !i.other), other = s.items.filter(i => i.other);
       return `<h2>${esc(s.title)}</h2>` + (main.length ? `<div class="card mitems">${main.map(row).join('')}</div>` : '') +
@@ -1866,7 +1917,7 @@ async function viewMvDoc(id, at) {
   const toc = d.arts.length ? `<details class="card mv-toc"><summary>Maddeler (${d.arts.length})</summary><div class="mv-toc-list">${d.arts.map(a =>
     `<a href="${mvHref(d.id, a.a)}"><b>${esc(artLabel(a.a).replace('Madde ', ''))}</b> ${esc(a.t || '')}</a>`).join('')}</div></details>` : '';
   mvTarget = at || null;
-  return `<p class="mv-back"><a href="#/mevzuat/tumu">← Tüm mevzuat</a></p>` + header(d.title, [d.section, MV_KIND[d.kind]].filter(Boolean).join(' · ')) +
+  return `<p class="mv-back"><a href="#/ekstra/mevzuat/tumu">← Tüm mevzuat</a></p>` + header(d.title, [d.section, MV_KIND[d.kind]].filter(Boolean).join(' · ')) +
     `<div class="card mv-meta">${meta.length ? `<ul>${meta.map(m => `<li>${m}</li>`).join('')}</ul>` : ''}
       <a class="btn" href="${esc(d.url)}" target="_blank" rel="noopener">${icon('external')}Kaynağında aç</a></div>` +
     warns.map(w => `<div class="banner mv-banner">${w}</div>`).join('') + toc +
@@ -1889,7 +1940,7 @@ async function viewMvDuyurular(r) {
   if (r.param) return viewMvDuyuru(r.param);
   const n = await api('mevzuat-duyurular');
   return header('Öğrenci İşleri Duyuruları', 'Okulun Öğrenci İşleri sayfasındaki son duyurular') +
-    `<div class="card mitems">${n.items.map(x => `<div class="mi"><a class="mi-main" href="#/mevzuat/duyurular/${encodeURIComponent(x.path.split('/').pop())}">${icon('megaphone')}<span>${esc(x.title)}</span></a>
+    `<div class="card mitems">${n.items.map(x => `<div class="mi"><a class="mi-main" href="#/ekstra/duyurular/${encodeURIComponent(x.path.split('/').pop())}">${icon('megaphone')}<span>${esc(x.title)}</span></a>
       <div class="muted small">${esc(x.ago)}</div></div>`).join('')}</div>
      <p class="muted small">Kaynak: <a href="${esc(n.source)}" target="_blank" rel="noopener">Öğrenci İşleri</a></p>`;
 }
@@ -1900,7 +1951,7 @@ async function viewMvDuyuru(slug) {
     const old = l.newer?.older ? `<div class="banner mv-banner">Bu bağlantı belgenin <b>eski bir sürümüne</b> gidiyor (${fmtDay(l.uploaded)} tarihli dosya). Mevzuat sayfasındaki daha yeni sürüm: <a href="${mvHref(l.newer.id)}">${esc(l.newer.title)}</a>${l.newer.uploaded ? ` (${fmtDay(l.newer.uploaded)})` : ''}.</div>` : '';
     return `<div class="mi"><a class="mi-main" href="${esc(l.url)}" target="_blank" rel="noopener">${icon(l.kind === 'pdf' ? 'file' : 'external')}<span>${esc(l.text)}</span></a> ${read}${old}</div>`;
   }).join('');
-  return `<p class="mv-back"><a href="#/mevzuat/duyurular">← Duyurular</a></p>` + header(d.title, 'Öğrenci İşleri duyurusu') +
+  return `<p class="mv-back"><a href="#/ekstra/duyurular">← Duyurular</a></p>` + header(d.title, 'Öğrenci İşleri duyurusu') +
     `<div class="card mv-news">${d.paras.map(p => `<p>${esc(p)}</p>`).join('')}</div>` +
     (links ? `<h2>Bağlantılar</h2><div class="card mitems">${links}</div>` : '') +
     `<p><a class="btn" href="${esc(d.url)}" target="_blank" rel="noopener">${icon('external')}Okulun sitesinde aç</a></p>`;
@@ -1911,8 +1962,56 @@ document.addEventListener('submit', e => {
   if (!f) return;
   e.preventDefault();
   const q = f.q.value.trim();
-  location.hash = '#/mevzuat/yanitlar' + (q ? '/' + encodeURIComponent(q) : '');
+  location.hash = '#/ekstra/mevzuat' + (q ? '/ara/' + encodeURIComponent(q) : '');
 });
+
+// Mevzuat sayfası: üstte iki sekme (Hızlı Yanıtlar / Tüm Mevzuat); belge açıkken okuyucu
+const MV_TABS = [['', 'Hızlı Yanıtlar'], ['tumu', 'Tüm Mevzuat']];
+async function viewMevzuat(r) {
+  const p = r.param || '';
+  if (p.startsWith('belge/')) { const [, id, at] = p.split('/'); return viewMvDoc(id, at); }
+  const tab = p === 'tumu' ? 'tumu' : '';
+  const bar = `<div class="tabs">${MV_TABS.map(([id, label]) => `<a href="#/ekstra/mevzuat${id ? '/' + id : ''}" class="${id === tab ? 'on' : ''}">${label}</a>`).join('')}</div>`;
+  return tab === 'tumu' ? viewMvTumu(bar) : viewMvYanitlar({ param: p.startsWith('ara/') ? p.slice(4) : '' }, bar);
+}
+
+// "Senin durumun": hızlı yanıtın transkriptine (UBS) göre sana uygulanışı. Tahmindir; Öğrenci İşleri'nin hesabı esastır.
+function mvMine(id, p) {
+  if (!p || p.gano == null) return '';
+  const gno = parseFloat(String(p.gano).replace(',', '.'));
+  if (!Number.isFinite(gno)) return '';
+  const g = fmt2(gno);
+  const n = p.courseTerms?.length || 0;            // şimdiye kadarki ders dönemleri (içinde bulunulan dahil)
+  const nextN = n + 1;                               // başvurular dönemin başında: sıradaki dönem
+  const open = p.failedOpen ?? [];
+  const yes = s => `<span class="me-ok">${s}</span>`, no = s => `<span class="me-no">${s}</span>`;
+  const lines = [];
+  if (id === 'yap-basvuru' || id === 'cap-basvuru') {
+    const [lo, hi, min] = id === 'yap-basvuru' ? [3, 6, 3.0] : [3, 5, 3.3];
+    lines.push(`${esc(p.nextTerm || 'Gelecek dönem')} <b>${nextN}. ders dönemin</b> olacak: ` + (nextN >= lo && nextN <= hi
+      ? yes(`başvuru aralığındasın (${lo}.–${hi}.)${nextN === hi ? ', son hakkın' : ''}.`) : nextN < lo ? no(`henüz erken (en erken ${lo}. ders dönemi).`) : no(`başvuru dönemi geçmiş (en geç ${hi}.).`)));
+    lines.push(`GNO ${g}: ` + (gno >= min ? yes(`${fmt2(min)} şartını sağlıyorsun.`) : no(`${fmt2(min)} şartını şu an sağlamıyorsun.`)));
+    if (open.length) lines.push(`Henüz geçmediğin ders: ${open.map(f => esc(f.code) + (f.retaking ? ' (bu dönem alıyorsun)' : '')).join(', ')}. "Alman gereken bütün dersleri geçmiş olma" şartı için önemli.`);
+    if (id === 'cap-basvuru') lines.push('Sınıfındaki ilk %20 sıralaması transkriptte görünmüyor; Öğrenci İşleri belirler.');
+  }
+  if (id === 'cap-yap-ilisik') lines.push(`GNO ${g}: yandal sınırı 2,30 → ${gno >= 2.3 ? yes('üstündesin') : no('altındasın')}; ÇAP sınırı 2,75 → ${gno >= 2.75 ? yes('üstündesin') : no('altındasın')}.`);
+  if (id === 'vazgecme') {
+    const w = p.withdrawals?.length ?? 0, now = (p.withdrawals ?? []).some(x => x.term === p.currentTerm);
+    lines.push(`Transkriptine göre <b>${w}/6</b> vazgeçme hakkı kullanılmış` + (p.currentTerm ? (now ? '; bu dönemki hakkını kullandın.' : `; bu dönem (${esc(p.currentTerm)}) hakkın duruyor.`) : '.') +
+      (n < 3 ? ' 3. ders döneminden önce vazgeçilemez.' : ''));
+  }
+  if (id === 'tekrar') lines.push(`CC–BA notlu derslerden tekrar hakkı: <b>${p.improveUsed ?? 0}/${p.improveMax ?? 5}</b> kullanılmış.` +
+    (open.length ? ` Tekrar etmen gereken: ${open.map(f => esc(f.code)).join(', ')}.` : ''));
+  if (id === 'sinamali') lines.push(n <= 2 ? `İlk iki ders döneminde sınamalı/başarısız sayılmazsın (GNO ${g}).`
+    : `GNO ${g}: ${gno >= 2 ? yes('başarılı') : gno >= 1.5 ? no('sınamalı') : no('başarısız')} sayılıyorsun.`);
+  if (id === 'kredi' && p.limits) lines.push(`Programın ${p.programCredits} kredi: dönemde <b>en az ${p.limits.min}, en çok ${p.limits.max}</b> kredi alabilirsin.`);
+  if (id === 'azami-sure' && p.firstTerm) {
+    const y = parseInt(p.firstTerm, 10);
+    if (y) lines.push(`İlk lisans dönemin ${esc(p.firstTerm)}. Dört yıllık programdaysan azami süre <b>${y + 6}-${y + 7}</b> eğitim yılının sonunda doluyor (süreye sayılmayan izinler eklenir).`);
+  }
+  if (!lines.length) return '';
+  return `<div class="mv-me"><div class="mv-sub">Senin durumun <span class="muted">· transkriptine göre, tahmini</span></div><ul>${lines.map(l => `<li>${l}</li>`).join('')}</ul></div>`;
+}
 // ---------- Mevzuat sonu ----------
 
 // ---------- yönlendirme ----------
@@ -1924,13 +2023,20 @@ const views = {
   'ekstra/kadro': viewKadro, 'ekstra/yabanci-diller': viewYabanciDiller,
   'cap/capyap': viewCap, 'cap/staj': viewApply('staj'), 'cap/ogrenim': viewApply('ogrenim'), 'cap/mezun': viewApply('mezun'),
   ubs: viewUbs, uzakydb: viewUzakydb, webmail: viewWebmail, piazza: viewPiazza, hesap: viewHesap,
-  'mevzuat/yanitlar': viewMvYanitlar, 'mevzuat/tumu': viewMvTumu, 'mevzuat/duyurular': viewMvDuyurular,
+  'ekstra/mevzuat': viewMevzuat, 'ekstra/duyurular': viewMvDuyurular,
   'hakkinda/hakkimizda': viewHakkimizda, 'hakkinda/sss': viewSss, 'hakkinda/sorumluluk': viewSorumluluk,
 };
 
 // #/grup[/alt][/parametre…]: alt menüsü olan gruplarda alt sayfadan sonrası (ör. #/donem/derslerim/BIL214/uzak),
 // olmayanlarda gruptan sonrası (ör. #/ubs/<kodlanmış yol>) görünüme parametre olarak gider.
 function route() {
+  // Mevzuat menüsü Ekstra'nın altına taşındı: eski bağlantılar (son kullanılanlar, yer imleri) yenisine çevrilir
+  const old = location.hash.match(/^#\/mevzuat(?:\/(yanitlar|tumu|duyurular))?(?:\/(.*))?$/);
+  if (old) {
+    const [, s, rest] = old;
+    location.replace(s === 'duyurular' ? `#/ekstra/duyurular${rest ? '/' + rest : ''}` : s === 'tumu' ? `#/ekstra/mevzuat/${rest ? 'belge/' + rest : 'tumu'}`
+      : `#/ekstra/mevzuat${rest ? '/ara/' + rest : ''}`);
+  }
   const [g, s, ...rest] = location.hash.replace(/^#\/?/, '').split('/');
   const group = NAV.find(n => n.id === g) || NAV.find(n => n.id === 'anasayfa');
   const item = group.items && (group.items.find(i => i[0] === s) || group.items[0]);
@@ -1945,11 +2051,10 @@ function renderNav({ group, sub }) {
   // Marka: TOBB ETÜ logosundaki üç renk (mavi, kırmızı, turuncu) küçük bir işaret olarak
   $nav.innerHTML = `<a class="brand" href="#/anasayfa"><span class="mark" aria-hidden="true"><i></i><i></i><i></i></span>Ortam</a>` + NAV.map(n => {
     const href = '#/' + n.id + (n.items ? '/' + n.items[0][0] : '');
-    const dot = cnt => (cnt ? `<span class="nbadge" title="${cnt} yeni bildirim">${cnt}</span>` : '');
     const subs = n === group && n.items ? `<div class="subs">${n.items.map(([id, label]) =>
-      `<a href="#/${n.id}/${id}" class="${id === sub ? 'on' : ''}">${esc(label)}${n.id === 'donem' && id === 'derslerim' ? dot(notif.unread) : ''}</a>`).join('')}</div>` : '';
+      `<a href="#/${n.id}/${id}" class="${id === sub ? 'on' : ''}">${esc(label)}${n.id === 'donem' && id === 'derslerim' ? srcDots(notif.bySource, true) : ''}</a>`).join('')}</div>` : '';
     const cls = ['grp', n === firstBottom && 'push', n.extra && 'extra', n.rare && 'rare', n === group && 'on'].filter(Boolean).join(' ');
-    return `<a href="${href}" class="${cls}"${n === group ? ' aria-current="page"' : ''}>${icon(n.icon)}<span class="full">${esc(n.label)}</span><span class="short">${esc(n.short)}</span>${n.id === 'donem' ? dot(notif.unread) : ''}</a>${subs}`;
+    return `<a href="${href}" class="${cls}"${n === group ? ' aria-current="page"' : ''}>${icon(n.icon)}<span class="full">${esc(n.label)}</span><span class="short">${esc(n.short)}</span>${n.id === 'donem' ? srcDots(notif.bySource, true) : ''}</a>${subs}`;
   }).join('') + themeQuick();
 }
 

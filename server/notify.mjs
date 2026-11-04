@@ -1,6 +1,8 @@
 // Bildirimler: Piazza'ya ve Uzak'a yeni bir şey eklendiğinde haber verir.
 // - Piazza: etkin sınıfların gönderi akışı (sınıf başına tek istek) 30 dakikada bir.
 // - Uzak: kayıtlı derslerin sayfasındaki etkinlikler (dosya, ödev, duyuru forumu…) 60 dakikada bir.
+// - Akademik takvim: yaklaşan son tarihler (ders kaydı, ekle-sil, dersten vazgeçme, ÇAP/YAP başvurusu…) 6 saatte bir;
+//   3 gün kala, başladığı gün ve birden çok gün sürenlerde son gün birer kez hatırlatılır.
 // İlk kontrolde mevcut durum yalnızca kaydedilir (eski içerik için bildirim gelmez). Sonra yeni gönderi/etkinlik çıkınca:
 // uygulamada kayıt (derslerin üzerinde işaret), Windows bildirimi ve — ayar açıksa — kullanıcının kendi adresine özet e-posta.
 // Durum .cache/notify.json'da; sunucu kapalıyken kontrol yapılmaz, açılınca kaldığı yerden devam eder.
@@ -11,12 +13,13 @@ import { moodle } from './moodle.mjs';
 import { courseKey } from './courses.mjs';
 import * as webmail from './webmail.mjs';
 import * as credentials from './credentials.mjs';
+import * as etu from './etu.mjs';
 
 const FILE = '.cache/notify.json';
-const EVERY = { piazza: 30, uzak: 60 };            // dakika (okul sunucularını yormamak için seyrek)
+const EVERY = { piazza: 30, uzak: 60, takvim: 360 };   // dakika (okul sunucularını yormamak için seyrek)
 const KEEP = 200;                                  // saklanan en fazla bildirim
 
-let db = { seen: {}, items: [], settings: { toast: true, mail: true }, last: {} };
+let db = { seen: {}, items: [], settings: { toast: true, mail: true, takvim: true }, last: {} };
 let loaded = false;
 async function load() {
   if (loaded) return;
@@ -69,6 +72,48 @@ async function checkUzak() {
   return out;
 }
 
+// ---------- Akademik takvim hatırlatmaları ----------
+// Lisans takviminden öğrencinin kaçırmaması gereken satırlar (tatiller, hazırlık ve yabancı uyruklu öğrenci işleri hariç).
+const IMPORTANT = /ders kayıt|ekleme\/silme|ekle-sil|geç kayıt|dersten vazgeçme|çift ana ?dal|yan ?dal|yatay geçiş başvuru|öğrenim ücret|azami süre|ek sınav|dönem sonu sınavları|bütünleme sınavları|derslerin son günü|başarı notlarının bildirimi/i;
+const SKIP = /hazırlık|yabancı uyruklu|tatil|üniversite dışı/i;
+const DAY = 86_400_000;
+let calMemo = null;
+async function importantDates() {
+  if (!calMemo || Date.now() - calMemo.t > 6 * 3600_000) calMemo = { t: Date.now(), p: etu.calendar().catch(e => { calMemo = null; throw e; }) };
+  const cal = await calMemo.p;
+  const tab = cal.tabs.find(t => /lisans/i.test(t.title) && !/lisansüstü/i.test(t.title)) ?? cal.tabs[0];
+  return (tab?.terms ?? []).flatMap(term => term.items.map(i => ({ ...i, term: term.title })))
+    .filter(i => i.start && i.end && IMPORTANT.test(i.what) && !SKIP.test(i.what));
+}
+// Ana Sayfa için: önümüzdeki günlerde başlayan ya da sürmekte olan önemli tarihler
+export async function deadlines(days = 10) {
+  const now = Date.now();
+  const list = (await importantDates()).filter(i => i.end >= now && i.start <= now + days * DAY).sort((a, b) => a.start - b.start);
+  return { days, items: list.map(i => ({ when: i.when, what: i.what, term: i.term, start: i.start, end: i.end,
+    live: i.start <= now, last: i.end - i.start > DAY && i.end - now <= DAY })) };
+}
+async function checkTakvim() {
+  if (db.settings.takvim === false) return [];
+  const now = Date.now();
+  db.reminded ??= {};
+  const out = [];
+  const order = ['3', '0', 'son'];
+  for (const i of await importantDates()) {
+    const multi = i.end - i.start > DAY;
+    const key = `${i.when}|${i.what}`;
+    // En acil olan tek hatırlatma: son gün > başladığı gün > 3 gün kala (öncekiler de gönderilmiş sayılır)
+    let mark = null;
+    if (multi && now >= i.start && now <= i.end && i.end - now <= DAY) mark = ['son', `Bugün son gün: ${i.what}`];
+    else if (now >= i.start && now - i.start < DAY) mark = ['0', `${multi ? 'Bugün başlıyor' : 'Bugün'}: ${i.what} (${i.when})`];
+    else if (i.start > now && i.start - now <= 3 * DAY) mark = ['3', `${Math.ceil((i.start - now) / DAY)} gün sonra: ${i.what} (${i.when})`];
+    if (!mark || db.reminded[`${key}|${mark[0]}`]) continue;
+    for (const k of order.slice(0, order.indexOf(mark[0]) + 1)) db.reminded[`${key}|${k}`] = now;
+    out.push({ source: 'takvim', course: null, courseName: 'Akademik Takvim', title: 'Akademik Takvim', text: mark[1], link: '#/ekstra/takvim', read: true });
+  }
+  for (const [k, t] of Object.entries(db.reminded)) if (now - t > 90 * DAY) delete db.reminded[k];
+  return out;
+}
+
 // ---------- iletim ----------
 
 // Windows bildirimi (PowerShell ile; metin standart girdiden base64 gelir). Tıklayınca uygulamanın ilgili sayfası açılır.
@@ -103,7 +148,8 @@ async function mail(items) {
     subject: `[Ortam Sade · Bildirim] ${items.length === 1 ? `${items[0].title}: ${items[0].text}` : `${items.length} yeni içerik`}`.slice(0, 180),
     text: `ORTAM SADE BİLDİRİMİ\n${rule}\n${lines}\n${rule}\n\n` +
       `Bu e-postayı okul değil, bilgisayarınızda çalışan Ortam Sade uygulaması gönderdi: Piazza ya da Uzak'ta yeni içerik ` +
-      `görünce kendi okul adresinizden size kısa bir özet yollar. Okulun resmî bir duyurusu değildir.\n` +
+      `görünce ve Akademik Takvimdeki önemli bir tarih yaklaşınca kendi okul adresinizden size kısa bir özet yollar. ` +
+      `Okulun resmî bir duyurusu değildir; tarihler için okulun Akademik Takvimi esastır.\n` +
       `Kapatmak için: Ortam Sade > Hesap > Bildirimler > e-posta seçeneği.` });
 }
 
@@ -150,7 +196,7 @@ async function deliver(found) {
 async function run(source) {
   await load();
   try {
-    const found = source === 'piazza' ? await checkPiazza() : await checkUzak();
+    const found = source === 'piazza' ? await checkPiazza() : source === 'uzak' ? await checkUzak() : await checkTakvim();
     db.last[source] = Date.now();
     await save();
     await deliver(found);
@@ -173,9 +219,15 @@ export async function start() {
 export async function list() {
   await load();
   const unread = db.items.filter(n => !n.read);
-  const byCourse = {};
-  for (const n of unread) byCourse[n.course] = (byCourse[n.course] ?? 0) + 1;
-  return { items: db.items.slice(0, 50), unread: unread.length, byCourse, settings: db.settings, last: db.last,
+  // Kaynağa göre sayılar: menüde ve derslerin üzerinde Uzak (turuncu) ve Piazza (mavi) ayrı noktalarla gösterilir
+  const byCourse = {}, bySource = {}, byCourseSrc = {};
+  for (const n of unread) {
+    byCourse[n.course] = (byCourse[n.course] ?? 0) + 1;
+    bySource[n.source] = (bySource[n.source] ?? 0) + 1;
+    const c = (byCourseSrc[n.course] ??= {});
+    c[n.source] = (c[n.source] ?? 0) + 1;
+  }
+  return { items: db.items.slice(0, 50), unread: unread.length, byCourse, bySource, byCourseSrc, settings: { takvim: true, ...db.settings }, last: db.last,
     outbox: (db.outbox ?? []).length, lastMail: db.lastMail ?? null };
 }
 
@@ -189,7 +241,7 @@ export async function markRead(course) {
 
 export async function setSettings(s) {
   await load();
-  for (const k of ['toast', 'mail']) if (typeof s[k] === 'boolean') db.settings[k] = s[k];
+  for (const k of ['toast', 'mail', 'takvim']) if (typeof s[k] === 'boolean') db.settings[k] = s[k];
   await save();
   return db.settings;
 }
@@ -197,7 +249,7 @@ export async function setSettings(s) {
 // "Şimdi kontrol et": iki kaynağı hemen kontrol eder (aynı kurallarla; yeni bir şey varsa bildirir).
 let checking = null;
 export function checkNow() {
-  checking ??= (async () => { await run('piazza'); await run('uzak'); return list(); })().finally(() => { checking = null; });
+  checking ??= (async () => { await run('piazza'); await run('uzak'); await run('takvim'); return list(); })().finally(() => { checking = null; });
   return checking;
 }
 

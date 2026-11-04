@@ -46,6 +46,14 @@ export async function plan() {
   })) : [];
   const programCredits = curriculum.reduce((a, s) => a + s.courses.reduce((b, c) => b + c.credit, 0), 0) || null;
   const currentSem = tr.terms.length;                     // hazırlık hariç kaçıncı dönem
+  // Mevzuat ekranındaki "senin durumun" için: ders dönemleri (Ortak Eğitim dışı), vazgeçilen (V) dersler,
+  // son denemesi FF/K olan (henüz geçilmemiş) dersler
+  const isOE = c => /^OEG\b/i.test(norm(c.code));
+  const courseTerms = tr.terms.filter(s => s.courses.some(c => !isOE(c))).map(s => s.name);
+  const withdrawals = tr.terms.flatMap(s => s.courses.filter(c => /^V$/i.test(norm(c.grade))).map(c => ({ code: norm(c.code), term: s.name })));
+  const lastOf = new Map();
+  for (const a of attempts) lastOf.set(a.code, a);
+  const failedOpen = [...lastOf.values()].filter(a => a.grade === 'FF').map(a => ({ code: a.code, term: a.term, retaking: current.some(c => c.code === a.code) }));
   const nextSem = curriculum.find(s => s.sem > currentSem && s.courses.some(c => c.credit > 0))?.sem ?? currentSem + 1;
   return {
     gano: tr.gano, totals: tr.totals, attempts, current,
@@ -54,5 +62,6 @@ export async function plan() {
     programCredits,
     limits: programCredits ? { min: Math.floor(programCredits * 0.09), max: Math.ceil(programCredits * 0.16) } : null,
     improveUsed, improveMax: 5,
+    firstTerm: tr.terms[0]?.name || '', courseTerms, withdrawals, failedOpen,
   };
 }

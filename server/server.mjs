@@ -25,11 +25,12 @@ const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PUBLIC = path.join(ROOT, 'public');
 const PDFJS = path.join(ROOT, 'node_modules', 'pdfjs-dist');   // PDF görüntüleyici (tarayıcıda çalışır), /vendor/pdfjs/ altından sunulur
 const CACHE_DIR = '.cache/api';
-const CACHE_VER = 11;            // ayrıştırıcıların çıktısı değişince artır: eski kayıtlar açılışta silinir
+const CACHE_VER = 12;            // ayrıştırıcıların çıktısı değişince artır: eski kayıtlar açılışta silinir
 const STALE_AFTER = 20_000;      // varsayılan: kayıtlı veri hemen gösterilir, bu süreden eskiyse arka planda yenilenir
 // Seyrek değişen bilgiler okulun sunucusuna her açılışta sorulmaz (dakika cinsinden).
 const STALE_MIN = { exams: 10, schedule: 30, courses: 30, course: 360, derslerim: 10, mufredat: 60, bilgilerim: 60, notlar: 10,
-  ortak: 60, 'yabanci-dil': 60, odeme: 60, cap: 60, 'ortam-acilan': 360, 'ortam-basvuru': 10, 'etu-takvim': 1440, 'etu-fakulteler': 1440, 'etu-kadro': 1440, 'uzak-course': 10, 'piazza-resources': 30, 'uzakydb-course': 10, ubs: 5, plan: 10 };
+  ortak: 60, 'yabanci-dil': 60, odeme: 60, cap: 60, 'ortam-acilan': 360, 'ortam-basvuru': 10, 'etu-takvim': 1440, 'etu-fakulteler': 1440, 'etu-kadro': 1440, 'uzak-course': 10, 'piazza-resources': 30, 'uzakydb-course': 10, ubs: 5, plan: 10,
+  'ortam-duyuru': 30, 'uzakydb-ek': 360, hatirlatmalar: 360 };
 const staleAfter = name => (STALE_MIN[name] ?? 0) * 60_000 || STALE_AFTER;
 const TYPES = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
   '.mjs': 'text/javascript; charset=utf-8', '.svg': 'image/svg+xml', '.json': 'application/json; charset=utf-8', '.wasm': 'application/wasm' };
@@ -61,6 +62,9 @@ const routes = {
   'etu-takvim': ['etu', etu.calendar], 'etu-fakulteler': ['etu', etu.faculties], 'etu-kadro': ['etu', etu.staffIndex],
   'ortam-basvuru': ['ortam', q => ortam.applyPage(q.get('path'))],   // hareketlilik formları ve başvurularım
   derslerim: ['ortam', courses.derslerim],
+  'ortam-duyuru': ['ortam', ortam.notices],               // Ortam ana sayfasındaki anket ve duyuru kartları
+  'uzakydb-ek': ['uzakydb', () => moodle('uzakydb').extras()],   // UZAKYDB panosu ve ön sayfasındaki ek bloklar/duyurular
+  hatirlatmalar: ['etu', () => notify.deadlines()],        // Akademik takvimde yaklaşan son tarihler
   plan: ['ubs', planner.plan],                             // ortalama ve ders planı verisi (transkript + müfredat)                 // Ortam + Uzak + Piazza birleşik ders listesi
   ubs: ['ubs', ubs.home], 'ubs-page': ['ubs', q => ubs.page(q.get('path'))],
   uzakydb: ['uzakydb', () => moodle('uzakydb').home()], uzak: ['uzak', () => moodle('uzak').home()],

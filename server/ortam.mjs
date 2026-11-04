@@ -65,7 +65,35 @@ export async function notlar() {
   const liste = pane('#home').map(t => ({ term: t.term, courses: t.rows.map(r => ({
     code: r['Ders Kodu'], name: r['Ders Adı'], type: r['Ders Türü'], branch: r['Dal Türü'], repeat: r['Tekrar Dersi'], grade: r['Harf Notu'] })) }));
   const donemlik = pane('#profile').map(t => ({ term: t.term, courses: t.rows.map(r => ({ code: r['Ders Kodu'], grade: r['Harf Notu'] })) }));
-  return { identity: identity($), liste, donemlik };
+  // Dönem sonunda notlar ders değerlendirme anketi doldurulmadan gösterilmeyebilir: sayfa not yerine anket uyarısı/bağlantısı
+  // verirse arayüz bunu gösterir ve anketi okulun sitesinde açar (anket uygulamada doldurulmaz).
+  let survey = null;
+  const body = txt($('#kt_content').text());
+  if (/anket/i.test(body) && (!liste.length || $('#kt_content a[href*="nket"], #kt_content form[action*="nket"]').length)) {
+    const a = $('#kt_content a[href*="nket"]').first();
+    survey = { text: (body.match(/[^.]*anket[^.]*\./i) || [])[0]?.slice(0, 400) || 'Notları görmek için önce anketleri doldurman gerekiyor.',
+      link: a.length ? new URL(a.attr('href'), 'https://ortam.etu.edu.tr').href : 'https://ortam.etu.edu.tr/bilgilerim/not-goruntuleme' };
+  }
+  return { identity: identity($), liste, donemlik, survey };
+}
+
+// Ortam ana sayfasındaki dönemsel kartlar (anketler, duyurular). Ders programı, ortalama, Zoom istatistiği gibi
+// sabit kartlar atlanır; geri kalan her kart (ör. "Servis Hizmeti Değerlendirme Anketi") uygulamanın Ana Sayfasında
+// "Ortam'da seni bekleyen" olarak gösterilir. Anket formları uygulamada doldurulmaz, Ortam'da açılır.
+const HOME_FIXED = /^(Ortalama Değişimi|Yaklaşan Dersler|Ders Programı|Profilim)$|Kayıt Onayı|Zoom|Toplam Süre/i;
+export async function notices() {
+  const $ = await load('/');
+  const out = [];
+  $('#kt_content .container .card').each((_, c) => {
+    const $c = $(c);
+    if ($c.parents('.card').length) return;
+    const title = txt($c.find('.card-header .card-title, .card-title, .card-label').first().text());
+    if (!title || HOME_FIXED.test(title)) return;
+    const survey = $c.find('form').length > 0 || /anket/i.test(title);
+    const text = txt($c.find('.card-body p').first().text() || $c.find('.card-body').first().text()).slice(0, 300);
+    out.push({ id: $c.attr('id') || title, title, kind: survey ? 'anket' : 'duyuru', text });
+  });
+  return { items: out, url: 'https://ortam.etu.edu.tr/' };
 }
 
 export async function mufredat() {

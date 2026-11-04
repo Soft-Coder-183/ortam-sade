@@ -74,7 +74,8 @@ export const ANSWERS = [
   {
     id: 'butunleme-mes', tags: ['bütünleme', 'MES', 'mezuniyet ek sınavı'],
     q: 'Bütünleme var mı? Mezuniyet ek sınavı (MES) nedir?',
-    a: 'Lisansta **bütünleme sınavı yoktur**; dönem sonu sınavı son sınavdır. Mezuniyete **tek dersin** kaldıysa (son Ortak Eğitim hariç), harf notlarının ilanından sonraki **3 iş günü** içinde bölümüne yazılı başvurup o dersten bir kereye mahsus **MES** hakkı alabilirsin. MES ile alınabilecek en yüksek not **CC**\'dir. Uygulamalı, laboratuvar ve proje derslerinde MES yoktur.',
+    a: '**Kaynaklar çelişiyor.** mevzuat.gov.tr\'deki Lisans Yönetmeliği metni (12.09.2011, işlenmiş değişiklik yok) "bütünleme sınavı hakkı verilmez" diyor. Ama okulun güncel **Akademik Takviminde lisans için bütünleme sınavı tarihleri var** (aşağıda). Yani uygulama değişmiş, ancak değişiklik bu metne işlenmemiş. Kimlerin girebileceği ve notun nasıl hesaplanacağı için Öğrenci İşleri\'ne ya da danışmanına sor. Mezuniyete **tek dersin** kaldıysa (son Ortak Eğitim hariç) ayrıca **MES** var: harf notlarının ilanından sonraki **3 iş günü** içinde bölümüne yazılı başvurursun. MES\'te alınabilecek en yüksek not **CC**\'dir. Uygulamalı, laboratuvar ve proje derslerinde MES yoktur.',
+    calendar: /bütünleme/i,
     cites: [
       { doc: LISANS, a: '22', quote: 'ayrıca bütünleme sınavı niteliğinde bir sınav hakkı verilmez' },
       { doc: LISANS, a: '33', quote: 'kaldıkları tek ders eksiği ile … dönem sonu harf notlarının ilanını takip eden üç iş günü … Bu not en yüksek CC harf notu olabilir' },

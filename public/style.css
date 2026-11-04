@@ -776,3 +776,93 @@ a.seb { display: inline-block; padding: 6px 12px; border-radius: 8px; border: 1p
 .mi .btn { margin: 6px 0 0 27px; }
 .mi .mv-banner { margin: 8px 0 0 27px; }
 .mv-banner { font-weight: 400; }
+
+/* ---------- Kaynak renkleri: Uzak (kırmızımsı turuncu), Piazza (mavi) ---------- */
+:root { --uzak: #e2583a; --pz: #2f6fdb; --on-src: #ffffff; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --uzak: #ff8a66; --pz: #7aa7f7; --on-src: #10141a; } }
+:root[data-theme="dark"] { --uzak: #ff8a66; --pz: #7aa7f7; --on-src: #10141a; }
+.ndots { display: inline-flex; gap: 4px; margin-left: auto; }
+.subs .ndots, .badges .ndots { margin-left: 8px; }
+.ndots .nbadge { margin-left: 0; }
+.nbadge.src-uzak { background: var(--uzak); color: var(--on-src); }
+.nbadge.src-piazza { background: var(--pz); color: var(--on-src); }
+.sdot { display: inline-block; flex: none; width: 8px; height: 8px; margin-right: 7px; border-radius: 50%; vertical-align: middle; background: var(--line-2); }
+.sdot.src-uzak { background: var(--uzak); }
+.sdot.src-piazza { background: var(--pz); }
+.sdot.src-takvim { background: var(--accent); }
+/* Derslerim: Uzak etiketi en yakın sınavdaki gibi yavaşça dönen ETÜ mavi–kırmızı–sarı çerçeveyle, Piazza mavi */
+.pill.src-uzak { border: 1.5px solid transparent; color: var(--ink);
+  background: linear-gradient(var(--card), var(--card)) padding-box,
+    conic-gradient(from var(--exam-ang), var(--accent), var(--red), var(--yellow), var(--accent)) border-box;
+  animation: exam-spin 8s linear infinite; }
+.pill.src-piazza { background: color-mix(in srgb, var(--pz) 13%, var(--card)); color: var(--pz); border: 1.5px solid color-mix(in srgb, var(--pz) 35%, transparent); }
+@media (prefers-reduced-motion: reduce) { .pill.src-uzak { animation: none; } }
+
+/* ---------- Sınav takvimi: her sınav tek satır, bir bakışta okunur ---------- */
+.exam.xrow { display: grid; align-items: center; column-gap: 18px; row-gap: 4px; padding: 14px 18px;
+  grid-template-columns: 64px 5.8em minmax(0, 1fr) 9.6em minmax(7em, 11em) 7.6em;
+  grid-template-areas: "date code name time room rel"; }
+.exam.xrow .date { grid-area: date; min-width: 0; }
+.exam.xrow .date b { font-size: 1.7rem; }
+.exam.xrow .date span { display: block; margin-top: 2px; font-size: .76rem; font-weight: 650; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); white-space: nowrap; }
+.x-code { grid-area: code; font-size: 1.08rem; font-weight: 750; white-space: nowrap; }
+.x-name { grid-area: name; font-size: 1.02rem; min-width: 0; line-height: 1.3; }
+.x-type { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 6px; font-size: .74rem; font-weight: 650; background: var(--info-soft); color: var(--info); vertical-align: 1px; }
+.x-time, .x-room { display: flex; align-items: center; gap: 7px; min-width: 0; font-size: 1.04rem; font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.x-time { grid-area: time; }
+.x-room { grid-area: room; }
+.x-time .ic { color: var(--muted); flex: none; }
+.x-room .ic { color: var(--red); flex: none; }
+.x-room span { overflow: hidden; text-overflow: ellipsis; }
+.exam.xrow .pill { grid-area: rel; grid-column: auto; justify-self: end; white-space: nowrap; }
+.exam.xrow.past { opacity: .55; }
+@media (max-width: 900px) {
+  .exam.xrow { grid-template-columns: 52px auto auto minmax(0, 1fr) auto; grid-template-areas: "date code time room rel" "date name name name name"; column-gap: 14px; }
+  .exam.xrow .date b { font-size: 1.45rem; }
+}
+@media (max-width: 560px) {
+  .exam.xrow { grid-template-columns: 44px auto auto minmax(0, 1fr); grid-template-areas: "date code time room" "date name name rel"; column-gap: 10px; padding: 12px 14px; }
+  .x-code { font-size: 1rem; } .x-time, .x-room { font-size: .96rem; gap: 4px; } .x-name { font-size: .93rem; color: var(--muted); }
+  .x-time .ic, .x-room .ic { width: 15px; height: 15px; }
+}
+
+/* ---------- Mevzuat: senin durumun ---------- */
+.mv-me { margin-top: 12px; padding: 10px 14px; border-radius: 10px; background: var(--accent-soft); }
+.mv-me .mv-sub { margin-top: 0; }
+.mv-me ul { margin: 6px 0 0; padding-left: 18px; }
+.mv-me li { padding: 2px 0; line-height: 1.5; }
+.me-ok { color: var(--green); font-weight: 650; }
+.me-no { color: var(--warn); font-weight: 650; }
+
+/* ---------- Ana Sayfa: Ortam'da bekleyenler, UZAKYDB ek içerik, yaklaşan son tarihler ---------- */
+.banner.hn { justify-content: space-between; }
+.banner.hn > span { display: flex; gap: 10px; align-items: flex-start; }
+.banner.hn > span > .ic { flex: none; margin-top: 2px; }
+.banner.hn .btn { margin: 0; }
+.hn-dates { margin-bottom: 16px; }
+.hn-dates ul { list-style: none; margin: 8px 0 0; padding: 0; }
+.hn-dates li { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; }
+.hn-dates li .ic { flex: none; color: var(--muted); margin-top: 2px; }
+.hn-dates li.live b { color: var(--green); }
+.ydb-x { margin-bottom: 10px; } .ydb-x p { margin: 6px 0 0; } .ydb-x .btn { margin: 4px 6px 0 0; }
+.notif-list li, .news li { display: flex; align-items: baseline; gap: 2px 6px; flex-wrap: wrap; }
+/* Menüde bildirim: kaynak renginde sade noktalar (ikisi de varsa iki nokta) */
+.ndot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 0 2px var(--card); }
+.ndot.src-uzak { background: var(--uzak); }
+.ndot.src-piazza { background: var(--pz); }
+.ndots.plain { gap: 5px; align-items: center; }
+@media (max-width: 800px) { #nav .ndots.plain { position: absolute; top: 5px; right: calc(50% - 20px); gap: 3px; } #nav .ndot { width: 9px; height: 9px; } }
+/* Sınav tarihi: masaüstünde "KAS · PZT", telefonda ay ve gün alt alta */
+.exam.xrow .date .wd { font-style: normal; }
+.exam.xrow .date .wd::before { content: " · "; }
+@media (max-width: 560px) {
+  .exam.xrow { grid-template-columns: 46px auto auto minmax(0, 1fr); }
+  .exam.xrow .date .wd { display: block; }
+  .exam.xrow .date .wd::before { content: none; }
+  .x-room { white-space: normal; }
+  .x-room span { overflow: visible; }
+}
+@media (min-width: 561px) and (max-width: 900px) {
+  .exam.xrow { grid-template-columns: 66px auto auto minmax(0, 1fr) auto; }
+  .x-room { white-space: normal; } .x-room span { overflow: visible; }
+}

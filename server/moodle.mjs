@@ -62,6 +62,38 @@ function create(site) {
     };
   }
 
+  // Dönemsel ek içerik: panodaki (/my/) standart olmayan bloklar (ör. "Safe Exam Browser indir", sınav duyurusu) ve
+  // ön sayfadaki site duyuruları. Ders içerikleri ve etkinlikler zaten ders sayfalarında; bunlar ders dışında kalanlar.
+  const STD_BLOCKS = new Set(['timeline', 'calendar_month', 'calendar_upcoming', 'recentlyaccesseditems', 'myoverview', 'starredcourses',
+    'online_users', 'badges', 'private_files', 'navigation', 'settings', 'lp', 'recentlyaccessedcourses', 'course_list', 'search_forums',
+    'news_items', 'activity_modules', 'site_main_menu', 'login', 'calendar']);
+  async function extras() {
+    const blocks = [];
+    const read = async path => {
+      const $ = cheerio.load(await getPage(site, path));
+      $('script,style').remove();
+      $('section.block[data-block], div.block[data-block]').each((_, b) => {
+        const name = $(b).attr('data-block');
+        if (STD_BLOCKS.has(name)) return;
+        const body = $(b).find('.card-text, .content').first();
+        const text = txt(body.text()).slice(0, 600);
+        if (!text) return;
+        blocks.push({ title: txt($(b).find('h5, h3, .card-title').first().text()) || 'Duyuru', text,
+          links: body.find('a[href]').map((_, a) => ({ text: txt($(a).text()) || $(a).attr('href'), url: $(a).attr('href') })).get().slice(0, 8) });
+      });
+      // Ön sayfadaki site duyuruları ve konu metni
+      $('#site-news-forum .forumpost, #frontpage-news-forum .forumpost, .sitetopic .no-overflow').each((_, p) => {
+        const text = txt($(p).find('.post-content-container, .content, .posting').first().text() || $(p).text()).slice(0, 600);
+        if (text) blocks.push({ title: txt($(p).find('h3, h4, .subject').first().text()) || 'Site duyurusu', text,
+          links: $(p).find('a[href]').map((_, a) => ({ text: txt($(a).text()) || $(a).attr('href'), url: $(a).attr('href') })).get().slice(0, 8) });
+      });
+    };
+    await read('/my/');
+    await read('/?redirect=0');
+    const seen = new Set();
+    return { site, items: blocks.filter(b => !seen.has(b.text) && seen.add(b.text)), url: SITES[site].base };
+  }
+
   // Yalnızca kayıtlı dersler (Derslerim birleştirmesi için).
   async function courses() {
     const [c] = await call([COURSES]);
@@ -159,5 +191,5 @@ function create(site) {
     return { url: `${BASE}/mod/url/view.php?id=${cm}` };
   }
 
-  return { call, home, courses, course, page, file, link };
+  return { call, home, extras, courses, course, page, file, link };
 }

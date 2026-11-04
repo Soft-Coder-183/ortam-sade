@@ -9,13 +9,19 @@ toplayan, **senin bilgisayarında çalışan** açık kaynaklı bir öğrenci pr
 ## Neler var?
 
 - **Ana Sayfa:** bugünkü dersler (ve varsa sınavlar), yaklaşan sınavlar, posta, Piazza; en son kullandığın 6 sayfa.
+  Üstte: Ortam'da seni bekleyen anket ve duyurular, UZAKYDB'deki dönemsel ek içerik ve Akademik Takvimde yaklaşan son tarihler.
 - **Derslerim:** her dersin Piazza gönderileri ve kaynakları, Uzak içeriği ve Ortam'daki "Derse Bakış" tek sayfada.
 - **Ders Programım:** şu anki saat çizgisi; sınavlar kendi haftasında, yeriyle birlikte.
-- **Sınav Takvimi:** hangi sınav dönemindeysen (Ara Sınav / Final / Bütünleme), kalan süre renkleriyle.
+- **Sınav Takvimi:** hangi sınav dönemindeysen (Ara Sınav / Final / Bütünleme); her sınav tek satırda: tarih ve gün, ders,
+  saat, yer ve kalan süre.
 - **Ortalama ve Ders Planı:** GNO, kredi durumu, dönemlik kredi sınırı, hedef not ve yükseltme hesabı (yönetmeliğe göre).
 - **Webmail:** okundu/okunmadı senkronizasyonu, yazma/yanıtlama/silme, yıldızlar, isteğe bağlı otomatik silme (Çöp'e taşır).
 - **UBS, UZAKYDB, Piazza** kendi sade arayüzleriyle; PDF'ler uygulamanın içinde açılır.
-- **Bildirimler:** Piazza ve Uzak'a yeni içerik gelince Windows bildirimi ve isteğe bağlı özet e-posta.
+- **Bildirimler:** Piazza ve Uzak'a yeni içerik gelince Windows bildirimi ve isteğe bağlı özet e-posta; menüde ve derslerin
+  üzerinde kaynağın renginde nokta (Uzak turuncu, Piazza mavi). Akademik Takvimdeki önemli tarihler (ders kaydı, ekle-sil,
+  dersten vazgeçme, ÇAP/YAP başvurusu, sınavlar) için 3 gün kala, başladığı gün ve son gün hatırlatma.
+- **Senin durumun:** Mevzuat yanıtlarında transkriptine göre kişisel değerlendirme (ör. YAP'a hangi dönem başvurabileceğin,
+  GNO şartı, kalan dersten vazgeçme ve not yükseltme hakların).
 - **Mevzuat:** okulun Mevzuat sayfasındaki kanun, yönetmelik ve yönergeler uygulamanın içinde madde madde okunur ve aranır
   ("kayıt dondurma", "YAP" gibi gündelik sözlerle de). Sık sorulan kurallar (ÇAP/YAP başvurusu, dersten vazgeçme, ders tekrarı,
   mazeret, not itirazı, MES, dönem izni…) dayandıkları maddeyle kısa yanıt olarak verilir. Uygulama, alıntılanan maddenin hâlâ
@@ -66,6 +72,8 @@ Yalnızca açtığın ekranın sayfası okuldan istenir ve kısa süre önbellek
 | UBS oturumunu açık tutma | 15 dakikada bir |
 | Webmail / Uzak / UZAKYDB / Piazza oturumu | 2,5–4 saatte bir |
 | Piazza yeni gönderi kontrolü | 30 dakikada bir |
+| Akademik Takvim hatırlatmaları (okulun herkese açık sitesi) | 6 saatte bir |
+| Ortam ana sayfa anket/duyuruları, UZAKYDB ek içerik | yalnızca Ana Sayfa / UZAKYDB açılınca (30 dk / 6 sa önbellek) |
 | Uzak yeni içerik kontrolü | saatte bir |
 | Yeni sürüm denetimi (GitHub) | 6 saatte bir |
 | Mevzuat metinleri (mevzuat.gov.tr, okulun sitesi) | yalnızca Mevzuat açılınca; her belge haftada en fazla bir kez |
