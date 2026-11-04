@@ -201,6 +201,15 @@ export function checkNow() {
   return checking;
 }
 
+// Yeni sürüm: her sürüm için bir kez Windows bildirimi (tıklayınca uygulama açılır, güncelleme sorusu orada).
+export async function announceUpdate(version) {
+  await load();
+  if (db.updateToasted === version) return;
+  db.updateToasted = version;
+  await save();
+  toast(`Yeni sürüm: ${version}`, 'Güncellemek ister misiniz? Uygulamayı açıp "Güncelle"ye basın.', '');
+}
+
 // Hesap ekranındaki "deneme bildirimi": yalnızca Windows bildirimi gösterir (e-posta göndermez).
 export function testToast() {
   toast('Bildirim denemesi', 'Bildirimler bu bilgisayarda böyle görünecek.', '#/hesap');

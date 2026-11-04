@@ -7,5 +7,5 @@ echo Ortam Sade baslatiliyor; tarayicida kendiliginden acilacak.
 echo Bu pencere acik kaldikca uygulama calisir. Kapatinca uygulama durur.
 echo.
 if exist "runtime\node.exe" (set "NODE=runtime\node.exe") else (set "NODE=node")
-"%NODE%" server\server.mjs
+"%NODE%" server\start.mjs
 if errorlevel 1 (echo. & echo Ortam Sade baslatilamadi. Node.js bulunamadiysa GitHub Releases sayfasindaki paketli surumu indirin. & pause)

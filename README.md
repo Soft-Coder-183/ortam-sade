@@ -30,6 +30,18 @@ toplayan, **senin bilgisayarında çalışan** açık kaynaklı bir öğrenci pr
 - Windows "bilinmeyen yayımcı" uyarısı verirse: *Ek bilgi → Yine de çalıştır*. (Dosya imzasız bir betik; içeriğini bu depoda görebilirsin.)
 - Gerekenler: Google Chrome **veya** Microsoft Edge (Ortam girişi ve PDF oluşturma için). Node.js kurmana gerek yok, pakette var.
 
+## Güncelleme
+
+Yeni sürüm çıkınca uygulama sağ altta **"Ortam Sade x.y.z yayınlandı — güncellemek ister misin?"** diye sorar (bir kez de Windows bildirimi gelir).
+**Görünmez güncelleme yoktur:** "Güncelle"ye basmadan hiçbir şey indirilmez. Basınca:
+
+1. Sürüm dosyası yalnızca bu deponun GitHub Releases sayfasından indirilir ve GitHub'ın yayımladığı **SHA-256 özetiyle doğrulanır**; uyuşmazsa kurulmaz.
+2. Uygulama dosyaları değiştirilir (eski sürüm kurulum bitene kadar yedekte durur, hata olursa geri konur). Şifren, oturumların ve ayarların (`.cache`) korunur.
+3. Uygulama kendini yeniden başlatır, açık sayfa yenilenir.
+
+Sürümü ve "Güncellemeleri denetle" düğmesini **Hakkında ve SSS → Hakkımızda** sayfasında bulabilirsin.
+> 1.0.0 kullanıyorsan bu özellik sende yok: 1.1.0'ı bir kez elle indirip eski klasörün üzerine çıkarman yeterli (`.cache` klasörün korunur).
+
 ## Güvenlik ve gizlilik
 
 - Uygulama yalnızca **senin bilgisayarında** çalışır ve yalnızca `127.0.0.1`'den erişilebilir; okulun sitelerine doğrudan, senin oturumunla bağlanır. Arada başka bir sunucu yoktur.
@@ -50,6 +62,7 @@ Yalnızca açtığın ekranın sayfası okuldan istenir ve kısa süre önbellek
 | Webmail / Uzak / UZAKYDB / Piazza oturumu | 2,5–4 saatte bir |
 | Piazza yeni gönderi kontrolü | 30 dakikada bir |
 | Uzak yeni içerik kontrolü | saatte bir |
+| Yeni sürüm denetimi (GitHub) | 6 saatte bir |
 
 O aralıkta siteye zaten bir istek gittiyse oturum kontrolü atlanır. Uygulama kapalıyken hiçbir istek yapılmaz.
 

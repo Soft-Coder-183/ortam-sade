@@ -704,3 +704,16 @@ a.seb { display: inline-block; padding: 6px 12px; border-radius: 8px; border: 1p
 .ad-tog.on { opacity: 1; color: var(--accent); background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 35%, transparent); }
 .ad-tog.fixed { cursor: default; }
 @media (max-width: 760px) { .mail summary .ad-tog { justify-self: start; } }
+
+/* Güncelleme kartı (sağ altta; telefonda alt çubuğun üstünde) */
+.upd { position: fixed; right: 20px; bottom: 20px; z-index: 60; width: min(380px, calc(100vw - 32px)); box-shadow: var(--shadow-2);
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
+.upd-h { display: flex; gap: 8px; align-items: center; color: var(--accent); }
+.upd p { margin: 6px 0 0; }
+.upd details { margin-top: 8px; }
+.upd summary { cursor: pointer; color: var(--accent); }
+.upd-notes { white-space: pre-line; max-height: 180px; overflow: auto; margin-top: 6px; color: var(--ink); }
+.upd-act { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
+.upd-act button { margin: 0; }
+.upd-msg:empty { display: none; }
+@media (max-width: 760px) { .upd { right: 16px; bottom: 80px; } }

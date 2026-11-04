@@ -17,6 +17,7 @@ import * as courses from './courses.mjs';
 import * as planner from './plan.mjs';
 import * as notify from './notify.mjs';
 import * as webmail from './webmail.mjs';
+import * as update from './update.mjs';
 
 const PORT = Number(process.env.PORT) || 3000;
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -218,6 +219,19 @@ const srv = http.createServer(async (req, res) => {
     if (name === 'account' && req.method === 'GET') return send(200, await accountStatus());
 
     // Bildirimler (Piazza/Uzak'taki yenilikler): liste, okundu işaretleme, ayarlar, deneme
+    // Güncelleme: denetim (GET) ve yalnızca kullanıcının onayıyla kurulum (POST). Kurulumdan sonra başlatıcı yeni sürümü açar.
+    if (name === 'update' && req.method === 'GET') {
+      try { return send(200, await update.check(url.searchParams.get('force') === '1')); }
+      catch (e) { return send(200, { ...update.status(), error: 'Güncelleme denetlenemedi: ' + e.message }); }
+    }
+    if (name === 'update/apply' && req.method === 'POST') {
+      try {
+        const r = await update.apply();
+        send(200, r);
+        setTimeout(() => process.exit(update.RESTART_CODE), 800);
+        return;
+      } catch (e) { return send(500, { error: e.message }); }
+    }
     if (name === 'notifications' && req.method === 'GET') return send(200, await notify.list());
     if (name.startsWith('notifications/') && req.method === 'POST') {
       try {
@@ -353,4 +367,8 @@ for (const f of await fs.readdir(CACHE_DIR).catch(() => []))          // eski s�
 await credentials.load();
 notify.start();                  // Piazza/Uzak yenilik kontrolü (ilk turda yalnızca mevcut durum kaydedilir)
 webmail.startAuto();             // okunan e-postaları 12 saat sonra Çöp'e taşıma (ayar kapalıyken hiçbir şey yapmaz)
+// Yeni sürüm denetimi: açılıştan 1 dk sonra ve 6 saatte bir; yeni sürüm ilk görüldüğünde bir kez Windows bildirimi.
+const checkUpdate = () => update.check().then(u => u.newer && notify.announceUpdate(u.latest)).catch(() => {});
+setTimeout(checkUpdate, 60_000);
+setInterval(checkUpdate, 6 * 3600_000);
 for (const [site, s] of Object.entries(SITES)) { setInterval(() => ping(site), s.ping.every * 60_000); ping(site); }

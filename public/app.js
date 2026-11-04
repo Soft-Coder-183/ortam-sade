@@ -1697,7 +1697,8 @@ async function submitAccount(f) {
 
 // ---------- Hakkında: Hakkımızda, Sık Sorulan Sorular, Sorumluluk Reddi ----------
 const aboutCard = (title, html) => `<section class="card about"><h3>${esc(title)}</h3>${html}</section>`;
-function viewHakkimizda() {
+async function viewHakkimizda() {
+  updateInfo ??= await fetch('/api/update').then(r => r.json()).catch(() => null);
   return header('Hakkımızda', 'Ortam Sade nedir, nasıl çalışır') +
     aboutCard('Ortam Sade', `<p>TOBB ETÜ öğrencilerinin her gün açtığı okul sitelerini — Ortam, UBS, Uzak, UZAKYDB, Webmail ve Piazza — tek, sade bir
       arayüzde toplayan bağımsız bir öğrenci projesidir. Amaç aynı bilgiye daha az tıklamayla, daha rahat okunur biçimde ulaşmaktır:
@@ -1713,6 +1714,9 @@ function viewHakkimizda() {
       <li>Bildirim e-postaları senin okul adresinden yine sana gönderilir.</li></ul>`) +
     aboutCard('Açık kaynak', `<p>Kodun tamamı herkese açıktır; ne yaptığını kendin inceleyebilir, sorun bildirebilir ya da katkıda bulunabilirsin:
       <a href="https://github.com/Soft-Coder-183/ortam-sade" target="_blank" rel="noopener">github.com/Soft-Coder-183/ortam-sade</a> (MIT lisansı).</p>`) +
+    aboutCard('Sürüm', `<div class="row" style="justify-content:space-between;gap:12px;flex-wrap:wrap"><p style="margin:0">Ortam Sade <b id="app-ver">${esc(updateInfo?.current || '…')}</b>.
+      Yeni sürüm çıkınca uygulama sorar; onaylamadan hiçbir şey indirilmez ya da kurulmaz.</p>
+      <button type="button" class="btn" data-upd-check>${icon('download')}Güncellemeleri denetle</button></div>`) +
     `<p class="muted small">Sorular için: <a href="#/hakkinda/sss">Sık Sorulan Sorular</a> · Önemli: <a href="#/hakkinda/sorumluluk">Sorumluluk Reddi</a></p>`;
 }
 const SSS = [
@@ -1724,6 +1728,7 @@ const SSS = [
   ['Otomatik silme e-postalarımı kalıcı olarak siler mi?', 'Hayır. Ayar açıksa okunmuş e-postalar 12 saat sonra Çöp kutusuna taşınır, oradan geri alınabilir. Yıldızlı e-postalar ve yanındaki "otomatik silme" yazısına basıp maviye çevirdiğin e-postalar hiç taşınmaz. Ayar varsayılan olarak kapalıdır.'],
   ['Bazı bilgiler neden yok (ör. açılan derslerin şube ve saatleri)?', 'Ortam bu bilgileri yalnızca doğrulamalı (reCAPTCHA) aramayla veriyor. Uygulama doğrulamaları aşmadığı için bu bilgiler için okulun sayfasına bağlantı verilir.'],
   ['Uzak\'ta sınav, ödev yükleme ya da Safe Exam Browser isteyen içerik olursa?', 'İçeriğin kendisi (açıklama, dosyalar, bağlantılar, Safe Exam Browser indirme bağlantısı ve yapılandırma dosyası) uygulamada görünür. Sınava başlama, ödev yükleme, foruma yazma gibi işlemler okulun sitesinde yapılır; sayfanın üstünde "Sitede aç" bağlantısı çıkar.'],
+  ['Uygulama nasıl güncellenir?', 'Yeni sürüm çıkınca uygulama sağ altta sorar; "Güncelle"ye basmadan hiçbir şey indirilmez. Basınca sürüm yalnızca GitHub sayfamızdan indirilir, SHA-256 özetiyle doğrulanır, kurulur ve uygulama kendini yeniden başlatır. Şifren, oturumların ve ayarların korunur. Hakkımızda sayfasından elle de denetleyebilirsin.'],
   ['Neden bazen eski bilgi görüyorum?', 'Hız için son alınan veri önce gösterilir, arka planda yenilenir ve birkaç saniye içinde güncellenir. Oturum kapanmışsa üstte bir uyarıyla son kaydedilen veri gösterilir.'],
   ['Bir sorun buldum, ne yapmalıyım?', 'Önemli bir işlemde (kayıt, başvuru, not, sınav yeri) her zaman okulun kendi sitesini esas al. Sorunu GitHub sayfasındaki Issues bölümünden (github.com/Soft-Coder-183/ortam-sade) bildirebilirsin.'],
 ];
@@ -1924,5 +1929,64 @@ $view.addEventListener('toggle', e => {
   if (e.target.dataset.lazy) openLazy(e.target);
   if (e.target.dataset.mail) openMail(e.target);
 }, true);
+// ---------- Güncelleme ----------
+// Yeni sürüm varsa sağ altta bir kart sorar; "Güncelle"ye basılmadan hiçbir şey indirilmez (görünmez güncelleme yok).
+// "Sonra": bu oturumda bir daha sorulmaz (uygulama yeniden açılınca tekrar sorar).
+let updateInfo = null;
+const plainNotes = s => String(s || '').replace(/\*\*|`/g, '').replace(/^#+\s*/gm, '').trim();
+function updateCard(u, { manual = false } = {}) {
+  document.getElementById('upd')?.remove();
+  if (!u?.newer) { if (manual) toast(u?.error || `En güncel sürümü kullanıyorsun (${u?.current ?? ''}).`); return; }
+  try { if (!manual && sessionStorage.getItem('guncellemeSonra') === u.latest) return; } catch {}
+  const size = u.size ? ` · ${(u.size / 1048576).toFixed(0)} MB` : '';
+  const card = document.createElement('section');
+  card.id = 'upd';
+  card.className = 'card upd';
+  card.setAttribute('role', 'dialog');
+  card.setAttribute('aria-label', 'Yeni sürüm');
+  card.innerHTML = `<div class="upd-h">${icon('download')}<b>Ortam Sade ${esc(u.latest)} yayınlandı</b></div>
+    <p class="muted small">Şu an ${esc(u.current)} kullanıyorsun. Güncellemek ister misin?${size}</p>
+    ${u.notes ? `<details><summary class="small">Neler yeni?</summary><div class="upd-notes small">${esc(plainNotes(u.notes))}</div></details>` : ''}
+    ${u.packaged ? '' : `<p class="small bad">Kaynak koddan çalışıyorsun: "git pull" ile güncelle ya da <a href="${esc(u.url)}" target="_blank" rel="noopener">sürüm sayfasından</a> indir.</p>`}
+    <div class="upd-act"><button type="button" class="btn ghost" data-upd-later>Sonra</button>
+      ${u.packaged ? '<button type="button" class="btn primary" data-upd-go>Güncelle</button>' : ''}</div>
+    <p class="upd-msg small muted" aria-live="polite"></p>`;
+  document.body.append(card);
+}
+async function checkUpdate(manual = false) {
+  try { updateInfo = await fetch('/api/update' + (manual ? '?force=1' : '')).then(r => r.json()); } catch { if (manual) toast('Güncelleme denetlenemedi'); return; }
+  updateCard(updateInfo, { manual });
+}
+document.addEventListener('click', async e => {
+  if (e.target.closest('[data-upd-check]')) return checkUpdate(true);
+  if (e.target.closest('[data-upd-later]')) {
+    try { sessionStorage.setItem('guncellemeSonra', updateInfo?.latest || ''); } catch {}
+    return document.getElementById('upd')?.remove();
+  }
+  const go = e.target.closest('[data-upd-go]');
+  if (!go) return;
+  const card = document.getElementById('upd'), msg = card.querySelector('.upd-msg');
+  card.querySelectorAll('button').forEach(b => { b.disabled = true; });
+  msg.textContent = 'İndiriliyor ve doğrulanıyor… (bir iki dakika sürebilir)';
+  const r = await fetch('/api/update/apply', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }).catch(() => null);
+  const j = r ? await r.json().catch(() => ({})) : {};
+  if (!r?.ok) {
+    msg.textContent = j.error || 'Güncelleme yapılamadı.';
+    card.querySelectorAll('button').forEach(b => { b.disabled = false; });
+    return;
+  }
+  msg.textContent = `${j.version} kuruldu. Uygulama yeniden başlatılıyor…`;
+  // Sunucu yeni sürümle açılınca sayfa yenilenir
+  const t0 = Date.now();
+  const poll = async () => {
+    const u = await fetch('/api/update').then(x => x.json()).catch(() => null);
+    if (u?.current === j.version) return location.reload();
+    if (Date.now() - t0 > 120_000) { msg.textContent = 'Yeniden başlatma uzun sürdü. "Ortam Sade.cmd" ile uygulamayı yeniden açın.'; return; }
+    setTimeout(poll, 1500);
+  };
+  setTimeout(poll, 2500);
+});
+setTimeout(() => checkUpdate(false), 3000);
+
 window.addEventListener('hashchange', () => render());
 render();
