@@ -1,0 +1,11 @@
+# Kişisel veriler: oturum çerezleri, önbellek, tarayıcı profili, şifre kasası, sayfa dökümleri
+.cache/
+.profile/
+dump/
+local.txt
+*.dpapi
+# Geliştirmede kullanılan sayfa döküm araçları (kişisel oturumla çalışır)
+tools/
+# Bağımlılıklar ve paket çıktısı
+node_modules/
+dist/

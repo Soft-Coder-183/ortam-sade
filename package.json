@@ -1,0 +1,20 @@
+{
+  "name": "ortam-sade",
+  "version": "1.0.0",
+  "description": "TOBB ETÜ okul sitelerini (Ortam, UBS, Uzak, UZAKYDB, Webmail, Piazza) tek ve sade bir arayüzde toplayan, bilgisayarında çalışan bağımsız öğrenci projesi.",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "repository": { "type": "git", "url": "https://github.com/Soft-Coder-183/ortam-sade.git" },
+  "engines": { "node": ">=22.15" },
+  "scripts": {
+    "start": "node server/server.mjs",
+    "dev": "node --watch-path=server server/server.mjs",
+    "paketle": "node scripts/paketle.mjs"
+  },
+  "dependencies": {
+    "cheerio": "^1.0.0",
+    "pdfjs-dist": "6.4.299",
+    "playwright-core": "^1.50.0"
+  }
+}
