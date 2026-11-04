@@ -18,6 +18,7 @@ import * as planner from './plan.mjs';
 import * as notify from './notify.mjs';
 import * as webmail from './webmail.mjs';
 import * as update from './update.mjs';
+import * as mevzuat from './mevzuat.mjs';
 
 const PORT = Number(process.env.PORT) || 3000;
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -231,6 +232,13 @@ const srv = http.createServer(async (req, res) => {
         setTimeout(() => process.exit(update.RESTART_CODE), 800);
         return;
       } catch (e) { return send(500, { error: e.message }); }
+    }
+    // Mevzuat (herkese açık kaynaklar, giriş gerekmez): modül belgeleri kendi önbelleğinde tutar (.cache/mevzuat)
+    const MEVZUAT = { mevzuat: () => mevzuat.listing(), 'mevzuat-doc': q => mevzuat.doc(q.get('id')), 'mevzuat-ara': q => mevzuat.search(q.get('q') || ''),
+      'mevzuat-yanitlar': () => mevzuat.answers(), 'mevzuat-duyurular': () => mevzuat.news(), 'mevzuat-duyuru': q => mevzuat.newsItem(q.get('path')) };
+    if (MEVZUAT[name] && req.method === 'GET') {
+      try { return send(200, await MEVZUAT[name](url.searchParams)); }
+      catch (e) { console.error(name, e.message); return send(502, { error: 'Mevzuat alınamadı: ' + e.message }); }
     }
     if (name === 'notifications' && req.method === 'GET') return send(200, await notify.list());
     if (name.startsWith('notifications/') && req.method === 'POST') {

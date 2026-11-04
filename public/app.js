@@ -15,6 +15,8 @@ const NAV = [
   // Ekstra: telefonda alt çubukta yok (Ana Sayfa kısayollarında)
   { id: 'ekstra', label: 'Ekstra', short: 'Ekstra', icon: 'star', rare: true, items: [
     ['acilan', 'Açılan Dersler'], ['takvim', 'Akademik Takvim'], ['kadro', 'Akademik Kadro'], ['yabanci-diller', 'Yabancı Diller']] },
+  { id: 'mevzuat', label: 'Mevzuat', short: 'Mevzuat', icon: 'scale', rare: true, items: [
+    ['yanitlar', 'Hızlı Yanıtlar ve Arama'], ['tumu', 'Tüm Mevzuat'], ['duyurular', 'Öğrenci İşleri Duyuruları']] },
   { id: 'cap', label: 'ÇAP/YAP - Başvurular', short: 'Başvuru', icon: 'arrows', bottom: true, rare: true, items: [
     ['capyap', 'ÇAP / YAP'], ['staj', 'Staj Hareketliliği'], ['ogrenim', 'Öğrenim Hareketliliği'], ['mezun', 'Mezuniyet Sonrası Staj']] },
   { id: 'hakkinda', label: 'Hakkında ve SSS', short: 'Hakkında', icon: 'help', rare: true, items: [
@@ -57,6 +59,7 @@ const ICONS = {
   book: '<path d="M4 4.5A1.5 1.5 0 0 1 5.5 3H20v15H5.5A1.5 1.5 0 0 0 4 19.5z"/><path d="M4 19.5A1.5 1.5 0 0 0 5.5 21H20"/>',
   calculator: '<rect x="5" y="2.5" width="14" height="19" rx="2"/><path d="M8.5 7h7M8.5 12h.01M12 12h.01M15.5 12h.01M8.5 16h.01M12 16h.01M15.5 16h.01"/>',
   pin: '<path d="M12 16v5M8 3h8l-1 6 3 3v2H6v-2l3-3z"/>',
+  scale: '<path d="M12 3v18M7 21h10M4 7h16M6 7l-3 7a3.5 3.5 0 0 0 6 0zM18 7l-3 7a3.5 3.5 0 0 0 6 0z"/>',
   'chevron-right': '<path d="m9 6 6 6-6 6"/>',
   'chevron-left': '<path d="m15 6-6 6 6 6"/>',
   image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="m21 16-5-5-9 9"/>',
@@ -818,7 +821,7 @@ function planNotes(d) {
     <li>CC, CB, BB, BA notlu derslerden lisans boyunca en fazla 5 ders tekrar edilebilir (md. 25/3); kullanılan: ${d.improveUsed}. FF alınan ders tekrar edilmek zorundadır, DD/DC ortalamayı yükseltmek için tekrar edilebilir.</li>
     <li>Dönem kredi yükü program kredisinin en az %9'u, en çok %16'sıdır${d.limits ? ` (${d.programCredits} kredilik program için ${d.limits.min}–${d.limits.max})` : ''}; tekrar edilen dersler de yüke dahildir (md. 16). GNO 2,00'ın altına düşerse yeni ders sınırları daralır (md. 32).</li>
     <li>"Sonraki dönem" dersleri müfredattaki yarıyıla göre önerilir; o dönem gerçekten açılan dersler ders kayıtlanmada kesinleşir.</li>
-  </ul><p class="muted small">Kaynak: <a href="https://www.mevzuat.gov.tr/anasayfa/MevzuatFihristDetayIframe?MevzuatTur=8&amp;MevzuatNo=15287&amp;MevzuatTertip=5" target="_blank" rel="noopener">TOBB ETÜ Lisans Eğitim-Öğretim ve Sınav Yönetmeliği</a></p></details>`;
+  </ul><p class="muted small">Kaynak: <a href="#/mevzuat/tumu/mg-8-15287">TOBB ETÜ Lisans Eğitim-Öğretim ve Sınav Yönetmeliği</a></p></details>`;
 }
 
 const drawPlan = () => { const el = document.getElementById('plan'); if (el && planData) el.innerHTML = planBody(); };
@@ -840,13 +843,15 @@ $view.addEventListener('click', e => {
 // ÇAP/YAP - Başvurular: ÇAP/YAP ile Dış İlişkiler hareketlilik formları (Staj, Öğrenim, Mezuniyet Sonrası Staj).
 // Her hareketlilik sayfası iki bölüm: başvuru formu (gerçek alanlar) ve Başvurularım. Kapalıyken okulun mesajı görünür.
 // Gönderim iki tıklama ister; form doğrulama (reCAPTCHA) ya da dosya istiyorsa gönderim okulun sitesinde yapılır.
+const CAP_RULES = `<div class="card"><p style="margin:0">Başvuru şartları, hangi dönemlerde başvurulabildiği ve takvimdeki tarihler:
+  <a href="#/mevzuat/yanitlar">Mevzuat → Hızlı Yanıtlar</a></p></div>`;
 async function viewCap() {
   const c = await api('cap');
-  if (!c.active) return header('ÇAP / YAP Başvuru') + `<div class="card msg">${esc(c.message)}</div>`;
+  if (!c.active) return header('ÇAP / YAP Başvuru') + `<div class="card msg">${esc(c.message)}</div>` + CAP_RULES;
   return header('ÇAP / YAP Başvuru', 'Başvuru dönemi açık') +
     `<div class="card"><p>Başvuru formu bu arayüze henüz taşınmadı. Okulun sitesinde doldurabilirsiniz:</p>
      <p><a href="https://ortam.etu.edu.tr/CAP-YAP-Basvurusu" target="_blank" rel="noopener">ortam.etu.edu.tr/CAP-YAP-Basvurusu</a></p>
-     <p class="muted">${esc(c.text.slice(0, 600))}</p></div>`;
+     <p class="muted">${esc(c.text.slice(0, 600))}</p></div>` + CAP_RULES;
 }
 
 const APPLY_PAGES = {
@@ -1496,7 +1501,7 @@ async function viewHome(r, ctx) {
       <div class="hc-h"><a href="${c.link}">${esc(c.title)}</a><a class="muted" href="${c.link}">Tümü →</a></div>
       <div class="hc-b">${homeData[c.id] ? c.body(homeData[c.id]) : '<p class="muted">Yükleniyor…</p>'}</div></section>`).join('')}</div>` +
     `<h2>Son kullanılanlar</h2><div class="chips">${shortcuts().map(([href, label]) => `<a class="chip" href="${esc(href)}">${esc(label)}</a>`).join('')}</div>` +
-    `<p class="muted small home-more">Diğer bölümler: <a href="#/ekstra/acilan">Ekstra</a> · <a href="#/cap/capyap">ÇAP/YAP - Başvurular</a> · <a href="#/hakkinda/hakkimizda">Hakkında ve SSS</a></p>`;
+    `<p class="muted small home-more">Diğer bölümler: <a href="#/ekstra/acilan">Ekstra</a> · <a href="#/mevzuat/yanitlar">Mevzuat</a> · <a href="#/cap/capyap">ÇAP/YAP - Başvurular</a> · <a href="#/hakkinda/hakkimizda">Hakkında ve SSS</a></p>`;
 }
 
 // Kart birden çok uçtan besleniyorsa (api dizi) gövde her ucun sonucunu alır: { site, data | login, siteName }.
@@ -1729,6 +1734,7 @@ const SSS = [
   ['Bazı bilgiler neden yok (ör. açılan derslerin şube ve saatleri)?', 'Ortam bu bilgileri yalnızca doğrulamalı (reCAPTCHA) aramayla veriyor. Uygulama doğrulamaları aşmadığı için bu bilgiler için okulun sayfasına bağlantı verilir.'],
   ['Uzak\'ta sınav, ödev yükleme ya da Safe Exam Browser isteyen içerik olursa?', 'İçeriğin kendisi (açıklama, dosyalar, bağlantılar, Safe Exam Browser indirme bağlantısı ve yapılandırma dosyası) uygulamada görünür. Sınava başlama, ödev yükleme, foruma yazma gibi işlemler okulun sitesinde yapılır; sayfanın üstünde "Sitede aç" bağlantısı çıkar.'],
   ['Uygulama nasıl güncellenir?', 'Yeni sürüm çıkınca uygulama sağ altta sorar; "Güncelle"ye basmadan hiçbir şey indirilmez. Basınca sürüm yalnızca GitHub sayfamızdan indirilir, SHA-256 özetiyle doğrulanır, kurulur ve uygulama kendini yeniden başlatır. Şifren, oturumların ve ayarların korunur. Hakkımızda sayfasından elle de denetleyebilirsin.'],
+  ['Mevzuat bölümündeki yanıtlar ne kadar güvenilir?', 'Her hızlı yanıtın altında dayandığı madde yazar ve tıklayınca o madde açılır. Uygulama her açılışta o maddenin metninin hâlâ aynı olduğunu denetler; metin değişmişse yanıtın yanında uyarı çıkar. Belgeler okulun Mevzuat sayfasındaki kaynaklardan (mevzuat.gov.tr ve okulun dosyaları) alınır. Bir yönerge, dayandığı yönetmelik ondan sonra değişmişse işaretlenir; çelişki varsa üst mevzuat geçerlidir. Yine de resmî işlemlerde Öğrenci İşleri esastır.'],
   ['Neden bazen eski bilgi görüyorum?', 'Hız için son alınan veri önce gösterilir, arka planda yenilenir ve birkaç saniye içinde güncellenir. Oturum kapanmışsa üstte bir uyarıyla son kaydedilen veri gösterilir.'],
   ['Bir sorun buldum, ne yapmalıyım?', 'Önemli bir işlemde (kayıt, başvuru, not, sınav yeri) her zaman okulun kendi sitesini esas al. Sorunu GitHub sayfasındaki Issues bölümünden (github.com/Soft-Coder-183/ortam-sade) bildirebilirsin.'],
 ];
@@ -1742,6 +1748,173 @@ const viewSorumluluk = () => header('Sorumluluk Reddi') + aboutCard('Lütfen oku
   <li><b>Kullanım sorumluluğu kullanıcıdadır.</b> Uygulamayı okulun bilgi işlem kurallarına uygun kullanmak kullanıcının sorumluluğundadır. Uygulama doğrulama (CAPTCHA) ve güvenlik önlemlerini aşmaz.</li>
   <li><b>Garanti verilmez.</b> Uygulama "olduğu gibi" sunulur; kullanımından doğabilecek veri kaybı, gecikme ya da kaçırılan işlemlerden geliştirici sorumlu tutulamaz.</li></ul>`);
 
+// ---------- Mevzuat ----------
+// Okulun Mevzuat sayfasındaki kanun, yönetmelik ve yönergeler uygulamanın içinde madde madde okunur ve aranır.
+// #/mevzuat/yanitlar[/<arama>] · #/mevzuat/tumu[/<belge>[/<madde | p<paragraf>>]] · #/mevzuat/duyurular[/<duyuru>]
+const fmtDay = s => s ? new Date(s + 'T12:00:00').toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+const mdBold = s => esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+const artLabel = a => !a ? '' : a.startsWith('ek') ? `Ek madde ${a.slice(2)}` : a.startsWith('g') ? `Geçici madde ${a.slice(1)}` : `Madde ${a}`;
+const mvHref = (id, at) => `#/mevzuat/tumu/${encodeURIComponent(id)}${at ? '/' + encodeURIComponent(at) : ''}`;
+const MV_KIND = { mg: 'mevzuat.gov.tr', rg: 'Resmî Gazete', pdf: 'PDF', docx: 'Word', doc: 'Word', link: 'Okulun sitesi' };
+// Aranan sözleri metinde işaretler (şapka/nokta ve büyük-küçük harf farkı gözetmeden)
+const FOLDS = { a: 'aâAÂ', c: 'cçCÇ', g: 'gğGĞ', i: 'iıİIîÎ', o: 'oöOÖ', s: 'sşSŞ', u: 'uüûUÜÛ' };
+function markTerms(text, terms) {
+  const parts = (terms || []).filter(t => t.length > 1).map(t => [...t].map(ch => FOLDS[ch] ? `[${FOLDS[ch]}]` : ch === ' ' ? '\\s*' : ch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join(''));
+  if (!parts.length) return esc(text);
+  return esc(String(text).replace(new RegExp(parts.join('|'), 'gi'), m => `\u0001${m}\u0002`)).replace(/\u0001/g, '<mark>').replace(/\u0002/g, '</mark>');
+}
+const mvSearchBox = (q = '') => `<form class="card ac-search mv-search" data-mv-search><input type="search" name="q" value="${esc(q)}" autocomplete="off"
+  placeholder="Mevzuatta ara: yandal başvuru, kayıt dondurma, dersten vazgeçme…" aria-label="Mevzuatta ara"><button class="btn primary" type="submit">Ara</button></form>`;
+
+function mvAnswerCard(x, open) {
+  const cites = x.cites.map(c => {
+    const label = `${esc(c.title)}, ${artLabel(c.a).toLocaleLowerCase('tr')}${c.t ? ` <span class="muted">(${esc(c.t)})</span>` : ''}`;
+    const warn = c.ok === false ? ' <span class="mv-warn">Bu maddenin metni değişmiş görünüyor; yanıtı maddeden kontrol et.</span>'
+      : c.ok === null ? ' <span class="mv-warn">Kaynak şu an açılamadı.</span>' : '';
+    return `<li>${c.id ? `<a href="${mvHref(c.id, c.a)}">${label}</a>` : label}${warn}</li>`;
+  }).join('');
+  const now = Date.now();
+  const cal = x.calendar.map(c => {
+    const live = c.start && c.end && c.start <= now && now <= c.end, next = c.start > now;
+    return `<li class="${live ? 'live' : ''}">${icon('calendar')}<span><b>${esc(c.when)}</b> · ${esc(c.what)} <span class="muted">(${esc(c.term)}${live ? ', şu an açık' : next ? '' : ', geçti'})</span></span></li>`;
+  }).join('');
+  const news = x.news.map(n => `<li>${icon('megaphone')}<span><a href="#/mevzuat/duyurular/${encodeURIComponent(n.path.split('/').pop())}">${esc(n.title)}</a> <span class="muted">${esc(n.ago)}</span></span></li>`).join('');
+  return `<details class="card mv-ans" data-keep="mv-${esc(x.id)}"${open ? ' open' : ''}><summary>${esc(x.q)}</summary>
+    <p>${mdBold(x.a)}</p>
+    ${cal ? `<div class="mv-sub">Akademik Takvim</div><ul class="mv-list">${cal}</ul>` : ''}
+    ${news ? `<div class="mv-sub">Öğrenci İşleri duyurusu</div><ul class="mv-list">${news}</ul>` : ''}
+    <div class="mv-sub">Kaynak</div><ul class="mv-cites">${cites}</ul></details>`;
+}
+
+async function viewMvYanitlar(r) {
+  const q = (r.param || '').trim();
+  const [ans, res] = await Promise.all([api('mevzuat-yanitlar'), q ? api('mevzuat-ara?q=' + encodeURIComponent(q)) : null]);
+  if (!q) fetch('/api/mevzuat-ara?q=').catch(() => {});      // arama dizinini arka planda hazırla (ilk aramada beklenmesin)
+  // Hızlı yanıt eşleşmesi: sözlerin kökü (son ekleri kırpılmış hâli) soruda, etiketlerde ya da yanıtta geçmeli.
+  // Eş anlamlı karşılık ("kayıt dondurma" → "izin") yalnızca soru ve etiketlerde aranır; yoksa her yanıt eşleşir.
+  const stem = w => w.slice(0, Math.max(4, w.length - 3));
+  const words = trFold(q).split(/\s+/).filter(w => w.length > 1).map(stem);
+  const alt = (res?.also ?? []).map(a => a.split(' ').map(stem));
+  const hit = x => {
+    const head = trFold([x.q, ...x.tags].join(' ')), all = head + ' ' + trFold(x.a);
+    return words.length && words.every(w => all.includes(w)) ? 2 + words.filter(w => head.includes(w)).length
+      : alt.some(ws => ws.length && ws.every(w => head.includes(w))) ? 1 : 0;
+  };
+  const list = q ? ans.answers.map(x => [x, hit(x)]).filter(([, s]) => s).sort((a, b) => b[1] - a[1]).map(([x]) => x) : ans.answers;
+  let html = header('Mevzuat', 'Sık sorulan kurallar, dayandıkları maddeyle; ya da bütün mevzuatta ara') + mvSearchBox(q);
+  if (q) {
+    html += list.length ? `<h2>Hızlı yanıtlar</h2>${list.map(x => mvAnswerCard(x, true)).join('')}` : '';
+    html += `<h2>Mevzuatta “${esc(q)}”</h2>`;
+    html += res.results.length
+      ? `<p class="muted small">${res.total > res.results.length ? `En ilgili ${res.results.length} sonuç (toplam ${res.total})` : `${res.total} sonuç`}, ${res.docs} belgede${res.also?.length ? ` · “${esc(res.also.join('”, “'))}” olarak da arandı` : ''}</p>
+         <div class="card mitems mv-hits">${res.results.map(h => `<a class="mv-hit" href="${mvHref(h.id, h.a ?? (h.b != null ? 'p' + h.b : ''))}">
+           <span class="mv-hit-h"><b>${esc(h.doc)}</b>${h.a ? ` · ${artLabel(h.a)}${h.t ? ` — ${esc(h.t)}` : ''}` : ''}</span>
+           <span class="mv-snip">${markTerms(h.snippet, res.terms)}</span></a>`).join('')}</div>`
+      : `<div class="card msg">Bu sözlerle bir madde bulunamadı. Daha kısa ya da farklı bir söz dene (ör. “izin” yerine “dönem izni”).</div>`;
+    return html;
+  }
+  html += `<h2>Hızlı yanıtlar</h2><p class="muted small">Her yanıt, altında yazan maddeye dayanır. Uygulama her açılışta maddenin hâlâ aynı olduğunu denetler; değişmişse uyarır.</p>` +
+    list.map(x => mvAnswerCard(x, false)).join('') +
+    `<p class="muted small">Yanıtlar bilgi amaçlıdır. Resmî işlemlerde güncel mevzuat ve Öğrenci İşleri esastır.</p>`;
+  return html;
+}
+
+async function viewMvTumu(r) {
+  if (r.param) { const [id, at] = r.param.split('/'); return viewMvDoc(id, at); }
+  const ix = await api('mevzuat');
+  const row = i => {
+    const d = i.dates;
+    const when = d ? [d.rg ? `Resmî Gazete ${fmtDay(d.rg.date)}` : '', d.lastAmend ? `son değişiklik ${fmtDay(d.lastAmend)}` : '',
+      d.senato?.length ? `son Senato kararı ${fmtDay(d.senato.at(-1))}` : ''].filter(Boolean).join(' · ') : '';
+    const main = i.id
+      ? `<a class="mi-main" href="${mvHref(i.id)}">${icon('file-text')}<span>${esc(i.title)}</span></a>`
+      : `<a class="mi-main" href="${esc(i.url)}" target="_blank" rel="noopener">${icon('external')}<span>${esc(i.title)}</span></a>`;
+    return `<div class="mi">${main}<div class="muted small">${esc([MV_KIND[i.kind], when].filter(Boolean).join(' · '))}</div></div>`;
+  };
+  return header('Tüm Mevzuat', 'Okulun Mevzuat sayfasındaki belgeler; uygulamanın içinde madde madde açılır') + mvSearchBox() +
+    ix.sections.map(s => {
+      const main = s.items.filter(i => !i.other), other = s.items.filter(i => i.other);
+      return `<h2>${esc(s.title)}</h2>` + (main.length ? `<div class="card mitems">${main.map(row).join('')}</div>` : '') +
+        (other.length ? `<details class="card mitems mv-other" data-keep="mv-other-${esc(s.title)}"><summary>Diğer: araştırma merkezleri, personel, idari (${other.length})</summary>${other.map(row).join('')}</details>` : '');
+    }).join('') +
+    `<p class="muted small">Kaynak: <a href="${esc(ix.source)}" target="_blank" rel="noopener">okulun Mevzuat sayfası</a>. Tarihler, belge bir kez açıldıktan ya da arandıktan sonra görünür.</p>`;
+}
+
+const mvNotes = s => s.replace(/\(((?:Değişik|Ek|Mülga|İptal)[^()]*(?:\([^()]*\)[^()]*)*)\)/g, '<span class="mv-note">($1)</span>');
+async function viewMvDoc(id, at) {
+  const d = await api('mevzuat-doc?id=' + encodeURIComponent(id));
+  const dt = d.dates;
+  const own = [...(dt.senato || [])].concat(dt.lastAmend || [], dt.rg?.date || []).sort().at(-1) || null;
+  const meta = [dt.rg ? `Resmî Gazete: ${fmtDay(dt.rg.date)} (sayı ${esc(dt.rg.no)})` : '', dt.lastAmend ? `Son işlenmiş değişiklik: ${fmtDay(dt.lastAmend)}` : '',
+    dt.senato?.length ? `Senato kararları: ${dt.senato.map(fmtDay).join(', ')}` : '', dt.uploaded ? `Okulun sitesine yüklenme: ${fmtDay(dt.uploaded)}` : ''].filter(Boolean);
+  const warns = [];
+  for (const x of d.related) if (x.lastAmend && own && x.lastAmend > own)
+    warns.push(`Bu belgenin bilinen son tarihi ${fmtDay(own)}. Dayandığı <a href="${mvHref(x.id)}">${esc(x.title)}</a> ondan sonra, <b>${fmtDay(x.lastAmend)}</b> tarihinde değişti. Çelişen bir hüküm varsa üst mevzuat geçerlidir.`);
+  if (d.kind === 'mg' && !dt.lastAmend && dt.rg && /yönetmeli/i.test(d.title))
+    warns.push(`mevzuat.gov.tr'deki bu metinde işlenmiş bir değişiklik notu yok; metin ${fmtDay(dt.rg.date)} tarihli yayımdaki hâli. Sonraki Senato kararları ve yönergeler bazı konuları ayrıca düzenliyor olabilir.`);
+  const firstOf = new Set();
+  const body = d.blocks.map((b, i) => {
+    let idAttr = `id="mv-p${i}"`;
+    if (b.a && !firstOf.has(b.a)) { firstOf.add(b.a); idAttr += ` data-art="${esc(b.a)}"`; }
+    const x = mvNotes(esc(b.x));
+    if (b.k === 'title') return `<h2 class="mv-title" ${idAttr}>${x}</h2>`;
+    if (b.k === 'part') return `<h3 class="mv-part" ${idAttr}>${x}</h3>`;
+    if (b.k === 'h') return `<h4 class="mv-h" ${idAttr}>${x}</h4>`;
+    const cls = b.start ? 'mv-start' : /^\(\d+\)/.test(b.x) ? 'mv-f' : /^([a-zçğıöşü]{1,2}|\d+)\)\s/.test(b.x) ? 'mv-bent' : '';
+    return `<p class="${cls}" ${idAttr}>${b.start ? x.replace(/^((?:EK |GEÇİCİ |Ek |Geçici )?MADDE\s*\d+\s*[-–—]?)/i, '<b>$1</b>') : x}</p>`;
+  }).join('');
+  const toc = d.arts.length ? `<details class="card mv-toc"><summary>Maddeler (${d.arts.length})</summary><div class="mv-toc-list">${d.arts.map(a =>
+    `<a href="${mvHref(d.id, a.a)}"><b>${esc(artLabel(a.a).replace('Madde ', ''))}</b> ${esc(a.t || '')}</a>`).join('')}</div></details>` : '';
+  mvTarget = at || null;
+  return `<p class="mv-back"><a href="#/mevzuat/tumu">← Tüm mevzuat</a></p>` + header(d.title, [d.section, MV_KIND[d.kind]].filter(Boolean).join(' · ')) +
+    `<div class="card mv-meta">${meta.length ? `<ul>${meta.map(m => `<li>${m}</li>`).join('')}</ul>` : ''}
+      <a class="btn" href="${esc(d.url)}" target="_blank" rel="noopener">${icon('external')}Kaynağında aç</a></div>` +
+    warns.map(w => `<div class="banner mv-banner">${w}</div>`).join('') + toc +
+    `<article class="card mv-doc">${body}</article>` +
+    (d.notes?.length ? `<details class="card mv-notes"><summary>Yayım ve değişiklik çizelgesi</summary>${d.notes.map(n => `<p>${esc(n)}</p>`).join('')}</details>` : '');
+}
+// Belge açılınca istenen maddeye kaydır ve kısa süre vurgula
+let mvTarget = null;
+function mvScroll() {
+  if (!mvTarget) return;
+  const el = /^p\d+$/.test(mvTarget) ? document.getElementById('mv-' + mvTarget) : $view.querySelector(`[data-art="${CSS.escape(mvTarget)}"]`);
+  mvTarget = null;
+  if (!el) return;
+  el.scrollIntoView({ block: 'start' });
+  el.classList.add('mv-flash');
+  setTimeout(() => el.classList.remove('mv-flash'), 2400);
+}
+
+async function viewMvDuyurular(r) {
+  if (r.param) return viewMvDuyuru(r.param);
+  const n = await api('mevzuat-duyurular');
+  return header('Öğrenci İşleri Duyuruları', 'Okulun Öğrenci İşleri sayfasındaki son duyurular') +
+    `<div class="card mitems">${n.items.map(x => `<div class="mi"><a class="mi-main" href="#/mevzuat/duyurular/${encodeURIComponent(x.path.split('/').pop())}">${icon('megaphone')}<span>${esc(x.title)}</span></a>
+      <div class="muted small">${esc(x.ago)}</div></div>`).join('')}</div>
+     <p class="muted small">Kaynak: <a href="${esc(n.source)}" target="_blank" rel="noopener">Öğrenci İşleri</a></p>`;
+}
+async function viewMvDuyuru(slug) {
+  const d = await api('mevzuat-duyuru?path=' + encodeURIComponent('/tr/ogrenci-isleri/duyuru/' + slug));
+  const links = d.links.filter(l => l.text && !/^(paylaş|linkedin|twitle)$/i.test(l.text)).map(l => {
+    const read = l.docId ? `<a class="btn" href="${mvHref(l.docId)}">${icon('file-text')}Uygulamada oku</a>` : '';
+    const old = l.newer?.older ? `<div class="banner mv-banner">Bu bağlantı belgenin <b>eski bir sürümüne</b> gidiyor (${fmtDay(l.uploaded)} tarihli dosya). Mevzuat sayfasındaki daha yeni sürüm: <a href="${mvHref(l.newer.id)}">${esc(l.newer.title)}</a>${l.newer.uploaded ? ` (${fmtDay(l.newer.uploaded)})` : ''}.</div>` : '';
+    return `<div class="mi"><a class="mi-main" href="${esc(l.url)}" target="_blank" rel="noopener">${icon(l.kind === 'pdf' ? 'file' : 'external')}<span>${esc(l.text)}</span></a> ${read}${old}</div>`;
+  }).join('');
+  return `<p class="mv-back"><a href="#/mevzuat/duyurular">← Duyurular</a></p>` + header(d.title, 'Öğrenci İşleri duyurusu') +
+    `<div class="card mv-news">${d.paras.map(p => `<p>${esc(p)}</p>`).join('')}</div>` +
+    (links ? `<h2>Bağlantılar</h2><div class="card mitems">${links}</div>` : '') +
+    `<p><a class="btn" href="${esc(d.url)}" target="_blank" rel="noopener">${icon('external')}Okulun sitesinde aç</a></p>`;
+}
+
+document.addEventListener('submit', e => {
+  const f = e.target.closest('[data-mv-search]');
+  if (!f) return;
+  e.preventDefault();
+  const q = f.q.value.trim();
+  location.hash = '#/mevzuat/yanitlar' + (q ? '/' + encodeURIComponent(q) : '');
+});
+// ---------- Mevzuat sonu ----------
+
 // ---------- yönlendirme ----------
 const views = {
   anasayfa: viewHome, 'donem/derslerim': viewDerslerim, 'donem/program': viewProgram, sinav: viewSinav,
@@ -1751,6 +1924,7 @@ const views = {
   'ekstra/kadro': viewKadro, 'ekstra/yabanci-diller': viewYabanciDiller,
   'cap/capyap': viewCap, 'cap/staj': viewApply('staj'), 'cap/ogrenim': viewApply('ogrenim'), 'cap/mezun': viewApply('mezun'),
   ubs: viewUbs, uzakydb: viewUzakydb, webmail: viewWebmail, piazza: viewPiazza, hesap: viewHesap,
+  'mevzuat/yanitlar': viewMvYanitlar, 'mevzuat/tumu': viewMvTumu, 'mevzuat/duyurular': viewMvDuyurular,
   'hakkinda/hakkimizda': viewHakkimizda, 'hakkinda/sss': viewSss, 'hakkinda/sorumluluk': viewSorumluluk,
 };
 
@@ -1836,11 +2010,12 @@ async function render(quiet = false) {
     clearTimeout(loading);
     if (my !== seq || (quiet && html === lastHtml)) return;
     // Sessiz yenilemede açık bölümler açık kalsın
-    const open = [...$view.querySelectorAll('details[open]')].map(d => d.dataset.lazy || d.dataset.mail).filter(Boolean);
+    const open = [...$view.querySelectorAll('details[open]')].map(d => d.dataset.lazy || d.dataset.mail || d.dataset.keep).filter(Boolean);
     $view.innerHTML = lastHtml = html;
-    open.forEach(id => [...$view.querySelectorAll('details[data-lazy], details[data-mail]')]
-      .find(d => (d.dataset.lazy || d.dataset.mail) === id)?.setAttribute('open', ''));
+    open.forEach(id => [...$view.querySelectorAll('details[data-lazy], details[data-mail], details[data-keep]')]
+      .find(d => (d.dataset.lazy || d.dataset.mail || d.dataset.keep) === id)?.setAttribute('open', ''));
     ctx.after?.();
+    if (!quiet) mvScroll();
     if (!quiet) recentAdd(location.hash, $view.querySelector('h1')?.textContent.trim());
     $view.querySelector('.subnav .on')?.scrollIntoView({ inline: 'center', block: 'nearest' });
     // Sunucu eski veriyi verip arka planda yeniliyorsa, bir kez sessizce tekrar sor.
