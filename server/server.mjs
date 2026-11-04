@@ -242,6 +242,7 @@ const srv = http.createServer(async (req, res) => {
         for (const [k, v] of Object.entries(sites || {})) if (SITES[k] && typeof v === 'string' && v) merged[k] = v;
         const r = await autologin.loginAll({ email: mail, password: main, sites: merged }, remember !== false);
         for (const [site, x] of Object.entries(r.results)) if (x.ok) needLogin.delete(site);
+        if (r.results.webmail?.ok) notify.flushMail();          // girişten önce gönderilemeyen bildirim e-postaları
         return send(200, r);
       } catch (e) { return send(500, { error: e.message }); }
     }

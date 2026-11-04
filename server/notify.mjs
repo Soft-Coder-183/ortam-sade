@@ -107,17 +107,42 @@ async function mail(items) {
       `Kapatmak için: Ortam Sade > Hesap > Bildirimler > e-posta seçeneği.` });
 }
 
+// Gönderilemeyen bildirim e-postaları kaybolmaz: giden kutusunda (outbox) bekler, her kontrol turunda ve girişten sonra
+// yeniden denenir. 2 günden eski bekleyenler artık haber değeri taşımadığı için atılır.
+const OUTBOX_MAX_AGE = 2 * 24 * 3600_000;
+let flushing = null;
+export function flushMail() {
+  flushing ??= (async () => {
+    await load();
+    db.outbox = (db.outbox ?? []).filter(n => Date.now() - n.t < OUTBOX_MAX_AGE);
+    if (!db.settings.mail) db.outbox = [];
+    if (!db.outbox.length) return save();
+    if (!credentials.get()?.email) { console.error(`bildirim e-postası bekliyor (${db.outbox.length}): kayıtlı hesap yok`); return save(); }
+    const items = db.outbox;
+    try {
+      await mail(items);
+      db.outbox = db.outbox.filter(n => !items.includes(n));
+      db.lastMail = Date.now();
+      console.log(`bildirim e-postası gönderildi (${items.length})`);
+    } catch (e) {
+      console.error(`bildirim e-postası gönderilemedi, sonra yeniden denenecek (${items.length}):`, e.message);
+    }
+    await save();
+  })().finally(() => { flushing = null; });
+  return flushing;
+}
+
 async function deliver(found) {
   if (!found.length) return;
   const t = Date.now();
   const items = found.map((n, i) => ({ id: `${t}-${i}`, t, read: false, ...n }));
   db.items = [...items, ...db.items].slice(0, KEEP);
+  if (db.settings.mail) db.outbox = [...(db.outbox ?? []), ...items];
   await save();
   if (db.settings.toast) {
     if (items.length <= 3) items.forEach(n => toast(n.title, n.text, n.link));
     else toast(`${items.length} yeni içerik`, [...new Set(items.map(n => n.courseName))].join(', '), '#/donem/derslerim');
   }
-  if (db.settings.mail) await mail(items).catch(e => console.error('bildirim e-postası', e.message));
 }
 
 // ---------- zamanlama ve uç noktalar ----------
@@ -132,6 +157,7 @@ async function run(source) {
   } catch (e) {
     console.error('bildirim kontrolü', source, e.message);           // oturum kapalı vb.: sonraki turda yeniden
   }
+  await flushMail();                                                  // yeni ya da önceden bekleyen e-postalar
 }
 
 export async function start() {
@@ -149,7 +175,8 @@ export async function list() {
   const unread = db.items.filter(n => !n.read);
   const byCourse = {};
   for (const n of unread) byCourse[n.course] = (byCourse[n.course] ?? 0) + 1;
-  return { items: db.items.slice(0, 50), unread: unread.length, byCourse, settings: db.settings, last: db.last };
+  return { items: db.items.slice(0, 50), unread: unread.length, byCourse, settings: db.settings, last: db.last,
+    outbox: (db.outbox ?? []).length, lastMail: db.lastMail ?? null };
 }
 
 // Bir dersin (ya da hepsinin) bildirimlerini okundu yapar.
@@ -176,6 +203,6 @@ export function checkNow() {
 
 // Hesap ekranındaki "deneme bildirimi": yalnızca Windows bildirimi gösterir (e-posta göndermez).
 export function testToast() {
-  toast('Ortam · bildirim denemesi', 'Bildirimler bu bilgisayarda böyle görünecek.', '#/hesap');
+  toast('Bildirim denemesi', 'Bildirimler bu bilgisayarda böyle görünecek.', '#/hesap');
   return { ok: true };
 }
