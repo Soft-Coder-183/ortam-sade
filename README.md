@@ -16,6 +16,11 @@ toplayan, **senin bilgisayarında çalışan** açık kaynaklı bir öğrenci pr
 - **Webmail:** okundu/okunmadı senkronizasyonu, yazma/yanıtlama/silme, yıldızlar, isteğe bağlı otomatik silme (Çöp'e taşır).
 - **UBS, UZAKYDB, Piazza** kendi sade arayüzleriyle; PDF'ler uygulamanın içinde açılır.
 - **Bildirimler:** Piazza ve Uzak'a yeni içerik gelince Windows bildirimi ve isteğe bağlı özet e-posta.
+- **Mevzuat:** okulun Mevzuat sayfasındaki kanun, yönetmelik ve yönergeler uygulamanın içinde madde madde okunur ve aranır
+  ("kayıt dondurma", "YAP" gibi gündelik sözlerle de). Sık sorulan kurallar (ÇAP/YAP başvurusu, dersten vazgeçme, ders tekrarı,
+  mazeret, not itirazı, MES, dönem izni…) dayandıkları maddeyle kısa yanıt olarak verilir. Uygulama, alıntılanan maddenin hâlâ
+  aynı olduğunu her açılışta denetler. Dayandığı yönetmelik sonradan değişmiş yönergeler ve duyurulardaki eski sürüm bağlantıları
+  işaretlenir. Öğrenci İşleri duyuruları da burada.
 - **Ekstra:** Açılan Dersler, Akademik Takvim, Akademik Kadro, Yabancı Diller; ÇAP/YAP ve hareketlilik başvuruları.
 - Açık/koyu tema, telefona uygun düzen.
 
@@ -63,6 +68,7 @@ Yalnızca açtığın ekranın sayfası okuldan istenir ve kısa süre önbellek
 | Piazza yeni gönderi kontrolü | 30 dakikada bir |
 | Uzak yeni içerik kontrolü | saatte bir |
 | Yeni sürüm denetimi (GitHub) | 6 saatte bir |
+| Mevzuat metinleri (mevzuat.gov.tr, okulun sitesi) | yalnızca Mevzuat açılınca; her belge haftada en fazla bir kez |
 
 O aralıkta siteye zaten bir istek gittiyse oturum kontrolü atlanır. Uygulama kapalıyken hiçbir istek yapılmaz.
 
@@ -75,8 +81,9 @@ npm start          # normal çalıştırma
 npm run paketle    # dist/ altına paylaşılabilir Windows paketi (Node.js dahil)
 ```
 
-Yapı: `server/` (Node, her site için bir modül: `ortam`, `ubs`, `moodle` (Uzak/UZAKYDB), `webmail`, `piazza` …),
+Yapı: `server/` (Node, her site için bir modül: `ortam`, `ubs`, `moodle` (Uzak/UZAKYDB), `webmail`, `piazza`, `mevzuat` …),
 `public/` (tek sayfalık arayüz). Sunucu her ekran için okulun tek sayfasını açıp sadeleştirilmiş JSON döndürür.
+Hızlı yanıt eklemek için `server/mevzuat-yanitlar.mjs` dosyasına soru, yanıt ve kaynak maddeden birebir bir alıntı yazman yeterli.
 
 ## Lisans
 

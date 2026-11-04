@@ -16,8 +16,15 @@ const DOC_VER = 2;                         // ayrıştırıcı değişince artı
 const FRESH = 7 * 24 * 3600_000;           // belge metni haftada bir yenilenir
 const txt = s => String(s ?? '').replace(/[\s ]+/g, ' ').trim();
 
-async function get(url, timeout = 30_000) {
-  const r = await fetch(url, { headers: { 'User-Agent': UA, 'Accept-Language': 'tr' }, redirect: 'follow', signal: AbortSignal.timeout(timeout) });
+// mevzuat.gov.tr zaman zaman çok geç yanıt veriyor: zaman aşımı ya da bağlantı hatasında bir kez daha denenir.
+async function get(url, timeout = 30_000, retry = true) {
+  let r;
+  try {
+    r = await fetch(url, { headers: { 'User-Agent': UA, 'Accept-Language': 'tr' }, redirect: 'follow', signal: AbortSignal.timeout(timeout) });
+  } catch (e) {
+    if (retry) return get(url, timeout * 1.5, false);
+    throw e.name === 'TimeoutError' ? new Error('Kaynak site geç yanıt verdi, biraz sonra tekrar dene') : e;
+  }
   if (!r.ok) throw new Error(`Kaynak yanıt vermedi (${r.status})`);
   return r;
 }
@@ -149,7 +156,14 @@ function fromLines(lines) {
 
 let pdfjsP = null;
 async function pdfLines(buf) {
-  pdfjsP ??= import('pdfjs-dist/legacy/build/pdf.mjs');
+  // Paketli sürümde çizim kütüphanesi (@napi-rs/canvas) yok; metin çıkarmak için gerekmez. pdf.js yüklenirken
+  // bunun için bastığı "Warning: Cannot load/polyfill …" satırları siyah pencereyi kirletmesin diye susturulur.
+  pdfjsP ??= (async () => {
+    const orig = { log: console.log, warn: console.warn };
+    const quiet = f => (...a) => (/^Warning: Cannot (load|polyfill)/.test(String(a[0])) ? undefined : f(...a));
+    console.log = quiet(orig.log); console.warn = quiet(orig.warn);
+    try { return await import('pdfjs-dist/legacy/build/pdf.mjs'); } finally { Object.assign(console, orig); }
+  })();
   const { getDocument } = await pdfjsP;
   const task = getDocument({ data: new Uint8Array(buf), verbosity: 0, isEvalSupported: false, useSystemFonts: false });
   const doc = await task.promise;
@@ -258,13 +272,14 @@ const fileOf = id => path.join(DIR, `v${DOC_VER}-${id}.json`);
 async function build(item) {
   let paras, rg = null;
   if (item.kind === 'mg' || item.kind === 'rg') {
-    const $ = await html(item.fetch);
+    // Metin ve (mevzuat.gov.tr'de) yayım bilgisini taşıyan çerçeve sayfası aynı anda istenir
+    const [$, w] = await Promise.all([html(item.fetch),
+      item.kind === 'mg' ? html(item.url).then($ => txt($('body').text())).catch(() => '') : '']);
     paras = fromHtml($, $('body'));
     // mevzuat.gov.tr'nin "bulunamadı" sayfası
     if (paras.length < 5) throw new Error('Belge kaynağında bulunamadı');
     // Yayım bilgisi çerçeve sayfasının başlığında: "Resmî Gazete Tarihi: 12.09.2011 Resmî Gazete Sayısı: 28052"
     if (item.kind === 'mg') {
-      const w = await html(item.url).then($ => txt($('body').text())).catch(() => '');
       const m = /Resmî Gazete Tarihi:\s*(\d{2})\.(\d{2})\.(\d{4})\s*Resmî Gazete Sayısı:\s*(\d+)/.exec(w);
       if (m) rg = { date: `${m[3]}-${m[2]}-${m[1]}`, no: m[4] };
     }
