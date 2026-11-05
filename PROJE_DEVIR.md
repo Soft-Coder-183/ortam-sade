@@ -4,7 +4,7 @@ Ortam Sade, TOBB ETÜ'nün okul sitelerini (Ortam, UBS, Uzak, UZAKYDB, Webmail, 
 
 - **Sahibi:** TOBB ETÜ öğrencisi Eren Akyurt. Türkçe konuşur, uygulamayı arkadaşlarıyla paylaşır.
 - **Depo:** https://github.com/Soft-Coder-183/ortam-sade (herkese açık, MIT lisansı).
-- **Durum:** Güncel sürüm 1.6.2. GitHub hesabı `gh` ile bağlı.
+- **Durum:** Güncel sürüm 1.6.3. GitHub hesabı `gh` ile bağlı.
 - **Kapsam notu:** Bu belge uygulamanın her parçasını saymaz. Kodda burada anlatılmayan bir bölüm görürsen değiştirmeden önce kullanıcıya sor.
 
 ## Mimari
@@ -80,9 +80,10 @@ Okulun siteleri ve mevzuat.gov.tr
 **Açılan Dersler ve haftalık plan:** Öğrenci ders ya da ders hocası arar, dersleri plana ekler ve şubelerini haftalık takvimden seçer. Kod `public/app.js` içinde `plArea`, `plCalendar`, `plPanel` ve `plFindCombos` çevresindedir.
 
 - **Arama:** Enter, listede işaretli dersi ekler; işaret yukarı ve aşağı oklarla plana eklenebilir dersler arasında gezer. Kodu aramayla başlayan dersler önce gelir. Ders eklenince arama sıfırlanır.
-- **Takvim:** Seçili şube yeşil görünür, seçilmemiş şubeler hep kesik çizgili kutularda durur. Seçili kutuya ya da paneldeki aynı şubeye basmak seçimi kaldırır. Takvim en az 18.30 satırına kadar uzanır. Yan panelle sığmazsa panel altına iner.
+- **Takvim:** Seçili şube yeşil görünür, seçilmemiş şubeler hep kesik çizgili kutularda durur. Seçili kutuya ya da paneldeki aynı şubeye basmak seçimi kaldırır. Takvim en az 18.30 satırına kadar uzanır. Eklenen dersler paneli geniş ekranda hep takvimin sağındadır; dar kutular yalnızca ders kodunu gösterir.
 - **Gizleme:** Paneldeki "gizle" şubeyi yalnızca takvimden kaldırır. Otomatik program bulmayı etkilemez.
-- **Çakışma:** Çakışan seçili şubeler takvimde yarı koyu gri zemin üstüne kırmızı çapraz çizgilerle, panelde listeyle gösterilir.
+- **Şube değiştirme:** Paneldeki her dersin altında şube düğmeleri vardır, dersi açmadan şube değişir. Şube satırındaki uyarı, çakışılan dersin seçili şubesini yazar.
+- **Çakışma:** Çakışan seçili şubeler takvimde gri kutu ve kırmızı sol kenarla görünür. Yalnızca gerçekten çakışan saat dilimi çizgilidir (`.pl-ov`). Panelde de liste vardır.
 - **Otomatik program:** Çakışmayan en iyi 5 kombinasyon üretilir. Etikette önce boşluk süresi, sonra gün sayısı yazar.
 - **Sıfırlama:** "Şube seçimlerini sıfırla" dersleri korur. "Planı temizle" seti saklar, "Son ders setini geri yükle" o anki setle yer değiştirir.
 - **Saklama:** Plan tarayıcıda `program-taslak` anahtarındadır (`courses`, `picks`, `off`, `active`, `last`).

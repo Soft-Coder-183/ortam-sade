@@ -1103,9 +1103,7 @@ function plFindCombos() {
 
 // ---------- Takvim ----------
 const PL_HOUR = 54;                     // bir saatin yüksekliği (piksel)
-const PL_LANE = 62;                     // yan yana duran bir kutunun en az genişliği (piksel)
-const PL_SIDE_FIT = 500;                // yan panelle birlikte sığan takvim genişliği; aşılırsa panel takvimin altına iner
-let plWide = false;
+const PL_LANE = 34;                     // yan yana duran bir kutunun en az genişliği (piksel)
 // Aynı günde üst üste binenler yan yana şeritlere dizilir
 function plLanes(items) {
   items.sort((p, q) => p.a - q.a || q.b - p.b);
@@ -1146,7 +1144,7 @@ function plBlocks() {
 }
 function plCalendar(clashes) {
   const items = plBlocks();
-  const hit = (x, m) => clashes.some(k => k.d === m.d && m.a < k.b && k.a < m.b && (k.x === x || k.y === x));
+  const hits = (x, m) => clashes.filter(k => k.d === m.d && m.a < k.b && k.a < m.b && (k.x === x || k.y === x));
   const days = items.some(i => i.d === 6) ? [1, 2, 3, 4, 5, 6] : [1, 2, 3, 4, 5];
   const from = Math.min(510, ...items.map(i => i.a)), to = Math.max(1160, ...items.map(i => i.b));   // 18.30 dersi hep görünür
   const top = Math.floor((from - 30) / 60) * 60 + 30;
@@ -1157,23 +1155,22 @@ function plCalendar(clashes) {
     plLanes(list);
     return { d, list, lanes: Math.max(1, ...list.map(i => i.lanes)) };
   });
-  const col = ({ d, list: dayItems }) => {
+  const col = ({ list: dayItems }) => {
     return `<div class="pl-day" style="height:${hours * PL_HOUR}px">${dayItems.map(i => {
       const pos = `top:${y(i.a)}px;height:${Math.max(30, y(i.b) - y(i.a) - 2)}px;left:calc(${i.lane * 100 / i.lanes}% + 2px);width:calc(${100 / i.lanes}% - 4px)`;
       if (i.kind === 'sel') {
-        const bad = hit(i.x, i.m);
-        return `<button type="button" class="pl-b sel${bad ? ' clash' : ''}" style="${pos}" data-pl-pick="${esc(i.c.c)}|${esc(i.x.id)}" data-sec="${esc(i.c.c)}|${esc(i.x.id)}" aria-pressed="true"
-          title="${esc(`${i.c.c} ${i.c.n} · ${secLabel(i.x)}${i.x.hoca ? ` · ${i.x.hoca}` : ''} · Seçimi kaldırmak için tıkla`)}"><b>${esc(i.c.c)}${i.x.sec ? ` · ${esc(secShort(i.x))}` : ''}</b><span>${esc(i.c.n)}</span><small>${esc(i.m.r)}</small></button>`;
+        const bad = hits(i.x, i.m);
+        return `<button type="button" class="pl-b sel${bad.length ? ' clash' : ''}" style="${pos}" data-pl-pick="${esc(i.c.c)}|${esc(i.x.id)}" data-sec="${esc(i.c.c)}|${esc(i.x.id)}" aria-pressed="true"
+          title="${esc(`${i.c.c} ${i.c.n} · ${secLabel(i.x)}${i.x.hoca ? ` · ${i.x.hoca}` : ''}${bad.map(k => ` · Çakışma: ${dropZero(hhmm(k.a))}–${dropZero(hhmm(k.b))}`).join('')} · Seçimi kaldırmak için tıkla`)}">${
+          // Yalnızca gerçekten çakışan saat dilimi çizgili
+          bad.map(k => `<i class="pl-ov" style="top:${y(k.a) - y(i.a)}px;height:${y(k.b) - y(k.a)}px"></i>`).join('')}<b>${esc(i.c.c)}${i.x.sec ? ` <em>·</em> ${esc(secShort(i.x))}` : ''}</b><span>${esc(i.c.n)}</span><small>${esc(i.m.r)}</small></button>`;
       }
       return `<div class="pl-b alt${i.quiet ? ' quiet' : ''}" style="${pos}" title="${esc(`${i.c.c} ${i.c.n}`)}"><b>${esc(i.c.c)}</b><span class="pl-mini">${esc(i.c.n)}</span><span class="pl-pills">${i.secs.map(x =>
         `<button type="button" data-pl-pick="${esc(i.c.c)}|${esc(x.id)}" data-sec="${esc(i.c.c)}|${esc(x.id)}" title="${esc(`${secLabel(x)}${x.hoca ? ` · ${x.hoca}` : ''}`)}">${esc(x.sec || '✓')}</button>`).join('')}</span></div>`;
-    }).join('')}${clashes.filter(k => k.d === d).map(k =>
-      `<div class="pl-clashband" style="top:${y(k.a)}px;height:${y(k.b) - y(k.a)}px" title="${esc(`Çakışma: ${k.x.code} ve ${k.y.code}, ${dropZero(hhmm(k.a))}–${dropZero(hhmm(k.b))}`)}"></div>`).join('')}</div>`;
+    }).join('')}</div>`;
   };
-  // Şubesi çok olan gün genişler; takvim sığmazsa yana kayar
-  const widths = perDay.map(x => Math.max(90, x.lanes * PL_LANE));
-  plWide = widths.reduce((n, w) => n + w, 0) > PL_SIDE_FIT;
-  const cols = widths.map(w => `minmax(${w}px, 1fr)`).join(' ');
+  // Şubesi çok olan güne daha çok yer düşer; yine sığmazsa takvim yana kayar
+  const cols = perDay.map(x => `minmax(${Math.max(70, x.lanes * PL_LANE)}px, ${Math.max(2, x.lanes)}fr)`).join(' ');
   return `<div class="pl-scroll"><div class="pl-grid" style="grid-template-columns:42px ${cols};--pl-hour:${PL_HOUR}px">
     <div class="pl-corner"></div>${days.map(d => `<div class="pl-h">${PL_DAYS[d]}</div>`).join('')}
     <div class="pl-times" style="height:${hours * PL_HOUR}px">${Array.from({ length: hours }, (_, i) => `<span style="top:${i * PL_HOUR}px">${dropZero(hhmm(top + i * 60))}</span>`).join('')}</div>
@@ -1189,11 +1186,12 @@ function plPanel(clashes) {
   const courses = list.map(c => {
     const p = plPicked(c), open = taslak.active === c.c;
     const others = list.filter(o => o !== c).map(plPicked).filter(Boolean);
-    const clashWith = x => others.filter(o => meetsOverlap(x, o)).map(o => o.code);
+    const clashWith = x => others.filter(o => meetsOverlap(x, o)).map(o => `${o.code}${o.sec ? ` ${secShort(o)}` : ''}`);
     return `<div class="pl-c${open ? ' open' : ''}${p ? '' : ' wait'}">
       <div class="pl-c-h"><button type="button" class="pl-c-t" data-pl-active="${esc(c.c)}" aria-expanded="${open}"><b>${esc(c.c)}</b> <span class="muted">${esc(c.n)}</span>
         <span class="small ${p ? 'me-ok' : 'pl-need'}">${p ? esc(c.s.length > 1 ? secLabel(p) : 'Seçili') : 'Şube seç'}</span></button>
         <button type="button" class="x" data-ac-toggle="${esc(c.c)}" title="Plandan çıkar" aria-label="${esc(c.c)} dersini plandan çıkar">×</button></div>
+      ${c.s.length > 1 ? `<div class="pl-cpick">${c.s.filter(x => x === p || !plHidden(x)).map(x => `<button type="button" class="${x === p ? 'on' : ''}" data-pl-pick="${esc(c.c)}|${esc(x.id)}" data-sec="${esc(c.c)}|${esc(x.id)}" aria-pressed="${x === p}" title="${esc(`${secLabel(x)}: ${x.meets.map(meetText).join(', ')}`)}">${esc(x.sec || '✓')}</button>`).join('')}</div>` : ''}
       ${open ? `<div class="pl-secs">${c.s.map(x => {
         const off = plHidden(x), key = `${esc(c.c)}|${esc(x.id)}`;
         return `<div class="pl-sec-row${off ? ' off' : ''}"><button type="button" class="pl-sec${x === p ? ' on' : ''}" data-pl-pick="${key}" data-sec="${key}" aria-pressed="${x === p}"${off && x !== p ? ' disabled' : ''}>
@@ -1225,9 +1223,9 @@ function plComboBox() {
       <button type="button" class="btn${sameAs(o) ? '' : ' primary'}" data-pl-apply="${i}"${sameAs(o) ? ' disabled' : ''}>${sameAs(o) ? 'Takvimde' : 'Takvime uygula'}</button></div>`).join('')}</div>`;
 }
 function plArea() {
-  const clashes = plClashes(), cal = plCalendar(clashes);
-  return `<div class="pl-wrap${plWide ? ' wide' : ''}"><section class="card pl-cal"><div class="pl-cal-h"><h2>Haftalık takvim</h2>
-      <span class="pl-legend"><i class="sel"></i>Seçili şube<i class="alt"></i>Seçilebilir şube<i class="clash"></i>Çakışma</span></div>${cal}</section>
+  const clashes = plClashes();
+  return `<div class="pl-wrap"><section class="card pl-cal"><div class="pl-cal-h"><h2>Haftalık takvim</h2>
+      <span class="pl-legend"><i class="sel"></i>Seçili şube<i class="alt"></i>Seçilebilir şube<i class="clash"></i>Çakışma</span></div>${plCalendar(clashes)}</section>
     <aside class="pl-side">${plPanel(clashes)}</aside></div>`;
 }
 function plRender() {
@@ -2423,7 +2421,7 @@ async function checkServer() {
   } else if (ok && b) { b.remove(); render(); }
 }
 setInterval(checkServer, 20_000);
-const srvStateHtml = () => `<a class="srv-state${serverUp ? '' : ' down'}" href="#/hesap" title="Uygulamanın durumu: Hesap > Güvenlik ve Oturumlar"><i></i>${serverUp ? 'Uygulama açık' : 'Uygulama kapalı'}</a>`;
+const srvStateHtml = () => `<a class="theme-quick srv-state${serverUp ? '' : ' down'}" href="#/hesap" title="Uygulamanın durumu: Hesap > Güvenlik ve Oturumlar"><i></i>Durum: ${serverUp ? 'Açık' : 'Kapalı'}</a>`;
 
 const dur = ms => { const m = Math.round(ms / 60_000); return m < 60 ? `${m} dk` : m < 1440 ? `${Math.floor(m / 60)} sa ${m % 60} dk` : `${Math.floor(m / 1440)} gün ${Math.floor((m % 1440) / 60)} sa`; };
 const clock = t => (t ? new Date(t).toLocaleString('tr-TR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—');
