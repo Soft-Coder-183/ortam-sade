@@ -2,7 +2,7 @@
 chcp 65001 >nul
 title Ortam Sade
 cd /d "%~dp0"
-set ORTAM_AC=1
+if not defined ORTAM_YENIDEN set ORTAM_AC=1
 echo Ortam Sade baslatiliyor; tarayicida kendiliginden acilacak.
 echo Bu pencere acik kaldikca uygulama calisir. Kapatinca uygulama durur.
 echo.

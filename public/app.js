@@ -914,16 +914,16 @@ async function oSubmit(btn) {
 }
 // ---------- Başvurular sonu ----------
 
-// ---------- Açılan Dersler ----------
-// Ekstra > Açılan Dersler: Ortam "Dönem Ders Programı" sayfasından dönemde açılan dersler ve o dönem ders veren öğretim
-// elemanları gelir (sayfanın kendisi doğrulama istemez). Bir dersin şube/gün/saat/derslik ve ders hocası eşleşmesi Ortam'da
-// yalnızca görünmez reCAPTCHA korumalı aramayla verilir; uygulama bu doğrulamayı aşmaz ve ayrı tarayıcı açmaz, bu yüzden
-// o ayrıntı gösterilmez. Ders hocası araması: o dönem ders verenler + okulun sitesindeki akademik kadro bilgisi (bölüm, unvan,
-// profil bağlantısı). Bölüm bazlı arama ve "hızlı dersler" yoktur. Taslak ders listesi bu cihazda 'program-taslak' anahtarında.
+// ---------- Açılan Dersler ve haftalık ders planı ----------
+// Ekstra > Açılan Dersler: dönemin açılan dersleri uygulamayla gelen veri dosyasından okunur (/api/program), okula istek gitmez.
+// Ders ya da ders hocası aranır, dersler plana eklenir; haftalık takvimde şube seçilir (seçili şube yeşil), seçili şubelerin
+// çakışan saatleri takvimde ve yan panelde gösterilir, istenen dersler için çakışmayan şube kombinasyonları üretilir.
+// Plan bu cihazda 'program-taslak' anahtarında: { v: 2, term, courses: [kod], picks: { kod: şube }, active: kod }.
 let acilanQ = '';
-let acilanClosed = false;            // arama sonuçları kapatıldı (metin silinmeden)
+let acilanClosed = false;              // arama sonuçları kapatıldı (metin silinmeden)
 let acilanMode = 'ders';               // 'ders' | 'hoca' (ders hocası araması)
-let acilanData = null;
+let acilanData = null;                 // { term, updated, courses, byCode, hocas }
+let plCombos = null;                   // son üretilen kombinasyonlar: { list, total, none }
 let kadroIndex = null;                 // okulun sitesindeki akademik kadro dizini (ilk ders hocası aramasında yüklenir)
 let taslak = (() => { try { return JSON.parse(localStorage.getItem('program-taslak')) || {}; } catch { return {}; } })();
 const saveTaslak = () => { try { localStorage.setItem('program-taslak', JSON.stringify(taslak)); } catch {} };
@@ -944,40 +944,67 @@ const acilanRedirect = () => { if (/^#\/donem\/acilan/.test(location.hash)) loca
 acilanRedirect();
 window.addEventListener('hashchange', acilanRedirect);
 
+const PL_DAYS = ['', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'];
+const PL_SHORT = ['', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
+const tmin = t => { const [h, m] = String(t).split(':').map(Number); return h * 60 + (m || 0); };
+const hhmm = m => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+const dropZero = t => String(t).replace(/^0/, '');
+
+function prepProgram(p) {
+  const courses = p.courses.map(c => {
+    const s = c.s.map(x => ({ id: x.s || 'tek', sec: x.s, hoca: x.h, code: c.c,
+      meets: x.m.map(([d, from, to, r]) => ({ d, from, to, r, a: tmin(from), b: tmin(to) })) }));
+    return { c: c.c, n: c.n, s, fold: trFold(`${c.c} ${c.n}`), compact: trFold(c.c).replace(/\s/g, '') };
+  });
+  const hocas = new Map();
+  for (const c of courses) for (const x of c.s) for (const h of x.hoca.split(', ').filter(Boolean)) {
+    if (!hocas.has(h)) hocas.set(h, new Set());
+    hocas.get(h).add(c);
+  }
+  return { term: p.term, updated: p.updated, courses, byCode: new Map(courses.map(c => [c.c, c])), hocas };
+}
+const secLabel = x => (x.sec ? `Şube ${x.sec}` : 'Tek şube');
+const secShort = x => (x.sec ? `Ş.${x.sec}` : '');
+const meetText = m => `${PL_SHORT[m.d]} ${dropZero(m.from)}–${dropZero(m.to)} · ${m.r}`;
+const plList = () => (taslak.courses || []).map(c => acilanData.byCode.get(c)).filter(Boolean);
+const plPicked = c => c.s.find(x => x.id === taslak.picks?.[c.c]) ?? null;
+
 async function viewAcilan() {
-  [acilanData, progData] = await Promise.all([api('ortam-acilan'), api('program').catch(() => null)]);
+  acilanData ??= prepProgram(await api('program'));
   const d = acilanData;
-  if (progData?.capture?.active) setTimeout(progPoll, 0);
-  if (!d.active) return header('Açılan Dersler') + `<div class="card msg">${esc(d.message)}</div>` + progCard();
-  if (taslak.term !== d.term) taslak = { term: d.term, ids: [] };
+  if (taslak.v !== 2 || taslak.term !== d.term) { taslak = { v: 2, term: d.term, courses: [], picks: {}, active: null }; saveTaslak(); }
   const modes = [['ders', 'Ders'], ['hoca', 'Ders hocası']];
-  return header('Açılan Dersler', `${d.term} · ${d.courses.length} ders, ${d.academics.length} ders hocası`) +
-    `<div class="card ac-search"><div class="tabs ac-modes">${modes.map(([id, label]) => `<button type="button" data-ac-mode="${id}" class="${id === acilanMode ? 'on' : ''}">${label}</button>`).join('')}</div>
+  return header('Açılan Dersler', `${d.term} · ${d.courses.length} ders, ${d.hocas.size} ders hocası`) +
+    `<p class="pl-note">${icon('clock')}<span>Ders verisi son güncelleme: <b>${fmtDay(d.updated)}</b>. Şube, saat ve derslikler sonradan değişmiş olabilir; kayıttan önce okulun güncel programından kontrol et.</span></p>
+    <div class="card ac-search"><div class="tabs ac-modes">${modes.map(([id, label]) => `<button type="button" data-ac-mode="${id}" class="${id === acilanMode ? 'on' : ''}">${label}</button>`).join('')}</div>
       <input type="search" data-ac-q placeholder="${acilanMode === 'hoca' ? 'Ders hocası adı ara (ör. Yılmaz)' : 'Ders kodu ya da adı ara (ör. BİL 214, Olasılık)'}" value="${esc(acilanQ)}" autocomplete="off">
       <div id="ac-list">${acilanList()}</div></div>
-    <h2>Taslak ders listem</h2><div id="ac-draft">${acilanDraft()}</div>
-    ${progCard()}`;
+    <div id="pl-area">${plArea()}</div>`;
 }
 
 function acilanList() {
-  const d = acilanData, q = trFold(acilanQ.trim());
-  if (!q) return `<p class="muted small">${acilanMode === 'hoca' ? 'Ada göre ara: bu dönem ders veren ders hocaları listelenir.' : 'Aramak için ders kodu ya da adı yaz. Listede olan ders bu dönem açılmış demektir.'}</p>`;
+  const q = trFold(acilanQ.trim());
+  if (!q) return `<p class="muted small">${acilanMode === 'hoca' ? 'Ada göre ara: bu dönem ders veren ders hocaları ve dersleri listelenir.' : 'Ders ara ve plana ekle; dersler aşağıdaki haftalık takvimde görünür.'}</p>`;
   if (acilanClosed) return `<p class="muted small">“${esc(acilanQ.trim())}” araması kapatıldı. <button type="button" class="linkbtn" data-ac-open>Sonuçları göster</button></p>`;
-  return `<div class="ac-head"><span class="muted small">Sonuçlar</span><button type="button" class="btn ghost ac-close" data-ac-close title="Sonuçları kapat (Esc)">× Kapat</button></div>` + acilanResults(d, q);
+  return `<div class="ac-head"><span class="muted small">Sonuçlar</span><button type="button" class="btn ghost ac-close" data-ac-close title="Sonuçları kapat (Esc)">× Kapat</button></div>` +
+    (acilanMode === 'hoca' ? hocaList(q) : acilanResults(q));
 }
-function acilanResults(d, q) {
-  if (acilanMode === 'hoca') return hocaList(q);
-  const hits = d.courses.filter(c => trFold(`${c.code} ${c.name}`).includes(q) || trFold(c.code).replace(/\s/g, '').includes(q.replace(/\s/g, '')));
+const acToggle = c => {
+  const on = (taslak.courses || []).includes(c.c);
+  return `<button class="btn ${on ? '' : 'primary'}" data-ac-toggle="${esc(c.c)}">${on ? 'Plandan çıkar' : 'Plana ekle'}</button>`;
+};
+function acilanResults(q) {
+  const qc = q.replace(/\s/g, '');
+  const hits = acilanData.courses.filter(c => c.fold.includes(q) || c.compact.includes(qc));
   if (!hits.length) return '<p class="muted">Bu aramayla açılan ders yok.</p>';
-  const chosen = new Set(taslak.ids || []);
-  return `<div class="ac-rows">${hits.slice(0, 50).map(c => `<div class="ac-row"><span><b>${esc(c.code)}</b> ${c.name ? `<span class="muted">${esc(c.name)}</span>` : ''}${sectionsHtml(c.code)}</span>
-    <span class="pill ok">Açıldı</span><button class="btn ${chosen.has(c.id) ? '' : 'primary'}" data-ac-toggle="${esc(c.id)}">${chosen.has(c.id) ? 'Listeden çıkar' : 'Listeye ekle'}</button></div>`).join('')}</div>
+  return `<div class="ac-rows">${hits.slice(0, 50).map(c => `<div class="ac-row pl-row"><span><b>${esc(c.c)}</b> <span class="muted">${esc(c.n)}</span></span>
+    <span class="muted small">${c.s.length > 1 ? `${c.s.length} şube` : 'Tek şube'}</span>${acToggle(c)}</div>`).join('')}</div>
     ${hits.length > 50 ? `<p class="muted small">${hits.length - 50} sonuç daha; aramayı daralt.</p>` : ''}`;
 }
 
-// Ders hocası: Ortam'daki bu dönemin listesinden; okulun sitesindeki kadroyla ad–soyadına göre eşleştirilir.
+// Ders hocası: ders verisinden; okulun sitesindeki kadroyla ad–soyadına göre eşleştirilir (bölüm, unvan, profil).
 function hocaList(q) {
-  const hits = acilanData.academics.filter(n => trFold(n).includes(q));
+  const hits = [...acilanData.hocas.keys()].filter(n => trFold(n).includes(q)).sort((a, b) => a.localeCompare(b, 'tr'));
   if (!hits.length) return '<p class="muted">Bu adla bu dönem ders veren ders hocası yok.</p>';
   if (!kadroIndex) {
     kadroIndex = 'yükleniyor';
@@ -990,63 +1017,255 @@ function hocaList(q) {
     const t = tokens(name);
     return people.filter(p => { const pt = tokens(p.name); return pt[0] === t[0] && pt.at(-1) === t.at(-1); });
   };
-  return `<div class="ac-rows">${hits.slice(0, 40).map(n => {
+  return `<div class="ac-rows">${hits.slice(0, 30).map(n => {
     const m = match(n);
     const info = m.length ? [...new Set(m.map(p => `${p.title ? p.title + ' · ' : ''}${p.unit}`))].join(' / ') : '';
     const link = m[0] ? `<a class="btn" href="${esc(m[0].url)}" target="_blank" rel="noopener">${icon('external')}Akademik kadro</a>` : '';
-    return `<div class="ac-row"><span><b>${esc(n)}</b>${info ? ` <span class="muted">${esc(info)}</span>` : ''}${hocaSecs(n)}</span><span class="pill ok">Bu dönem ders veriyor</span>${link}</div>`;
+    const list = [...acilanData.hocas.get(n)].sort((a, b) => a.c.localeCompare(b.c, 'tr'));
+    return `<div class="pl-hoca"><div class="pl-hoca-h"><span><b>${esc(n)}</b>${info ? ` <span class="muted">${esc(info)}</span>` : ''}</span>${link}</div>
+      ${list.map(c => `<div class="ac-row pl-row"><span><b>${esc(c.c)}</b> <span class="muted">${esc(c.n)}</span></span><span></span>${acToggle(c)}</div>`).join('')}</div>`;
   }).join('')}</div>
   ${kadroIndex === 'yükleniyor' ? '<p class="muted small">Bölüm ve unvan bilgileri yükleniyor…</p>' : ''}
-  ${hits.length > 40 ? `<p class="muted small">${hits.length - 40} sonuç daha; aramayı daralt.</p>` : ''}`;
+  ${hits.length > 30 ? `<p class="muted small">${hits.length - 30} sonuç daha; aramayı daralt.</p>` : ''}`;
 }
 
-function acilanDraft() {
-  const byId = new Map(acilanData.courses.map(c => [c.id, c]));
-  const ids = (taslak.ids || []).filter(id => byId.has(id));
-  if (!ids.length) return '<div class="card msg">Liste boş. Yukarıdan ders ekle.</div>';
-  // Ders programı verisi varsa: her dersin şubeleri ve hiçbir şube eşleşmesiyle birlikte alınamayan ders çiftleri
-  const codes = ids.map(id => byId.get(id).code);
-  const clash = draftConflicts(codes);
-  return `<div class="card"><div class="ac-chips">${ids.map(id => `<span class="att"><b>${esc(byId.get(id).code)}</b> ${esc(byId.get(id).name || '')}
-    <button type="button" class="x" data-ac-toggle="${esc(id)}" title="Çıkar">×</button></span>`).join('')}</div>
-    <div class="ac-fetch"><button type="button" class="btn primary" data-prog-fetch="${esc(ids.join(','))}"${progData?.capture?.active ? ' disabled' : ''}>${icon('external')}Bu derslerin şube ve saatlerini Ortam'dan getir</button>
-      <span class="muted small">Ortam'ın ders programı sayfası açılır, bu dersler işaretlenmiş olur; aramayı başlatan düğmeye sen basarsın, sonuç burada görünür.</span></div>
-    ${clash.length ? `<div class="banner mv-banner"><span><b>Çakışma:</b> ${clash.map(([a, b]) => `${esc(a)} ile ${esc(b)}`).join('; ')}. Bu derslerin bütün şubeleri aynı saatlere denk geliyor; birlikte alınamaz.</span></div>` : ''}
-    ${progIndex() ? `<div class="ac-draft-secs">${codes.map(c => `<div><b>${esc(c)}</b>${sectionsHtml(c) || '<p class="muted small">Ders programında şube bilgisi yok.</p>'}</div>`).join('')}</div>` : ''}</div>`;
+// ---------- Çakışma ve kombinasyon ----------
+const meetsOverlap = (x, y) => x.meets.some(m => y.meets.some(n => m.d === n.d && m.a < n.b && n.a < m.b));
+function plClashes() {
+  const picked = plList().map(plPicked).filter(Boolean);
+  const out = [];
+  for (let i = 0; i < picked.length; i++) for (let j = i + 1; j < picked.length; j++)
+    for (const m of picked[i].meets) for (const n of picked[j].meets)
+      if (m.d === n.d && m.a < n.b && n.a < m.b) out.push({ x: picked[i], y: picked[j], d: m.d, a: Math.max(m.a, n.a), b: Math.min(m.b, n.b) });
+  return out;
 }
+// Aynı saatlerdeki şubeler tek seçenek sayılır; arama en az seçenekli dersten başlar. Az gün, az boşluk ve erken başlamayan programlar öne çıkar.
+function plScore(pick) {
+  const byDay = new Map();
+  for (const x of pick) for (const m of x.meets) { if (!byDay.has(m.d)) byDay.set(m.d, []); byDay.get(m.d).push(m); }
+  let gap = 0, early = 0;
+  for (const l of byDay.values()) {
+    l.sort((p, q) => p.a - q.a);
+    if (l[0].a < 570) early++;
+    for (let i = 1; i < l.length; i++) gap += Math.max(0, l[i].a - l[i - 1].b);
+  }
+  return { days: byDay.size, gap, score: byDay.size * 120 + gap + early * 20 };
+}
+function plFindCombos() {
+  const groups = plList().map(c => {
+    const seen = new Map();
+    for (const x of c.s) {
+      const key = x.meets.map(m => `${m.d}|${m.from}|${m.to}`).sort().join(';');
+      if (!seen.has(key)) seen.set(key, []);
+      seen.get(key).push(x);
+    }
+    return { c, options: [...seen.values()] };
+  }).sort((a, b) => a.options.length - b.options.length);
+  const found = [];
+  let steps = 0;
+  const walk = (i, acc) => {
+    if (found.length >= 20000 || steps++ > 400000) return;
+    if (i === groups.length) { found.push([...acc]); return; }
+    for (const opt of groups[i].options) {
+      if (acc.some(x => meetsOverlap(x, opt[0]))) continue;
+      // Seçili şube aynı saatlerdeyse o korunur
+      acc.push(opt.find(x => x.id === taslak.picks?.[x.code]) ?? opt[0]);
+      walk(i + 1, acc);
+      acc.pop();
+    }
+  };
+  walk(0, []);
+  const scored = found.map(pick => ({ pick, ...plScore(pick) })).sort((a, b) => a.score - b.score);
+  const blocked = [];
+  if (!scored.length) for (let i = 0; i < groups.length; i++) for (let j = i + 1; j < groups.length; j++)
+    if (groups[i].c.s.every(x => groups[j].c.s.every(y => meetsOverlap(x, y)))) blocked.push([groups[i].c.c, groups[j].c.c]);
+  return { list: scored.slice(0, 5), total: found.length, blocked };
+}
+
+// ---------- Takvim ----------
+const PL_HOUR = 54;                     // bir saatin yüksekliği (piksel)
+// Aynı günde üst üste binenler yan yana şeritlere dizilir
+function plLanes(items) {
+  items.sort((p, q) => p.a - q.a || q.b - p.b);
+  let cluster = [], end = -1;
+  const flush = () => {
+    const lanes = [];
+    for (const it of cluster) {
+      let l = lanes.findIndex(e => e <= it.a);
+      if (l < 0) { l = lanes.length; lanes.push(0); }
+      lanes[l] = it.b;
+      it.lane = l;
+    }
+    for (const it of cluster) it.lanes = lanes.length;
+    cluster = [];
+  };
+  for (const it of items) {
+    if (cluster.length && it.a >= end) { flush(); end = -1; }
+    cluster.push(it);
+    end = Math.max(end, it.b);
+  }
+  flush();
+}
+function plBlocks() {
+  const list = plList(), items = [];
+  for (const c of list) {
+    const p = plPicked(c);
+    if (p) for (const m of p.meets) items.push({ kind: 'sel', c, x: p, m, d: m.d, a: m.a, b: m.b });
+    // Seçim bekleyen dersin ve üzerinde çalışılan dersin şubeleri kesik çizgiyle görünür; aynı saatteki şubeler tek kutuda
+    if (!p || taslak.active === c.c) {
+      const groups = new Map();
+      for (const x of c.s) if (x !== p) for (const m of x.meets) {
+        const k = `${m.d}|${m.a}|${m.b}`;
+        if (!groups.has(k)) groups.set(k, { kind: 'alt', c, secs: [], m, d: m.d, a: m.a, b: m.b });
+        groups.get(k).secs.push(x);
+      }
+      items.push(...groups.values());
+    }
+  }
+  return items;
+}
+function plCalendar(clashes) {
+  const items = plBlocks();
+  const hit = (x, m) => clashes.some(k => k.d === m.d && m.a < k.b && k.a < m.b && (k.x === x || k.y === x));
+  const days = items.some(i => i.d === 6) ? [1, 2, 3, 4, 5, 6] : [1, 2, 3, 4, 5];
+  const from = Math.min(510, ...items.map(i => i.a)), to = Math.max(1100, ...items.map(i => i.b));
+  const top = Math.floor((from - 30) / 60) * 60 + 30;
+  const hours = Math.ceil((to - top) / 60);
+  const y = m => (m - top) / 60 * PL_HOUR;
+  const col = d => {
+    const dayItems = items.filter(i => i.d === d);
+    plLanes(dayItems);
+    return `<div class="pl-day" style="height:${hours * PL_HOUR}px">${dayItems.map(i => {
+      const pos = `top:${y(i.a)}px;height:${Math.max(30, y(i.b) - y(i.a) - 2)}px;left:calc(${i.lane * 100 / i.lanes}% + 2px);width:calc(${100 / i.lanes}% - 4px)`;
+      if (i.kind === 'sel') {
+        const bad = hit(i.x, i.m);
+        return `<button type="button" class="pl-b sel${bad ? ' clash' : ''}" style="${pos}" data-pl-active="${esc(i.c.c)}" data-sec="${esc(i.c.c)}|${esc(i.x.id)}"
+          title="${esc(`${i.c.c} ${i.c.n} · ${secLabel(i.x)}${i.x.hoca ? ` · ${i.x.hoca}` : ''}`)}"><b>${esc(i.c.c)}${i.x.sec ? ` · ${esc(secShort(i.x))}` : ''}</b><span>${esc(i.c.n)}</span><small>${esc(i.m.r)}</small></button>`;
+      }
+      return `<div class="pl-b alt" style="${pos}" title="${esc(`${i.c.c} ${i.c.n}`)}"><b>${esc(i.c.c)}</b><span class="pl-mini">${esc(i.c.n)}</span><span class="pl-pills">${i.secs.map(x =>
+        `<button type="button" data-pl-pick="${esc(i.c.c)}|${esc(x.id)}" data-sec="${esc(i.c.c)}|${esc(x.id)}" title="${esc(`${secLabel(x)}${x.hoca ? ` · ${x.hoca}` : ''}`)}">${esc(x.sec || '✓')}</button>`).join('')}</span></div>`;
+    }).join('')}${clashes.filter(k => k.d === d).map(k =>
+      `<div class="pl-clashband" style="top:${y(k.a)}px;height:${y(k.b) - y(k.a)}px" title="${esc(`Çakışma: ${k.x.code} ve ${k.y.code}, ${dropZero(hhmm(k.a))}–${dropZero(hhmm(k.b))}`)}"></div>`).join('')}</div>`;
+  };
+  return `<div class="pl-scroll"><div class="pl-grid" style="--pl-days:${days.length};--pl-hour:${PL_HOUR}px">
+    <div class="pl-corner"></div>${days.map(d => `<div class="pl-h">${PL_DAYS[d]}</div>`).join('')}
+    <div class="pl-times" style="height:${hours * PL_HOUR}px">${Array.from({ length: hours }, (_, i) => `<span style="top:${i * PL_HOUR}px">${dropZero(hhmm(top + i * 60))}</span>`).join('')}</div>
+    ${days.map(col).join('')}</div></div>`;
+}
+
+// ---------- Yan panel ----------
+function plPanel(clashes) {
+  const list = plList();
+  if (!list.length) return `<div class="card msg">Henüz ders yok. Yukarıdan ders ara ve plana ekle.</div>`;
+  const courses = list.map(c => {
+    const p = plPicked(c), open = taslak.active === c.c;
+    const others = list.filter(o => o !== c).map(plPicked).filter(Boolean);
+    const clashWith = x => others.filter(o => meetsOverlap(x, o)).map(o => o.code);
+    return `<div class="pl-c${open ? ' open' : ''}${p ? '' : ' wait'}">
+      <div class="pl-c-h"><button type="button" class="pl-c-t" data-pl-active="${esc(c.c)}" aria-expanded="${open}"><b>${esc(c.c)}</b> <span class="muted">${esc(c.n)}</span>
+        <span class="small ${p ? 'me-ok' : 'pl-need'}">${p ? esc(c.s.length > 1 ? secLabel(p) : 'Seçili') : 'Şube seç'}</span></button>
+        <button type="button" class="x" data-ac-toggle="${esc(c.c)}" title="Plandan çıkar" aria-label="${esc(c.c)} dersini plandan çıkar">×</button></div>
+      ${open ? `<div class="pl-secs">${c.s.map(x => `<button type="button" class="pl-sec${x === p ? ' on' : ''}" data-pl-pick="${esc(c.c)}|${esc(x.id)}" data-sec="${esc(c.c)}|${esc(x.id)}" aria-pressed="${x === p}">
+        <b>${esc(secLabel(x))}</b><span>${x.meets.map(m => `<i>${esc(meetText(m))}</i>`).join('')}</span>${x.hoca ? `<small class="muted">${esc(x.hoca)}</small>` : ''}${
+        clashWith(x).length ? `<small class="pl-warn">${esc(clashWith(x).join(', '))} ile çakışıyor</small>` : ''}</button>`).join('')}</div>` : ''}</div>`;
+  }).join('');
+  const seen = new Set();
+  const clashList = clashes.length ? `<div class="card pl-clashes"><b>Çakışan saatler</b><ul>${clashes.filter(k => {
+    const key = `${k.x.code}|${k.y.code}|${k.d}|${k.a}`;
+    return !seen.has(key) && seen.add(key);
+  }).map(k => `<li><b>${esc(k.x.code)}${k.x.sec ? ` ${esc(secShort(k.x))}` : ''}</b> ve <b>${esc(k.y.code)}${k.y.sec ? ` ${esc(secShort(k.y))}` : ''}</b>: ${PL_DAYS[k.d]} ${dropZero(hhmm(k.a))}–${dropZero(hhmm(k.b))}</li>`).join('')}</ul></div>`
+    : list.every(plPicked) && list.length > 1 ? '<p class="pl-ok small">Seçili şubeler çakışmıyor.</p>' : '';
+  return `${clashList}<div class="card pl-cs">${courses}<div class="pl-tools"><button type="button" class="btn primary" data-pl-combos>Çakışmayan programları bul</button>
+    <button type="button" class="btn ghost" data-pl-reset>Planı temizle</button></div></div>${plComboBox()}`;
+}
+function plComboBox() {
+  if (!plCombos) return '';
+  const r = plCombos;
+  if (!r.list.length) return `<div class="card pl-clashes"><b>Çakışmayan program yok</b><p class="small">${r.blocked.length
+    ? `Bu derslerin bütün şubeleri birbiriyle çakışıyor: ${r.blocked.map(([a, b]) => `${esc(a)} ve ${esc(b)}`).join('; ')}.`
+    : 'Bu derslerin hepsini çakışmadan alan bir şube kombinasyonu bulunamadı. Bir dersi çıkarıp yeniden dene.'}</p></div>`;
+  const sameAs = o => o.pick.every(x => taslak.picks?.[x.code] === x.id);
+  return `<div class="card pl-combos"><b>Çakışmayan programlar</b><span class="muted small"> ${r.total > 5 ? `${r.total >= 20000 ? '20.000+' : r.total} seçenekten en iyi 5'i` : `${r.list.length} seçenek`}: az gün ve az boşluk önce</span>
+    ${r.list.map((o, i) => `<div class="pl-combo${sameAs(o) ? ' on' : ''}"><div><b>Program ${i + 1}</b> <span class="muted small">${o.days} gün · ${o.gap ? `${dur(o.gap * 60_000)} boşluk` : 'boşluk yok'}</span>
+      <div class="pl-chips">${o.pick.map(x => `<span>${esc(x.code)}${x.sec ? ` ${esc(secShort(x))}` : ''}</span>`).join('')}</div></div>
+      <button type="button" class="btn${sameAs(o) ? '' : ' primary'}" data-pl-apply="${i}"${sameAs(o) ? ' disabled' : ''}>${sameAs(o) ? 'Takvimde' : 'Takvime uygula'}</button></div>`).join('')}</div>`;
+}
+function plArea() {
+  const clashes = plClashes();
+  return `<div class="pl-wrap"><section class="card pl-cal"><div class="pl-cal-h"><h2>Haftalık takvim</h2>
+      <span class="pl-legend"><i class="sel"></i>Seçili şube<i class="alt"></i>Seçilebilir şube<i class="clash"></i>Çakışma</span></div>${plCalendar(clashes)}</section>
+    <aside class="pl-side">${plPanel(clashes)}</aside></div>`;
+}
+function plRender() {
+  saveTaslak();
+  const a = document.getElementById('pl-area');
+  if (a) a.innerHTML = plArea();
+}
+const acRefresh = () => { const l = document.getElementById('ac-list'); if (l) l.innerHTML = acilanList(); };
 
 $view.addEventListener('input', e => {
-  if (e.target.matches('[data-ac-q]')) { acilanQ = e.target.value; acilanClosed = false; const l = document.getElementById('ac-list'); if (l) l.innerHTML = acilanList(); }
+  if (e.target.matches('[data-ac-q]')) { acilanQ = e.target.value; acilanClosed = false; acRefresh(); }
 });
 // Esc: arama sonuçlarını kapatır (metin silinmez); arama kutusuna tıklayınca yeniden açılır
 $view.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && e.target.matches('[data-ac-q]') && acilanQ.trim()) {
-    e.preventDefault();
-    acilanClosed = true;
-    const l = document.getElementById('ac-list'); if (l) l.innerHTML = acilanList();
-  }
+  if (e.key === 'Escape' && e.target.matches('[data-ac-q]') && acilanQ.trim()) { e.preventDefault(); acilanClosed = true; acRefresh(); }
 });
 $view.addEventListener('focusin', e => {
-  if (e.target.matches('[data-ac-q]') && acilanClosed) { acilanClosed = false; const l = document.getElementById('ac-list'); if (l) l.innerHTML = acilanList(); }
+  if (e.target.matches('[data-ac-q]') && acilanClosed) { acilanClosed = false; acRefresh(); }
 });
+// Bir şubenin üzerine gelince aynı şubenin bütün saatleri belirginleşir
+$view.addEventListener('mouseover', e => {
+  const s = e.target.closest?.('[data-sec]')?.dataset.sec;
+  if (s === plHover) return;
+  plHover = s;
+  $view.querySelectorAll('.pl-hover').forEach(x => x.classList.remove('pl-hover'));
+  if (s) $view.querySelectorAll(`[data-sec="${CSS.escape(s)}"]`).forEach(x => x.classList.add('pl-hover'));
+});
+let plHover = null;
 $view.addEventListener('click', e => {
   const mode = e.target.closest('[data-ac-mode]');
-  if (mode) { acilanMode = mode.dataset.acMode; acilanQ = ''; return render(); }
-  if (e.target.closest('[data-ac-close], [data-ac-open]')) {
-    acilanClosed = !!e.target.closest('[data-ac-close]');
-    const l = document.getElementById('ac-list'); if (l) l.innerHTML = acilanList();
-    return;
-  }
+  if (mode) { acilanMode = mode.dataset.acMode; acilanQ = ''; acilanClosed = false; return render(); }
+  if (e.target.closest('[data-ac-close], [data-ac-open]')) { acilanClosed = !!e.target.closest('[data-ac-close]'); return acRefresh(); }
   const tog = e.target.closest('[data-ac-toggle]');
   if (tog) {
-    const id = tog.dataset.acToggle;
-    const adding = !(taslak.ids || []).includes(id);
-    taslak.ids = adding ? [...(taslak.ids || []), id] : taslak.ids.filter(x => x !== id);
-    if (adding && tog.closest('#ac-list')) acilanClosed = true;     // ders seçilince sonuçlar kapanır; arama metni durur
-    saveTaslak();
-    const l = document.getElementById('ac-list'); if (l) l.innerHTML = acilanList();
-    const dr = document.getElementById('ac-draft'); if (dr) dr.innerHTML = acilanDraft();
-    return;
+    const code = tog.dataset.acToggle;
+    const adding = !(taslak.courses || []).includes(code);
+    if (adding) {
+      taslak.courses = [...(taslak.courses || []), code];
+      const c = acilanData.byCode.get(code);
+      if (c?.s.length === 1) taslak.picks[code] = c.s[0].id;      // tek şubeli ders kendiliğinden seçili
+      taslak.active = code;
+      if (tog.closest('#ac-list')) acilanClosed = true;           // ders seçilince sonuçlar kapanır; arama metni durur
+    } else {
+      taslak.courses = taslak.courses.filter(x => x !== code);
+      delete taslak.picks[code];
+      if (taslak.active === code) taslak.active = null;
+    }
+    plCombos = null;
+    acRefresh();
+    return plRender();
+  }
+  const pick = e.target.closest('[data-pl-pick]');
+  if (pick) {
+    const [code, id] = pick.dataset.plPick.split('|');
+    if (taslak.picks[code] === id) delete taslak.picks[code]; else taslak.picks[code] = id;
+    taslak.active = code;
+    return plRender();
+  }
+  const act = e.target.closest('[data-pl-active]');
+  if (act) { const c = act.dataset.plActive; taslak.active = taslak.active === c ? null : c; return plRender(); }
+  if (e.target.closest('[data-pl-combos]')) { plCombos = plFindCombos(); return plRender(); }
+  const ap = e.target.closest('[data-pl-apply]');
+  if (ap) {
+    for (const x of plCombos.list[+ap.dataset.plApply].pick) taslak.picks[x.code] = x.id;
+    taslak.active = null;
+    return plRender();
+  }
+  if (e.target.closest('[data-pl-reset]')) {
+    taslak = { v: 2, term: acilanData.term, courses: [], picks: {}, active: null };
+    plCombos = null;
+    acRefresh();
+    return plRender();
   }
   const o = e.target.closest('button[data-o-submit]');
   if (o) return oSubmit(o);
@@ -1109,122 +1328,6 @@ $view.addEventListener('click', e => {
 $view.addEventListener('input', e => {
   if (e.target.matches('[data-kadro-q]')) { kadroQ = e.target.value; const h = document.getElementById('kadro-hits'); if (h) h.innerHTML = kadroHits(); }
 });
-// ---------- Dönem ders programı: şube, gün/saat, derslik (yerel veri; server/program.mjs) ----------
-// Açılan Dersler'de her dersin şubeleri ve ders hocasının dersleri, taslak listede çakışma uyarısı.
-let progData = null;
-const PDAY = ['', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
-const slotFrom = s => s.split('-')[0].trim(), slotTo = s => s.split('-')[1].trim();
-const tmin = t => { const [h, m] = String(t).split(':').map(Number); return h * 60 + (m || 0); };
-const progKey = code => trFold(code).replace(/\s+/g, '');
-// Ardışık saatler tek aralık olur: "Pzt 16:30–18:20 · Amfi 2"
-function meets(slots) {
-  const out = [];
-  for (const s of [...slots].sort((a, b) => a.d - b.d || tmin(slotFrom(a.s)) - tmin(slotFrom(b.s)))) {
-    const last = out.at(-1);
-    if (last && last.d === s.d && last.r === s.r && tmin(slotFrom(s.s)) - tmin(last.to) <= 15) last.to = slotTo(s.s);
-    else out.push({ d: s.d, from: slotFrom(s.s), to: slotTo(s.s), r: s.r, b: s.b, cap: s.cap });
-  }
-  return out;
-}
-// Ders kodu (şubesiz, ör. "BİL 214") → şubeler [{ code, sec, t, i, meets }]
-function progIndex() {
-  if (!progData?.sessions?.length) return null;
-  if (progData._idx) return progData._idx;
-  const by = new Map();
-  for (const s of progData.sessions) {
-    const [base, sec = ''] = s.c.split(/\.(?=\d+$)/);
-    const k = progKey(base);
-    if (!by.has(k)) by.set(k, new Map());
-    const secs = by.get(k);
-    if (!secs.has(s.c)) secs.set(s.c, { code: s.c, base, sec, t: s.t, i: s.i, slots: [] });
-    secs.get(s.c).slots.push(s);
-  }
-  progData._idx = new Map([...by].map(([k, secs]) => [k, [...secs.values()].map(x => ({ ...x, meets: meets(x.slots) }))
-    .sort((a, b) => (+a.sec || 0) - (+b.sec || 0))]));
-  return progData._idx;
-}
-const meetChip = m => `<span class="mt">${PDAY[m.d]} ${esc(m.from)}–${esc(m.to)} <i>${esc(m.r)}</i></span>`;
-function sectionsHtml(code) {
-  const secs = progIndex()?.get(progKey(code));
-  if (!secs?.length) return '';
-  return `<div class="ac-secs">${secs.map(x => `<div class="ac-sec"><b>${x.sec ? `Şube ${esc(x.sec)}` : esc(x.code)}</b>
-    <span class="mts">${x.meets.map(meetChip).join('')}</span>${x.i ? `<span class="muted small">${esc(x.i)}</span>` : ''}</div>`).join('')}</div>`;
-}
-// Ders hocasının bu dönemki dersleri (ders programındaki adla birebir eşleşir)
-function hocaSecs(name) {
-  if (!progData?.sessions?.length) return '';
-  const k = trFold(name);
-  const by = new Map();
-  for (const s of progData.sessions) if (trFold(s.i) === k) { if (!by.has(s.c)) by.set(s.c, { t: s.t, slots: [] }); by.get(s.c).slots.push(s); }
-  if (!by.size) return '';
-  return `<div class="ac-secs">${[...by].sort((a, b) => a[0].localeCompare(b[0], 'tr')).map(([c, x]) => `<div class="ac-sec"><b>${esc(c)}</b>
-    <span class="mts">${meets(x.slots).map(meetChip).join('')}</span><span class="muted small">${esc(x.t)}</span></div>`).join('')}</div>`;
-}
-// Taslak listede: iki dersin bütün şube eşleşmeleri çakışıyorsa ikisi birlikte alınamaz
-const overlap = (a, b) => a.some(m => b.some(n => m.d === n.d && tmin(m.from) < tmin(n.to) && tmin(n.from) < tmin(m.to)));
-function draftConflicts(codes) {
-  const idx = progIndex();
-  if (!idx) return [];
-  const out = [];
-  for (let i = 0; i < codes.length; i++) for (let j = i + 1; j < codes.length; j++) {
-    const A = idx.get(progKey(codes[i])), B = idx.get(progKey(codes[j]));
-    if (A?.length && B?.length && A.every(a => B.every(b => overlap(a.meets, b.meets)))) out.push([codes[i], codes[j]]);
-  }
-  return out;
-}
-
-function progCard() {
-  const p = progData, st = p?.capture;
-  const has = p?.sections > 0;
-  return `<div class="card prog-card" id="prog-card"><div><b>Şube, gün/saat, derslik ve ders hocası</b>
-    <p class="small ${has ? '' : 'muted'}">${has ? `${esc(p.term || '')} · ${p.depts.length} bölüm · ${p.sections} şube · ${p.rooms} derslik · son güncelleme ${whenTR(p.updated)}` : 'Henüz ders programı verisi yok.'}</p>
-    <p class="muted small">Ortam bu bilgiyi doğrulamalı (reCAPTCHA) bölüm aramasıyla veriyor; uygulama bu formu kendisi göndermez. "Ortam'dan güncelle" ile
-      açılan pencerede bölümü sen seçip aramayı sen yaparsın, açtığın her sonuç sayfası buraya kaydedilir. Kayıtlı bir sonuç sayfasını ya da
-      ETÜ Sınıf Durumu dosyasını da içe aktarabilirsin. Veri yalnızca bu bilgisayarda tutulur.</p>
-    ${st?.active ? `<p class="small prog-live"><b>Pencere açık:</b> ${st.count} bölüm kaydedildi${st.last ? ` (son: ${esc(st.last)})` : ''}. İstediğin bölümler bitince sekmeyi kapat.</p>`
-      : st?.error ? `<p class="small err">${esc(st.error)}</p>` : st?.count ? `<p class="small">Son pencerede ${st.count} bölüm kaydedildi.</p>` : ''}</div>
-    <div class="prog-act"><button type="button" class="btn primary" data-prog-capture${st?.active ? ' disabled' : ''}>${icon('external')}Ortam'dan güncelle</button>
-      <label class="btn">${icon('paperclip')}Dosyadan içe aktar<input type="file" data-prog-import accept=".html,.htm,.json" multiple hidden></label></div></div>`;
-}
-let progPolling = false;
-function progPoll() {
-  if (progPolling) return;
-  progPolling = true;
-  const tick = async () => {
-    const card = document.getElementById('prog-card');
-    if (!card) { progPolling = false; return; }
-    progData = await api('program').catch(() => progData);
-    card.outerHTML = progCard();
-    if (progData?.capture?.active) setTimeout(tick, 3000);
-    else { progPolling = false; render(true); }
-  };
-  setTimeout(tick, 3000);
-}
-$view.addEventListener('click', async e => {
-  const b = e.target.closest('[data-prog-capture], [data-prog-fetch]');
-  if (!b) return;
-  b.disabled = true;
-  const courses = b.dataset.progFetch ? b.dataset.progFetch.split(',').filter(Boolean) : [];
-  const r = await post('/api/program/capture', { courses }).catch(() => null);
-  const j = await r?.json().catch(() => null);
-  if (!r?.ok) { b.disabled = false; return toast(j?.error || 'Pencere açılamadı'); }
-  progData = { ...(progData || {}), capture: j };
-  document.getElementById('prog-card').outerHTML = progCard();
-  toast(courses.length ? 'Ortam penceresi açıldı: turuncu çerçeveli düğmeye bas' : 'Ortam penceresi açıldı: bölümü seçip aramayı yap');
-  progPoll();
-});
-$view.addEventListener('change', async e => {
-  const inp = e.target.closest('[data-prog-import]');
-  if (!inp) return;
-  let ok = 0;
-  for (const f of inp.files) {
-    const r = await fetch('/api/program/import?name=' + encodeURIComponent(f.name), { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: f }).catch(() => null);
-    const j = await r?.json().catch(() => null);
-    if (r?.ok) ok++; else toast(`${f.name}: ${j?.error || 'içe aktarılamadı'}`);
-  }
-  if (ok) { toast(`${ok} dosya içe aktarıldı`); progData = null; render(); }
-});
-
 // ---------- Açılan Dersler sonu ----------
 
 // ---------- UBS ----------
@@ -1928,7 +2031,7 @@ const SSS = [
   ['Uzak\'ta sınav, ödev yükleme ya da Safe Exam Browser isteyen içerik olursa?', 'İçeriğin kendisi (açıklama, dosyalar, bağlantılar, Safe Exam Browser indirme bağlantısı ve yapılandırma dosyası) uygulamada görünür. Sınava başlama, ödev yükleme, foruma yazma gibi işlemler okulun sitesinde yapılır; sayfanın üstünde "Sitede aç" bağlantısı çıkar.'],
   ['Uygulama nasıl güncellenir?', 'Yeni sürüm çıkınca uygulama sağ altta sorar; "Güncelle"ye basmadan hiçbir şey indirilmez. Basınca sürüm yalnızca GitHub sayfamızdan indirilir, SHA-256 özetiyle doğrulanır, kurulur ve uygulama kendini yeniden başlatır. Şifren, oturumların ve ayarların korunur. Hakkımızda sayfasından elle de denetleyebilirsin.'],
   ['Mevzuat bölümündeki yanıtlar ne kadar güvenilir?', 'Her hızlı yanıtın altında dayandığı madde yazar ve tıklayınca o madde açılır. Uygulama her açılışta o maddenin metninin hâlâ aynı olduğunu denetler; metin değişmişse yanıtın yanında uyarı çıkar. Belgeler okulun Mevzuat sayfasındaki kaynaklardan (mevzuat.gov.tr ve okulun dosyaları) alınır. Bir yönerge, dayandığı yönetmelik ondan sonra değişmişse işaretlenir; çelişki varsa üst mevzuat geçerlidir. Yine de resmî işlemlerde Öğrenci İşleri esastır.'],
-  ['Açılan Dersler\'deki şube ve derslik bilgisi nereden geliyor?', 'Ortam bu bilgiyi yalnızca doğrulamalı (reCAPTCHA) bölüm aramasıyla veriyor. Uygulama bu formu kendisi doldurup göndermez ve doğrulamayı aşmaz. Açılan Dersler sayfasındaki "Ortam\'dan güncelle" düğmesi Ortam\'ın ders programı sayfasını bir pencerede açar; bölümü sen seçip aramayı sen yaparsın, açtığın her sonuç sayfası uygulamaya kaydedilir. Daha önce kaydedilmiş sonuç sayfalarını ya da ETÜ Sınıf Durumu dosyasını da içe aktarabilirsin. Veri yalnızca bu bilgisayarda tutulur.'],
+  ['Açılan Dersler\'deki şube ve saatler ne kadar güncel?', 'Ders verisi uygulamayla birlikte gelir; sayfanın üstünde son güncelleme tarihi yazar. Şube, saat ve derslikler o tarihten sonra değişmiş olabilir, bu yüzden kayıttan önce okulun güncel programından kontrol et. Yeni veri uygulama güncellemesiyle gelir.'],
   ['Uygulama ne zaman çalışıyor, arka planda açık mı kalıyor?', 'Yalnızca "Ortam Sade" siyah penceresi açıkken. Pencereyi kapatınca ya da Hesap > Güvenlik ve Oturumlar > "Uygulamayı kapat" deyince durur ve okul sitelerine hiçbir istek gitmez. Bilgisayar açılınca kendiliğinden başlamaz. Menünün altındaki yeşil nokta uygulamanın açık olduğunu gösterir; kapanırsa sayfanın üstünde kırmızı uyarı çıkar. Açıkken arka planda neyin ne sıklıkta yapıldığı da aynı sayfada yazar.'],
   ['Oturumların açık tutulması güvenli mi?', 'Oturum çerezleri yalnızca bu bilgisayarda, AES-256 ile şifreli ve Windows hesabına bağlı bir anahtarla saklanır; uygulamaya yalnızca bu bilgisayardan erişilebilir. Yine de istersen Hesap > Güvenlik ve Oturumlar\'dan oturumları açık tutmayı ve kendiliğinden yeniden girmeyi kapatabilir, sitelerden çıkış yapabilir ve uygulamaya PIN koyabilirsin. Bilgisayarı başkalarıyla paylaşıyorsan PIN önerilir.'],
   ['Okulun sitelerine doğrudan nasıl giderim?', 'Bütün sitelerin ve sık kullanılan sayfaların orijinal adresleri Hakkında ve SSS > Okulun Siteleri sayfasında. Uygulamadaki her bölümde ayrıca "Sitede aç" ya da benzeri bir bağlantı bulunur.'],
@@ -2572,9 +2675,8 @@ function updateCard(u, { manual = false } = {}) {
   card.innerHTML = `<div class="upd-h">${icon('download')}<b>Ortam Sade ${esc(u.latest)} yayınlandı</b></div>
     <p class="muted small">Şu an ${esc(u.current)} kullanıyorsun. Güncellemek ister misin?${size}</p>
     ${u.notes ? `<details><summary class="small">Neler yeni?</summary><div class="upd-notes small">${esc(plainNotes(u.notes))}</div></details>` : ''}
-    ${u.packaged ? '' : `<p class="small bad">Kaynak koddan çalışıyorsun: "git pull" ile güncelle ya da <a href="${esc(u.url)}" target="_blank" rel="noopener">sürüm sayfasından</a> indir.</p>`}
     <div class="upd-act"><button type="button" class="btn ghost" data-upd-later>Sonra</button>
-      ${u.packaged ? '<button type="button" class="btn primary" data-upd-go>Güncelle</button>' : ''}</div>
+      <button type="button" class="btn primary" data-upd-go>Güncelle</button></div>
     <p class="upd-msg small muted" aria-live="polite"></p>`;
   document.body.append(card);
 }

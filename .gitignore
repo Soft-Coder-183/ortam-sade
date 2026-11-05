@@ -11,3 +11,4 @@ node_modules/
 dist/
 # Kullanıcının kendi klasörü (başka projeden betik ve veri)
 yeni/
+Ortam_*.png

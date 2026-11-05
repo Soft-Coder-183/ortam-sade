@@ -28,7 +28,7 @@ function copyTree(src, dst, filter) {
   } else fs.copyFileSync(src, dst);
 }
 const copy = (from, to = from, filter) => copyTree(path.join(ROOT, from), path.join(OUT, to), filter);
-for (const f of ['server', 'public', 'package.json', 'LICENSE', 'README.md', 'Ortam Sade.cmd']) copy(f);
+for (const f of ['server', 'public', 'data', 'package.json', 'LICENSE', 'README.md', 'Ortam Sade.cmd']) copy(f);
 
 // Bağımlılıklar: tarayıcıda kullanılmayan pdf.js parçaları ve pdf.js'in Node'da çizim için istediği isteğe bağlı
 // @napi-rs/canvas pakete alınmaz (sunucu pdf.js'i yalnızca tarayıcıya dosya olarak verir).

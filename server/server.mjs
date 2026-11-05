@@ -206,7 +206,7 @@ const srv = http.createServer(async (req, res) => {
 
   if (url.pathname.startsWith('/api/')) {
     const name = url.pathname.slice(5);
-    if (req.method === 'POST' && !trustedPost(req, name === 'webmail/upload' || name === 'program/import')) return send(403, { error: 'İzin verilmeyen istek' });
+    if (req.method === 'POST' && !trustedPost(req, name === 'webmail/upload')) return send(403, { error: 'İzin verilmeyen istek' });
 
     // ---------- Giriş PIN'i ----------
     // PIN açıksa kilit açılmadan hiçbir veri ucu yanıt vermez (423); arayüz kilit ekranını gösterir.
@@ -330,24 +330,13 @@ const srv = http.createServer(async (req, res) => {
       try {
         const r = await update.apply();
         send(200, r);
-        setTimeout(() => process.exit(update.RESTART_CODE), 800);
+        setTimeout(update.restart, 800);
         return;
       } catch (e) { return send(500, { error: e.message }); }
     }
     // Mevzuat (herkese açık kaynaklar, giriş gerekmez): modül belgeleri kendi önbelleğinde tutar (.cache/mevzuat)
-    // Dönem ders programı (şube/saat/derslik): yerel veri; içe aktarma ve kullanıcının yönettiği Ortam penceresi
-    if (name === 'program' && req.method === 'GET') return send(200, await program.get());
-    if (name === 'program/import' && trustedPost(req, true)) {
-      try { return send(200, await program.importFile((url.searchParams.get('name') || 'dosya').slice(0, 200), await readBody(req, 30 * 2 ** 20))); }
-      catch (e) { return send(400, { error: e.message }); }
-    }
-    if (name === 'program/capture' && trustedPost(req)) {
-      try {
-        const b = await readJson(req).catch(() => ({}));
-        const o = await ortam.offered().catch(() => null);           // açık dönemin sayfası ve adı (ör. 2026-2027 Güz)
-        return send(200, await program.startCapture(o?.path, o?.term || null, b.courses));
-      } catch (e) { return send(500, { error: e.message }); }
-    }
+    // Dönem ders programı: uygulamayla gelen veri dosyası (Açılan Dersler ve haftalık plan)
+    if (name === 'program' && req.method === 'GET') return send(200, program.get());
     const MEVZUAT = { mevzuat: () => mevzuat.listing(), 'mevzuat-doc': q => mevzuat.doc(q.get('id')), 'mevzuat-ara': q => mevzuat.search(q.get('q') || ''),
       'mevzuat-yanitlar': () => mevzuat.answers(), 'mevzuat-duyurular': () => mevzuat.news(), 'mevzuat-duyuru': q => mevzuat.newsItem(q.get('path')) };
     if (MEVZUAT[name] && req.method === 'GET') {

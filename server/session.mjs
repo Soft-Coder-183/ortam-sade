@@ -179,25 +179,6 @@ function releaseVisible(ctx) {
   return exclusive(() => ctx.close().catch(() => {}));
 }
 
-// Kullanıcının kendisinin kullandığı görünür sekme: url açılır, kullanıcı sayfada istediğini yapar (form seçer, gönderir;
-// doğrulama çıkarsa kendisi yanıtlar). Uygulama hiçbir şeye tıklamaz; onResponse yalnızca sayfanın aldığı yanıtları okur
-// (ör. kullanıcının yaptığı aramanın sonucu). onLoad her sayfa yüklenişinde çağrılır (ör. bilgi şeridi göstermek için).
-// Sekme kapanınca ya da süre dolunca biter.
-export async function userWindow(url, { onResponse, onLoad, timeout = 30 * 60_000 } = {}) {
-  const ctx = await acquireVisible();
-  const page = await ctx.newPage();
-  try {
-    if (onResponse) page.on('response', r => { Promise.resolve(onResponse(r, page)).catch(() => {}); });
-    if (onLoad) page.on('load', () => { Promise.resolve(onLoad(page)).catch(() => {}); });
-    await page.goto(url, { waitUntil: 'load' });
-    await page.bringToFront();
-    await Promise.race([page.waitForEvent('close', { timeout: 0 }), new Promise(ok => setTimeout(ok, timeout))]);
-  } finally {
-    if (!page.isClosed()) await page.close().catch(() => {});
-    await releaseVisible(ctx);
-  }
-}
-
 // ---------- oturum alma ----------
 
 async function seedSilently(site) {

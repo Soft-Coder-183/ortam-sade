@@ -28,12 +28,10 @@ toplayan, **senin bilgisayarında çalışan** açık kaynaklı bir öğrenci pr
   aynı olduğunu her açılışta denetler. Dayandığı yönetmelik sonradan değişmiş yönergeler ve duyurulardaki eski sürüm bağlantıları
   işaretlenir. Öğrenci İşleri duyuruları da burada.
 - **Ekstra:** Açılan Dersler, Akademik Takvim, Akademik Kadro, Yabancı Diller, Mevzuat; ÇAP/YAP ve hareketlilik başvuruları.
-- **Ders programı (bütün bölümler):** Açılan Dersler'de her dersin şubeleri gün, saat, derslik ve hocasıyla; ders hocasının
-  bu dönemki dersleri; taslak listede birlikte alınamayan (bütün şubeleri çakışan) dersler.
-  Taslak listedeki derslerin şube ve saatleri tek düğmeyle Ortam'dan getirilir: Ortam'ın ders programı sayfası açılır, dersler
-  işaretlenmiş olur, aramayı başlatan düğmeye sen basarsın, sonuç uygulamada görünür ve sekme kapanır (Ortam bu aramayı
-  doğrulamalı yaptığı için son tıklama her zaman senindir). Bölüm bölüm güncelleme ve kayıtlı sonuç sayfası/"ETÜ Sınıf Durumu"
-  dosyası içe aktarma da var. Veri yalnızca senin bilgisayarında tutulur.
+- **Haftalık ders planı (Açılan Dersler):** bu dönem açılan dersleri ya da ders hocalarını ara, plana ekle; dersler tek bir haftalık
+  takvimde görünür. Şubeyi seçince takvimde yeşil olur, seçili şubelerin çakışan saatleri takvimde ve yan panelde gösterilir,
+  "Çakışmayan programları bul" en çok 5 şube kombinasyonu üretir. Ders verisi uygulamayla gelir (`data/ders-programi.json`);
+  ekranda son güncelleme tarihi yazar ve kayıttan önce okulun güncel programından kontrol etmen gerekir.
 - **Okulun Siteleri:** bütün sitelerin ve sık kullanılan sayfaların orijinal adresleri tek sayfada (Hakkında ve SSS).
 - Açık/koyu tema, telefona uygun düzen.
 
@@ -63,6 +61,7 @@ Yeni sürüm çıkınca uygulama sağ altta **"Ortam Sade x.y.z yayınlandı —
 3. Uygulama kendini yeniden başlatır, açık sayfa yenilenir.
 
 Sürümü ve "Güncellemeleri denetle" düğmesini **Hakkında ve SSS → Hakkımızda** sayfasında bulabilirsin.
+Düğme her kurulumda aynı çalışır: paketli sürümde de git ile indirilmiş klasörde de komut çalıştırman gerekmez.
 > 1.0.0 kullanıyorsan bu özellik sende yok: 1.1.0'ı bir kez elle indirip eski klasörün üzerine çıkarman yeterli (`.cache` klasörün korunur).
 
 ## Güvenlik ve gizlilik

@@ -3,10 +3,11 @@
 // Kurulum: sürüm dosyası (zip) indirilir, GitHub'ın verdiği SHA-256 özetiyle doğrulanır, .cache/update altına açılır,
 // içindeki sürüm numarası denetlenir; sonra uygulama klasörleri yeniden adlandırılarak değiştirilir (eskiler yedekte kalır)
 // ve sunucu 75 koduyla çıkar — başlatıcı (server/start.mjs) yeni sürümü açar. Kişisel veriler (.cache, .profile) dokunulmaz.
+// Git ile indirilmiş klasörde aynı düğme sürüm etiketini çekip bağımlılıkları günceller: kullanıcı komut çalıştırmaz.
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, execSync, spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const REPO = 'Soft-Coder-183/ortam-sade';
@@ -18,8 +19,9 @@ const CHECK_EVERY = 6 * 3600_000;                // 6 saatte bir (GitHub'a tek i
 export const RESTART_CODE = 75;
 
 export const current = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version;
-// Paketli sürüm mü (runtime\node.exe ile çalışıyor)? Geliştirici kurulumunda (git) güncelleme "git pull" ile yapılır.
+// Paketli sürüm mü (runtime\node.exe ile çalışıyor)? Git klasöründe güncelleme git ile, diğer her durumda paketle yapılır.
 const packaged = fs.existsSync(path.join(ROOT, 'runtime', 'node.exe')) && fs.existsSync(path.join(ROOT, 'server', 'start.mjs'));
+const isGit = fs.existsSync(path.join(ROOT, '.git'));
 
 const newer = (a, b) => {                        // a > b ? (1.10.0 > 1.9.3)
   const x = String(a).replace(/^v/, '').split('.').map(Number), y = String(b).replace(/^v/, '').split('.').map(Number);
@@ -66,9 +68,9 @@ export function apply() {
 }
 
 async function doApply() {
-  if (!packaged) throw new Error('Bu kurulum paketli sürüm değil; kaynak koddan çalışıyorsan "git pull" ile güncelle.');
   const s = await check(true);
   if (!s.newer) throw new Error('Zaten en güncel sürüm kullanılıyor.');
+  if (!packaged && isGit && gitAvailable()) return gitUpdate(info.latest);
   const a = info.asset;
   const ok = u => { try { const h = new URL(u); if (FEED) return h.origin === new URL(FEED).origin; return h.protocol === 'https:' && h.hostname === 'github.com' && h.pathname.startsWith(`/${REPO}/releases/download/`); } catch { return false; } };
   if (!a || !ok(a.download)) throw new Error('Sürümde Windows paketi bulunamadı.');
@@ -89,7 +91,7 @@ async function doApply() {
   const src = path.join(x, 'OrtamSade');
   const ver = JSON.parse(fs.readFileSync(path.join(src, 'package.json'), 'utf8')).version;
   if (ver !== info.latest) throw new Error(`Paketteki sürüm (${ver}) beklenenle (${info.latest}) uyuşmuyor.`);
-  for (const need of ['server/server.mjs', 'server/start.mjs', 'public/app.js', 'node_modules', 'runtime/node.exe'])
+  for (const need of ['server/server.mjs', 'server/start.mjs', 'public/app.js', 'data/ders-programi.json', 'node_modules', 'runtime/node.exe'])
     if (!fs.existsSync(path.join(src, need))) throw new Error(`Paket eksik: ${need}`);
 
   // Değiştirme: eski klasör/dosya yedeğe taşınır, yenisi yerine taşınır (aynı disk: yalnızca yeniden adlandırma).
@@ -106,7 +108,10 @@ async function doApply() {
     // Node.js çalışırken dosyası değiştirilemez ama yeniden adlandırılabilir; yalnızca farklıysa değiştirilir.
     const newNode = path.join(src, 'runtime', 'node.exe'), curNode = path.join(ROOT, 'runtime', 'node.exe');
     const hash = f => crypto.createHash('sha256').update(fs.readFileSync(f)).digest('hex');
-    if (hash(newNode) !== hash(curNode)) {
+    if (!fs.existsSync(curNode)) {                  // pakette olmayan kurulum (kaynak dosyalar): Node.js de pakettekiyle gelir
+      fs.mkdirSync(path.dirname(curNode), { recursive: true });
+      fs.renameSync(newNode, curNode);
+    } else if (hash(newNode) !== hash(curNode)) {
       fs.rmSync(path.join(ROOT, 'runtime', 'node.old.exe'), { force: true });
       fs.renameSync(curNode, path.join(ROOT, 'runtime', 'node.old.exe'));
       fs.renameSync(newNode, curNode);
@@ -120,4 +125,29 @@ async function doApply() {
   }
   fs.rmSync(zip, { force: true });
   return { ok: true, version: ver };
+}
+
+// Git klasörü: yayımlanan sürümün etiketine ileri sarılır; kullanıcının değiştirdiği dosyalara dokunulmaz.
+const git = (...a) => execFileSync('git', a, { cwd: ROOT, windowsHide: true, stdio: 'pipe', timeout: 180_000 }).toString().trim();
+function gitAvailable() { try { git('--version'); return true; } catch { return false; } }
+function gitUpdate(ver) {
+  const before = git('rev-parse', 'HEAD');
+  try {
+    git('fetch', '--tags', '--force', 'origin');
+    git('merge', '--ff-only', `v${ver}`);
+  } catch {
+    throw new Error('Güncelleme kurulamadı: bu klasörde değiştirilmiş dosyalar var. Eski sürüm çalışmaya devam ediyor.');
+  }
+  if (git('diff', '--name-only', before, 'HEAD').split('\n').includes('package-lock.json'))
+    execSync('npm ci --omit=dev --no-audit --no-fund', { cwd: ROOT, windowsHide: true, stdio: 'pipe', timeout: 300_000 });
+  return { ok: true, version: ver };
+}
+
+// Kurulumdan sonra yeniden başlatma. Başlatıcıyla (Ortam Sade.cmd) açıldıysa 75 koduyla çıkmak yeter; değilse (npm start)
+// eski süreç kapanınca siyah pencere yeniden açılır, böylece uygulama görünmez çalışmaz.
+export function restart() {
+  if (packaged || process.env.ORTAM_GOZETIM || process.platform !== 'win32') process.exit(RESTART_CODE);
+  spawn('cmd.exe', ['/c', 'ping -n 3 127.0.0.1 >nul & set ORTAM_YENIDEN=1& start "Ortam Sade" "Ortam Sade.cmd"'],
+    { cwd: ROOT, detached: true, stdio: 'ignore', windowsHide: true, windowsVerbatimArguments: true }).unref();
+  process.exit(0);
 }

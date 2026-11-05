@@ -10,7 +10,7 @@ const NODE = path.join(ROOT, 'runtime', 'node.exe');
 const RESTART_CODE = 75;
 
 function run(first) {
-  const env = { ...process.env };
+  const env = { ...process.env, ORTAM_GOZETIM: '1' };   // sunucu güncellemeden sonra 75 koduyla çıkıp yeniden açılabileceğini bilir
   if (!first) delete env.ORTAM_AC;
   const child = spawn(fs.existsSync(NODE) ? NODE : process.execPath, ['server/server.mjs'], { cwd: ROOT, env, stdio: 'inherit' });
   child.on('exit', code => {
