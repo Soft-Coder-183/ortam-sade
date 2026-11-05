@@ -921,6 +921,7 @@ async function oSubmit(btn) {
 // Plan bu cihazda 'program-taslak' anahtarında: { v: 2, term, courses: [kod], picks: { kod: şube }, off: { kod: [gizli şube] }, active: kod, last: son temizlenen set }.
 let acilanQ = '';
 let acilanNext = null;                 // Enter'ın plana ekleyeceği ders
+let acilanCursor = 0;                  // eklenebilir dersler arasında ok tuşlarıyla seçilen sıra
 let acilanMode = 'ders';               // 'ders' | 'hoca' (ders hocası araması)
 let acilanData = null;                 // { term, updated, courses, byCode, hocas }
 let plCombos = null;                   // son üretilen kombinasyonlar: { list, total, none }
@@ -989,7 +990,7 @@ async function viewAcilan() {
 function acilanList() {
   const q = trFold(acilanQ.trim());
   if (!q) return `<p class="muted small">${acilanMode === 'hoca' ? 'Ada göre ara: bu dönem ders veren ders hocaları ve dersleri listelenir.' : 'Ders ara ve plana ekle; dersler aşağıdaki haftalık takvimde görünür.'}</p>`;
-  acilanNext = acFirst(q);
+  acilanNext = acTarget(q);
   return acilanMode === 'hoca' ? hocaList(q) : acilanResults(q);
 }
 const acToggle = c => {
@@ -1005,9 +1006,14 @@ const acHits = q => {
 };
 const hocaHits = q => [...acilanData.hocas.keys()].filter(n => trFold(n).includes(q)).sort((a, b) => a.localeCompare(b, 'tr'));
 const hocaCourses = n => [...acilanData.hocas.get(n)].sort((a, b) => a.c.localeCompare(b.c, 'tr'));
-// Listede görünen, plana henüz eklenmemiş ilk ders
-const acFirst = q => (acilanMode === 'hoca' ? hocaHits(q).slice(0, 30).flatMap(hocaCourses) : acHits(q).slice(0, 50))
-  .find(c => !(taslak.courses || []).includes(c.c)) ?? null;
+// Listede görünen, plana henüz eklenmemiş dersler; Enter'ın hedefi ok tuşlarıyla bunlar arasında değişir
+const acAddable = q => [...new Set(acilanMode === 'hoca' ? hocaHits(q).slice(0, 30).flatMap(hocaCourses) : acHits(q).slice(0, 50))]
+  .filter(c => !(taslak.courses || []).includes(c.c));
+const acTarget = q => {
+  const l = acAddable(q);
+  acilanCursor = Math.min(acilanCursor, Math.max(0, l.length - 1));
+  return l[acilanCursor] ?? null;
+};
 function acilanResults(q) {
   const hits = acHits(q);
   if (!hits.length) return '<p class="muted">Bu aramayla açılan ders yok.</p>';
@@ -1142,7 +1148,7 @@ function plCalendar(clashes) {
   const items = plBlocks();
   const hit = (x, m) => clashes.some(k => k.d === m.d && m.a < k.b && k.a < m.b && (k.x === x || k.y === x));
   const days = items.some(i => i.d === 6) ? [1, 2, 3, 4, 5, 6] : [1, 2, 3, 4, 5];
-  const from = Math.min(510, ...items.map(i => i.a)), to = Math.max(1100, ...items.map(i => i.b));
+  const from = Math.min(510, ...items.map(i => i.a)), to = Math.max(1160, ...items.map(i => i.b));   // 18.30 dersi hep görünür
   const top = Math.floor((from - 30) / 60) * 60 + 30;
   const hours = Math.ceil((to - top) / 60);
   const y = m => (m - top) / 60 * PL_HOUR;
@@ -1238,6 +1244,7 @@ function plAdd(code) {
   taslak.active = code;
   plCombos = null;
   acilanQ = '';
+  acilanCursor = 0;
   const q = $view.querySelector('[data-ac-q]');
   if (q) q.value = '';
   acRefresh();
@@ -1245,14 +1252,19 @@ function plAdd(code) {
 }
 
 $view.addEventListener('input', e => {
-  if (e.target.matches('[data-ac-q]')) { acilanQ = e.target.value; acRefresh(); }
+  if (e.target.matches('[data-ac-q]')) { acilanQ = e.target.value; acilanCursor = 0; acRefresh(); }
 });
-// Enter: listede işaretli dersi plana ekler
+// Enter: listede işaretli dersi plana ekler; yukarı ve aşağı oklar işareti taşır
 $view.addEventListener('keydown', e => {
-  if (e.key !== 'Enter' || e.isComposing || !e.target.matches('[data-ac-q]')) return;
+  if (!['Enter', 'ArrowDown', 'ArrowUp'].includes(e.key) || e.isComposing || !e.target.matches('[data-ac-q]')) return;
   e.preventDefault();
-  const c = acFirst(trFold(acilanQ.trim()));
-  if (c) plAdd(c.c);
+  const q = trFold(acilanQ.trim());
+  if (e.key === 'Enter') { const c = acTarget(q); if (c) plAdd(c.c); return; }
+  const n = acAddable(q).length;
+  if (!n) return;
+  acilanCursor = (acilanCursor + (e.key === 'ArrowDown' ? 1 : n - 1)) % n;
+  acRefresh();
+  document.querySelector('#ac-list .ac-row.next')?.scrollIntoView({ block: 'nearest' });
 });
 // Bir şubenin üzerine gelince aynı şubenin bütün saatleri belirginleşir
 $view.addEventListener('mouseover', e => {
@@ -1265,7 +1277,7 @@ $view.addEventListener('mouseover', e => {
 let plHover = null;
 $view.addEventListener('click', e => {
   const mode = e.target.closest('[data-ac-mode]');
-  if (mode) { acilanMode = mode.dataset.acMode; acilanQ = ''; return render(); }
+  if (mode) { acilanMode = mode.dataset.acMode; acilanQ = ''; acilanCursor = 0; return render(); }
   const tog = e.target.closest('[data-ac-toggle]');
   if (tog) {
     const code = tog.dataset.acToggle;

@@ -929,10 +929,10 @@ body.locked > :not(#lock) { visibility: hidden; }
 .pl-legend i { width: 13px; height: 13px; margin-left: 8px; border-radius: 4px; }
 .pl-legend i.sel { background: var(--pl-green); }
 .pl-legend i.alt { border: 1.5px dashed var(--line-2); background: var(--card-2); }
-.pl-legend i.clash { background: var(--pl-green); box-shadow: inset 0 0 0 2px var(--pl-red); }
-:root { --pl-green: #2f8f57; --pl-green-soft: #dff2e6; --pl-red: #c9303a; --pl-on: #ffffff; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --pl-green: #4fb67a; --pl-green-soft: #1b3325; --pl-red: #f0727a; --pl-on: #0f1612; } }
-:root[data-theme="dark"] { --pl-green: #4fb67a; --pl-green-soft: #1b3325; --pl-red: #f0727a; --pl-on: #0f1612; }
+.pl-legend i.clash, .pl-b.sel.clash { background: repeating-linear-gradient(135deg, var(--pl-red) 0 1.5px, transparent 1.5px 10px), var(--pl-clash); }
+:root { --pl-green: #2f8f57; --pl-green-soft: #dff2e6; --pl-red: #c9303a; --pl-on: #ffffff; --pl-clash: #6a707a; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --pl-green: #4fb67a; --pl-green-soft: #1b3325; --pl-red: #f0727a; --pl-on: #0f1612; --pl-clash: #565c66; } }
+:root[data-theme="dark"] { --pl-green: #4fb67a; --pl-green-soft: #1b3325; --pl-red: #f0727a; --pl-on: #0f1612; --pl-clash: #565c66; }
 .pl-scroll { overflow-x: auto; }
 .pl-grid { display: grid; }
 .pl-h { padding: 7px 4px; text-align: center; font-size: .82rem; font-weight: 650; border-bottom: 1px solid var(--line-2); }
@@ -946,7 +946,7 @@ body.locked > :not(#lock) { visibility: hidden; }
 .pl-b b { font-size: .76rem; white-space: nowrap; text-overflow: ellipsis; }
 .pl-b.sel { z-index: 2; background: var(--pl-green); color: var(--pl-on); cursor: pointer; box-shadow: var(--shadow); }
 .pl-b.sel small { opacity: .9; font-size: .7rem; }
-.pl-b.sel.clash { box-shadow: inset 0 0 0 2px var(--pl-red), var(--shadow); }
+.pl-b.sel.clash { color: #fff; text-shadow: 0 0 3px #000, 0 0 2px #000; }
 .pl-b.alt.quiet { opacity: .55; }
 .pl-b.alt.quiet:hover, .pl-b.alt.quiet:focus-within { opacity: 1; }
 .pl-b.alt { z-index: 1; overflow-y: auto; background: var(--card-2); border: 1.5px dashed var(--line-2); color: var(--ink); }
