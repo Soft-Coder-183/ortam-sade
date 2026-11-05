@@ -880,8 +880,8 @@ body.locked > :not(#lock) { visibility: hidden; }
   font: inherit; font-size: 1.4rem; letter-spacing: .4em; text-align: center; }
 .lock-box button { width: 100%; min-height: 42px; border: 0; border-radius: 10px; background: var(--accent); color: var(--on-accent); font: inherit; font-weight: 650; cursor: pointer; }
 .lock-msg { color: var(--bad); min-height: 1.2em; font-size: .9rem; }
-.srv-state { text-decoration: none; }
-.srv-state i { flex: none; width: 8px; height: 8px; margin-inline: 6px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 20%, transparent); }
+.srv-state { min-height: 0; margin: 0; padding: 1px 12px; gap: 6px; font-size: .7rem; font-weight: 500; text-decoration: none; }
+.srv-state i { flex: none; width: 6px; height: 6px; margin-inline: 7px 2px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 20%, transparent); }
 .srv-state.down { color: var(--bad); font-weight: 650; }
 .srv-state.down i { background: var(--bad); box-shadow: 0 0 0 3px color-mix(in srgb, var(--bad) 20%, transparent); }
 @media (max-width: 800px) { .srv-state { display: none; } }

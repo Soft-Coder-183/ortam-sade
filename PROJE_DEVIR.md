@@ -5,6 +5,7 @@ Ortam Sade, TOBB ETÜ'nün okul sitelerini (Ortam, UBS, Uzak, UZAKYDB, Webmail, 
 - **Sahibi:** TOBB ETÜ öğrencisi Eren Akyurt. Türkçe konuşur, uygulamayı arkadaşlarıyla paylaşır.
 - **Depo:** https://github.com/Soft-Coder-183/ortam-sade (herkese açık, MIT lisansı).
 - **Durum:** Güncel sürüm 1.6.3. GitHub hesabı `gh` ile bağlı.
+- **Planlanan iş:** Android uygulaması (APK ve Play Store). Plan kullanıcıya sunuldu, kararları bekleniyor; karar gelmeden başlama.
 - **Kapsam notu:** Bu belge uygulamanın her parçasını saymaz. Kodda burada anlatılmayan bir bölüm görürsen değiştirmeden önce kullanıcıya sor.
 
 ## Mimari
