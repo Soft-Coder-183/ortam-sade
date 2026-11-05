@@ -918,9 +918,9 @@ async function oSubmit(btn) {
 // Ekstra > Açılan Dersler: dönemin açılan dersleri uygulamayla gelen veri dosyasından okunur (/api/program), okula istek gitmez.
 // Ders ya da ders hocası aranır, dersler plana eklenir; haftalık takvimde şube seçilir (seçili şube yeşil), seçili şubelerin
 // çakışan saatleri takvimde ve yan panelde gösterilir, istenen dersler için çakışmayan şube kombinasyonları üretilir.
-// Plan bu cihazda 'program-taslak' anahtarında: { v: 2, term, courses: [kod], picks: { kod: şube }, active: kod }.
+// Plan bu cihazda 'program-taslak' anahtarında: { v: 2, term, courses: [kod], picks: { kod: şube }, off: { kod: [gizli şube] }, active: kod, last: son temizlenen set }.
 let acilanQ = '';
-let acilanClosed = false;              // arama sonuçları kapatıldı (metin silinmeden)
+let acilanNext = null;                 // Enter'ın plana ekleyeceği ders
 let acilanMode = 'ders';               // 'ders' | 'hoca' (ders hocası araması)
 let acilanData = null;                 // { term, updated, courses, byCode, hocas }
 let plCombos = null;                   // son üretilen kombinasyonlar: { list, total, none }
@@ -968,11 +968,15 @@ const secShort = x => (x.sec ? `Ş.${x.sec}` : '');
 const meetText = m => `${PL_SHORT[m.d]} ${dropZero(m.from)}–${dropZero(m.to)} · ${m.r}`;
 const plList = () => (taslak.courses || []).map(c => acilanData.byCode.get(c)).filter(Boolean);
 const plPicked = c => c.s.find(x => x.id === taslak.picks?.[c.c]) ?? null;
+const plHidden = x => !!taslak.off?.[x.code]?.includes(x.id);
+const plEmpty = term => ({ v: 2, term, courses: [], picks: {}, off: {}, active: null });
+const plSet = () => (taslak.courses?.length ? { courses: taslak.courses, picks: taslak.picks, off: taslak.off } : null);
 
 async function viewAcilan() {
   acilanData ??= prepProgram(await api('program'));
   const d = acilanData;
-  if (taslak.v !== 2 || taslak.term !== d.term) { taslak = { v: 2, term: d.term, courses: [], picks: {}, active: null }; saveTaslak(); }
+  if (taslak.v !== 2 || taslak.term !== d.term) { taslak = plEmpty(d.term); saveTaslak(); }
+  taslak.off ??= {};
   const modes = [['ders', 'Ders'], ['hoca', 'Ders hocası']];
   return header('Açılan Dersler', `${d.term} · ${d.courses.length} ders, ${d.hocas.size} ders hocası`) +
     `<p class="pl-note">${icon('clock')}<span>Ders verisi son güncelleme: <b>${fmtDay(d.updated)}</b>. Şube, saat ve derslikler sonradan değişmiş olabilir; kayıttan önce okulun güncel programından kontrol et.</span></p>
@@ -985,26 +989,36 @@ async function viewAcilan() {
 function acilanList() {
   const q = trFold(acilanQ.trim());
   if (!q) return `<p class="muted small">${acilanMode === 'hoca' ? 'Ada göre ara: bu dönem ders veren ders hocaları ve dersleri listelenir.' : 'Ders ara ve plana ekle; dersler aşağıdaki haftalık takvimde görünür.'}</p>`;
-  if (acilanClosed) return `<p class="muted small">“${esc(acilanQ.trim())}” araması kapatıldı. <button type="button" class="linkbtn" data-ac-open>Sonuçları göster</button></p>`;
-  return `<div class="ac-head"><span class="muted small">Sonuçlar</span><button type="button" class="btn ghost ac-close" data-ac-close title="Sonuçları kapat (Esc)">× Kapat</button></div>` +
-    (acilanMode === 'hoca' ? hocaList(q) : acilanResults(q));
+  acilanNext = acFirst(q);
+  return acilanMode === 'hoca' ? hocaList(q) : acilanResults(q);
 }
 const acToggle = c => {
   const on = (taslak.courses || []).includes(c.c);
-  return `<button class="btn ${on ? '' : 'primary'}" data-ac-toggle="${esc(c.c)}">${on ? 'Plandan çıkar' : 'Plana ekle'}</button>`;
+  return `<button class="btn ${on ? '' : 'primary'}" data-ac-toggle="${esc(c.c)}">${on ? 'Plandan çıkar' : `Plana ekle${c === acilanNext ? ' ↵' : ''}`}</button>`;
 };
-function acilanResults(q) {
+const acRowCls = c => `ac-row pl-row${c === acilanNext ? ' next' : ''}`;
+const acHits = q => {
   const qc = q.replace(/\s/g, '');
   const hits = acilanData.courses.filter(c => c.fold.includes(q) || c.compact.includes(qc));
+  // Kodu aramayla başlayanlar önce: "FİZ" yazınca Enter adında "fiz" geçen başka bölümün dersini değil, FİZ dersini ekler
+  return hits.sort((x, y) => y.compact.startsWith(qc) - x.compact.startsWith(qc));
+};
+const hocaHits = q => [...acilanData.hocas.keys()].filter(n => trFold(n).includes(q)).sort((a, b) => a.localeCompare(b, 'tr'));
+const hocaCourses = n => [...acilanData.hocas.get(n)].sort((a, b) => a.c.localeCompare(b.c, 'tr'));
+// Listede görünen, plana henüz eklenmemiş ilk ders
+const acFirst = q => (acilanMode === 'hoca' ? hocaHits(q).slice(0, 30).flatMap(hocaCourses) : acHits(q).slice(0, 50))
+  .find(c => !(taslak.courses || []).includes(c.c)) ?? null;
+function acilanResults(q) {
+  const hits = acHits(q);
   if (!hits.length) return '<p class="muted">Bu aramayla açılan ders yok.</p>';
-  return `<div class="ac-rows">${hits.slice(0, 50).map(c => `<div class="ac-row pl-row"><span><b>${esc(c.c)}</b> <span class="muted">${esc(c.n)}</span></span>
+  return `<div class="ac-rows">${hits.slice(0, 50).map(c => `<div class="${acRowCls(c)}"><span><b>${esc(c.c)}</b> <span class="muted">${esc(c.n)}</span></span>
     <span class="muted small">${c.s.length > 1 ? `${c.s.length} şube` : 'Tek şube'}</span>${acToggle(c)}</div>`).join('')}</div>
     ${hits.length > 50 ? `<p class="muted small">${hits.length - 50} sonuç daha; aramayı daralt.</p>` : ''}`;
 }
 
 // Ders hocası: ders verisinden; okulun sitesindeki kadroyla ad–soyadına göre eşleştirilir (bölüm, unvan, profil).
 function hocaList(q) {
-  const hits = [...acilanData.hocas.keys()].filter(n => trFold(n).includes(q)).sort((a, b) => a.localeCompare(b, 'tr'));
+  const hits = hocaHits(q);
   if (!hits.length) return '<p class="muted">Bu adla bu dönem ders veren ders hocası yok.</p>';
   if (!kadroIndex) {
     kadroIndex = 'yükleniyor';
@@ -1021,9 +1035,8 @@ function hocaList(q) {
     const m = match(n);
     const info = m.length ? [...new Set(m.map(p => `${p.title ? p.title + ' · ' : ''}${p.unit}`))].join(' / ') : '';
     const link = m[0] ? `<a class="btn" href="${esc(m[0].url)}" target="_blank" rel="noopener">${icon('external')}Akademik kadro</a>` : '';
-    const list = [...acilanData.hocas.get(n)].sort((a, b) => a.c.localeCompare(b.c, 'tr'));
     return `<div class="pl-hoca"><div class="pl-hoca-h"><span><b>${esc(n)}</b>${info ? ` <span class="muted">${esc(info)}</span>` : ''}</span>${link}</div>
-      ${list.map(c => `<div class="ac-row pl-row"><span><b>${esc(c.c)}</b> <span class="muted">${esc(c.n)}</span></span><span></span>${acToggle(c)}</div>`).join('')}</div>`;
+      ${hocaCourses(n).map(c => `<div class="${acRowCls(c)}"><span><b>${esc(c.c)}</b> <span class="muted">${esc(c.n)}</span></span><span></span>${acToggle(c)}</div>`).join('')}</div>`;
   }).join('')}</div>
   ${kadroIndex === 'yükleniyor' ? '<p class="muted small">Bölüm ve unvan bilgileri yükleniyor…</p>' : ''}
   ${hits.length > 30 ? `<p class="muted small">${hits.length - 30} sonuç daha; aramayı daralt.</p>` : ''}`;
@@ -1084,6 +1097,9 @@ function plFindCombos() {
 
 // ---------- Takvim ----------
 const PL_HOUR = 54;                     // bir saatin yüksekliği (piksel)
+const PL_LANE = 62;                     // yan yana duran bir kutunun en az genişliği (piksel)
+const PL_SIDE_FIT = 500;                // yan panelle birlikte sığan takvim genişliği; aşılırsa panel takvimin altına iner
+let plWide = false;
 // Aynı günde üst üste binenler yan yana şeritlere dizilir
 function plLanes(items) {
   items.sort((p, q) => p.a - q.a || q.b - p.b);
@@ -1111,16 +1127,14 @@ function plBlocks() {
   for (const c of list) {
     const p = plPicked(c);
     if (p) for (const m of p.meets) items.push({ kind: 'sel', c, x: p, m, d: m.d, a: m.a, b: m.b });
-    // Seçim bekleyen dersin ve üzerinde çalışılan dersin şubeleri kesik çizgiyle görünür; aynı saatteki şubeler tek kutuda
-    if (!p || taslak.active === c.c) {
-      const groups = new Map();
-      for (const x of c.s) if (x !== p) for (const m of x.meets) {
-        const k = `${m.d}|${m.a}|${m.b}`;
-        if (!groups.has(k)) groups.set(k, { kind: 'alt', c, secs: [], m, d: m.d, a: m.a, b: m.b });
-        groups.get(k).secs.push(x);
-      }
-      items.push(...groups.values());
+    // Seçilmemiş şubeler hep görünür (gizlenenler hariç); şubesi seçili dersinkiler daha soluk. Aynı saattekiler tek kutuda.
+    const groups = new Map();
+    for (const x of c.s) if (x !== p && !plHidden(x)) for (const m of x.meets) {
+      const k = `${m.d}|${m.a}|${m.b}`;
+      if (!groups.has(k)) groups.set(k, { kind: 'alt', c, quiet: !!p && taslak.active !== c.c, secs: [], m, d: m.d, a: m.a, b: m.b });
+      groups.get(k).secs.push(x);
     }
+    items.push(...groups.values());
   }
   return items;
 }
@@ -1132,31 +1146,40 @@ function plCalendar(clashes) {
   const top = Math.floor((from - 30) / 60) * 60 + 30;
   const hours = Math.ceil((to - top) / 60);
   const y = m => (m - top) / 60 * PL_HOUR;
-  const col = d => {
-    const dayItems = items.filter(i => i.d === d);
-    plLanes(dayItems);
+  const perDay = days.map(d => {
+    const list = items.filter(i => i.d === d);
+    plLanes(list);
+    return { d, list, lanes: Math.max(1, ...list.map(i => i.lanes)) };
+  });
+  const col = ({ d, list: dayItems }) => {
     return `<div class="pl-day" style="height:${hours * PL_HOUR}px">${dayItems.map(i => {
       const pos = `top:${y(i.a)}px;height:${Math.max(30, y(i.b) - y(i.a) - 2)}px;left:calc(${i.lane * 100 / i.lanes}% + 2px);width:calc(${100 / i.lanes}% - 4px)`;
       if (i.kind === 'sel') {
         const bad = hit(i.x, i.m);
-        return `<button type="button" class="pl-b sel${bad ? ' clash' : ''}" style="${pos}" data-pl-active="${esc(i.c.c)}" data-sec="${esc(i.c.c)}|${esc(i.x.id)}"
-          title="${esc(`${i.c.c} ${i.c.n} · ${secLabel(i.x)}${i.x.hoca ? ` · ${i.x.hoca}` : ''}`)}"><b>${esc(i.c.c)}${i.x.sec ? ` · ${esc(secShort(i.x))}` : ''}</b><span>${esc(i.c.n)}</span><small>${esc(i.m.r)}</small></button>`;
+        return `<button type="button" class="pl-b sel${bad ? ' clash' : ''}" style="${pos}" data-pl-pick="${esc(i.c.c)}|${esc(i.x.id)}" data-sec="${esc(i.c.c)}|${esc(i.x.id)}" aria-pressed="true"
+          title="${esc(`${i.c.c} ${i.c.n} · ${secLabel(i.x)}${i.x.hoca ? ` · ${i.x.hoca}` : ''} · Seçimi kaldırmak için tıkla`)}"><b>${esc(i.c.c)}${i.x.sec ? ` · ${esc(secShort(i.x))}` : ''}</b><span>${esc(i.c.n)}</span><small>${esc(i.m.r)}</small></button>`;
       }
-      return `<div class="pl-b alt" style="${pos}" title="${esc(`${i.c.c} ${i.c.n}`)}"><b>${esc(i.c.c)}</b><span class="pl-mini">${esc(i.c.n)}</span><span class="pl-pills">${i.secs.map(x =>
+      return `<div class="pl-b alt${i.quiet ? ' quiet' : ''}" style="${pos}" title="${esc(`${i.c.c} ${i.c.n}`)}"><b>${esc(i.c.c)}</b><span class="pl-mini">${esc(i.c.n)}</span><span class="pl-pills">${i.secs.map(x =>
         `<button type="button" data-pl-pick="${esc(i.c.c)}|${esc(x.id)}" data-sec="${esc(i.c.c)}|${esc(x.id)}" title="${esc(`${secLabel(x)}${x.hoca ? ` · ${x.hoca}` : ''}`)}">${esc(x.sec || '✓')}</button>`).join('')}</span></div>`;
     }).join('')}${clashes.filter(k => k.d === d).map(k =>
       `<div class="pl-clashband" style="top:${y(k.a)}px;height:${y(k.b) - y(k.a)}px" title="${esc(`Çakışma: ${k.x.code} ve ${k.y.code}, ${dropZero(hhmm(k.a))}–${dropZero(hhmm(k.b))}`)}"></div>`).join('')}</div>`;
   };
-  return `<div class="pl-scroll"><div class="pl-grid" style="--pl-days:${days.length};--pl-hour:${PL_HOUR}px">
+  // Şubesi çok olan gün genişler; takvim sığmazsa yana kayar
+  const widths = perDay.map(x => Math.max(90, x.lanes * PL_LANE));
+  plWide = widths.reduce((n, w) => n + w, 0) > PL_SIDE_FIT;
+  const cols = widths.map(w => `minmax(${w}px, 1fr)`).join(' ');
+  return `<div class="pl-scroll"><div class="pl-grid" style="grid-template-columns:42px ${cols};--pl-hour:${PL_HOUR}px">
     <div class="pl-corner"></div>${days.map(d => `<div class="pl-h">${PL_DAYS[d]}</div>`).join('')}
     <div class="pl-times" style="height:${hours * PL_HOUR}px">${Array.from({ length: hours }, (_, i) => `<span style="top:${i * PL_HOUR}px">${dropZero(hhmm(top + i * 60))}</span>`).join('')}</div>
-    ${days.map(col).join('')}</div></div>`;
+    ${perDay.map(col).join('')}</div></div>`;
 }
 
 // ---------- Yan panel ----------
 function plPanel(clashes) {
   const list = plList();
-  if (!list.length) return `<div class="card msg">Henüz ders yok. Yukarıdan ders ara ve plana ekle.</div>`;
+  const restore = taslak.last?.courses?.length
+    ? `<button type="button" class="btn ghost" data-pl-restore title="Şu anki dersler varsa onların yerine geçer; şu anki set de bu düğmeyle geri getirilebilir">Son ders setini geri yükle (${taslak.last.courses.length} ders)</button>` : '';
+  if (!list.length) return `<div class="card msg">Henüz ders yok. Yukarıdan ders ara ve plana ekle.${restore ? `<div class="pl-tools">${restore}</div>` : ''}</div>`;
   const courses = list.map(c => {
     const p = plPicked(c), open = taslak.active === c.c;
     const others = list.filter(o => o !== c).map(plPicked).filter(Boolean);
@@ -1165,9 +1188,13 @@ function plPanel(clashes) {
       <div class="pl-c-h"><button type="button" class="pl-c-t" data-pl-active="${esc(c.c)}" aria-expanded="${open}"><b>${esc(c.c)}</b> <span class="muted">${esc(c.n)}</span>
         <span class="small ${p ? 'me-ok' : 'pl-need'}">${p ? esc(c.s.length > 1 ? secLabel(p) : 'Seçili') : 'Şube seç'}</span></button>
         <button type="button" class="x" data-ac-toggle="${esc(c.c)}" title="Plandan çıkar" aria-label="${esc(c.c)} dersini plandan çıkar">×</button></div>
-      ${open ? `<div class="pl-secs">${c.s.map(x => `<button type="button" class="pl-sec${x === p ? ' on' : ''}" data-pl-pick="${esc(c.c)}|${esc(x.id)}" data-sec="${esc(c.c)}|${esc(x.id)}" aria-pressed="${x === p}">
+      ${open ? `<div class="pl-secs">${c.s.map(x => {
+        const off = plHidden(x), key = `${esc(c.c)}|${esc(x.id)}`;
+        return `<div class="pl-sec-row${off ? ' off' : ''}"><button type="button" class="pl-sec${x === p ? ' on' : ''}" data-pl-pick="${key}" data-sec="${key}" aria-pressed="${x === p}"${off && x !== p ? ' disabled' : ''}>
         <b>${esc(secLabel(x))}</b><span>${x.meets.map(m => `<i>${esc(meetText(m))}</i>`).join('')}</span>${x.hoca ? `<small class="muted">${esc(x.hoca)}</small>` : ''}${
-        clashWith(x).length ? `<small class="pl-warn">${esc(clashWith(x).join(', '))} ile çakışıyor</small>` : ''}</button>`).join('')}</div>` : ''}</div>`;
+        clashWith(x).length ? `<small class="pl-warn">${esc(clashWith(x).join(', '))} ile çakışıyor</small>` : ''}</button>${
+        c.s.length > 1 ? `<button type="button" class="pl-off" data-pl-off="${key}" title="${off ? 'Takvimde yeniden göster' : 'Takvimde gösterme (otomatik programları etkilemez)'}">${off ? 'göster' : 'gizle'}</button>` : ''}</div>`;
+      }).join('')}</div>` : ''}</div>`;
   }).join('');
   const seen = new Set();
   const clashList = clashes.length ? `<div class="card pl-clashes"><b>Çakışan saatler</b><ul>${clashes.filter(k => {
@@ -1176,7 +1203,8 @@ function plPanel(clashes) {
   }).map(k => `<li><b>${esc(k.x.code)}${k.x.sec ? ` ${esc(secShort(k.x))}` : ''}</b> ve <b>${esc(k.y.code)}${k.y.sec ? ` ${esc(secShort(k.y))}` : ''}</b>: ${PL_DAYS[k.d]} ${dropZero(hhmm(k.a))}–${dropZero(hhmm(k.b))}</li>`).join('')}</ul></div>`
     : list.every(plPicked) && list.length > 1 ? '<p class="pl-ok small">Seçili şubeler çakışmıyor.</p>' : '';
   return `${clashList}<div class="card pl-cs">${courses}<div class="pl-tools"><button type="button" class="btn primary" data-pl-combos>Çakışmayan programları bul</button>
-    <button type="button" class="btn ghost" data-pl-reset>Planı temizle</button></div></div>${plComboBox()}`;
+    <button type="button" class="btn ghost" data-pl-unpick${list.some(c => c.s.length > 1 && plPicked(c)) ? '' : ' disabled'}>Şube seçimlerini sıfırla</button>
+    <button type="button" class="btn ghost" data-pl-reset>Planı temizle</button>${restore}</div></div>${plComboBox()}`;
 }
 function plComboBox() {
   if (!plCombos) return '';
@@ -1186,14 +1214,14 @@ function plComboBox() {
     : 'Bu derslerin hepsini çakışmadan alan bir şube kombinasyonu bulunamadı. Bir dersi çıkarıp yeniden dene.'}</p></div>`;
   const sameAs = o => o.pick.every(x => taslak.picks?.[x.code] === x.id);
   return `<div class="card pl-combos"><b>Çakışmayan programlar</b><span class="muted small"> ${r.total > 5 ? `${r.total >= 20000 ? '20.000+' : r.total} seçenekten en iyi 5'i` : `${r.list.length} seçenek`}: az gün ve az boşluk önce</span>
-    ${r.list.map((o, i) => `<div class="pl-combo${sameAs(o) ? ' on' : ''}"><div><b>Program ${i + 1}</b> <span class="muted small">${o.days} gün · ${o.gap ? `${dur(o.gap * 60_000)} boşluk` : 'boşluk yok'}</span>
+    ${r.list.map((o, i) => `<div class="pl-combo${sameAs(o) ? ' on' : ''}"><div><b>Program ${i + 1}</b> <span class="muted small">${o.gap ? `${dur(o.gap * 60_000)} boşluk` : 'boşluk yok'} · ${o.days} gün</span>
       <div class="pl-chips">${o.pick.map(x => `<span>${esc(x.code)}${x.sec ? ` ${esc(secShort(x))}` : ''}</span>`).join('')}</div></div>
       <button type="button" class="btn${sameAs(o) ? '' : ' primary'}" data-pl-apply="${i}"${sameAs(o) ? ' disabled' : ''}>${sameAs(o) ? 'Takvimde' : 'Takvime uygula'}</button></div>`).join('')}</div>`;
 }
 function plArea() {
-  const clashes = plClashes();
-  return `<div class="pl-wrap"><section class="card pl-cal"><div class="pl-cal-h"><h2>Haftalık takvim</h2>
-      <span class="pl-legend"><i class="sel"></i>Seçili şube<i class="alt"></i>Seçilebilir şube<i class="clash"></i>Çakışma</span></div>${plCalendar(clashes)}</section>
+  const clashes = plClashes(), cal = plCalendar(clashes);
+  return `<div class="pl-wrap${plWide ? ' wide' : ''}"><section class="card pl-cal"><div class="pl-cal-h"><h2>Haftalık takvim</h2>
+      <span class="pl-legend"><i class="sel"></i>Seçili şube<i class="alt"></i>Seçilebilir şube<i class="clash"></i>Çakışma</span></div>${cal}</section>
     <aside class="pl-side">${plPanel(clashes)}</aside></div>`;
 }
 function plRender() {
@@ -1202,16 +1230,29 @@ function plRender() {
   if (a) a.innerHTML = plArea();
 }
 const acRefresh = () => { const l = document.getElementById('ac-list'); if (l) l.innerHTML = acilanList(); };
+// Ders eklenince arama sıfırlanır
+function plAdd(code) {
+  taslak.courses = [...(taslak.courses || []), code];
+  const c = acilanData.byCode.get(code);
+  if (c?.s.length === 1) taslak.picks[code] = c.s[0].id;      // tek şubeli ders kendiliğinden seçili
+  taslak.active = code;
+  plCombos = null;
+  acilanQ = '';
+  const q = $view.querySelector('[data-ac-q]');
+  if (q) q.value = '';
+  acRefresh();
+  plRender();
+}
 
 $view.addEventListener('input', e => {
-  if (e.target.matches('[data-ac-q]')) { acilanQ = e.target.value; acilanClosed = false; acRefresh(); }
+  if (e.target.matches('[data-ac-q]')) { acilanQ = e.target.value; acRefresh(); }
 });
-// Esc: arama sonuçlarını kapatır (metin silinmez); arama kutusuna tıklayınca yeniden açılır
+// Enter: listede işaretli dersi plana ekler
 $view.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && e.target.matches('[data-ac-q]') && acilanQ.trim()) { e.preventDefault(); acilanClosed = true; acRefresh(); }
-});
-$view.addEventListener('focusin', e => {
-  if (e.target.matches('[data-ac-q]') && acilanClosed) { acilanClosed = false; acRefresh(); }
+  if (e.key !== 'Enter' || e.isComposing || !e.target.matches('[data-ac-q]')) return;
+  e.preventDefault();
+  const c = acFirst(trFold(acilanQ.trim()));
+  if (c) plAdd(c.c);
 });
 // Bir şubenin üzerine gelince aynı şubenin bütün saatleri belirginleşir
 $view.addEventListener('mouseover', e => {
@@ -1224,25 +1265,24 @@ $view.addEventListener('mouseover', e => {
 let plHover = null;
 $view.addEventListener('click', e => {
   const mode = e.target.closest('[data-ac-mode]');
-  if (mode) { acilanMode = mode.dataset.acMode; acilanQ = ''; acilanClosed = false; return render(); }
-  if (e.target.closest('[data-ac-close], [data-ac-open]')) { acilanClosed = !!e.target.closest('[data-ac-close]'); return acRefresh(); }
+  if (mode) { acilanMode = mode.dataset.acMode; acilanQ = ''; return render(); }
   const tog = e.target.closest('[data-ac-toggle]');
   if (tog) {
     const code = tog.dataset.acToggle;
-    const adding = !(taslak.courses || []).includes(code);
-    if (adding) {
-      taslak.courses = [...(taslak.courses || []), code];
-      const c = acilanData.byCode.get(code);
-      if (c?.s.length === 1) taslak.picks[code] = c.s[0].id;      // tek şubeli ders kendiliğinden seçili
-      taslak.active = code;
-      if (tog.closest('#ac-list')) acilanClosed = true;           // ders seçilince sonuçlar kapanır; arama metni durur
-    } else {
-      taslak.courses = taslak.courses.filter(x => x !== code);
-      delete taslak.picks[code];
-      if (taslak.active === code) taslak.active = null;
-    }
+    if (!(taslak.courses || []).includes(code)) return plAdd(code);
+    taslak.courses = taslak.courses.filter(x => x !== code);
+    delete taslak.picks[code];
+    delete taslak.off[code];
+    if (taslak.active === code) taslak.active = null;
     plCombos = null;
     acRefresh();
+    return plRender();
+  }
+  const off = e.target.closest('[data-pl-off]');
+  if (off) {
+    const [code, id] = off.dataset.plOff.split('|');
+    const l = taslak.off[code] ?? [];
+    taslak.off[code] = l.includes(id) ? l.filter(x => x !== id) : [...l, id];
     return plRender();
   }
   const pick = e.target.closest('[data-pl-pick]');
@@ -1261,8 +1301,14 @@ $view.addEventListener('click', e => {
     taslak.active = null;
     return plRender();
   }
-  if (e.target.closest('[data-pl-reset]')) {
-    taslak = { v: 2, term: acilanData.term, courses: [], picks: {}, active: null };
+  if (e.target.closest('[data-pl-unpick]')) {
+    taslak.picks = Object.fromEntries(plList().filter(c => c.s.length === 1).map(c => [c.c, c.s[0].id]));
+    return plRender();
+  }
+  // Temizlenen set saklanır; geri yüklerken o anki setle yer değiştirir, ikisi de kaybolmaz
+  const reset = e.target.closest('[data-pl-reset]'), restore = e.target.closest('[data-pl-restore]');
+  if (reset || restore) {
+    taslak = { ...plEmpty(acilanData.term), ...(restore ? taslak.last : null), active: null, last: plSet() };
     plCombos = null;
     acRefresh();
     return plRender();

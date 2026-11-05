@@ -4,7 +4,7 @@ Ortam Sade, TOBB ETÜ'nün okul sitelerini (Ortam, UBS, Uzak, UZAKYDB, Webmail, 
 
 - **Sahibi:** TOBB ETÜ öğrencisi Eren Akyurt. Türkçe konuşur, uygulamayı arkadaşlarıyla paylaşır.
 - **Depo:** https://github.com/Soft-Coder-183/ortam-sade (herkese açık, MIT lisansı).
-- **Durum:** Güncel sürüm 1.6.0. GitHub hesabı `gh` ile bağlı.
+- **Durum:** Güncel sürüm 1.6.1. GitHub hesabı `gh` ile bağlı.
 - **Kapsam notu:** Bu belge uygulamanın her parçasını saymaz. Kodda burada anlatılmayan bir bölüm görürsen değiştirmeden önce kullanıcıya sor.
 
 ## Mimari
@@ -47,6 +47,7 @@ Okulun siteleri ve mevzuat.gov.tr
 | `server/courses.mjs` | Ortam, Uzak ve Piazza derslerini birleştirir (`courseKey`) |
 | `server/plan.mjs` | Ortalama ve ders planı verisi (transkript + müfredat) |
 | `server/etu.mjs` | Okulun herkese açık sitesi (akademik takvim, kadro) |
+| `server/program.mjs` | Açılan Dersler ekranının ders ve şube verisi (`/api/program`) |
 | `server/mevzuat.mjs`, `server/mevzuat-yanitlar.mjs` | Mevzuat dizini, belge ayrıştırma, arama, duyurular, hızlı yanıtlar |
 | `server/notify.mjs` | Bildirimler, hatırlatmalar, e-posta giden kutusu |
 | `server/update.mjs` | Onaylı güncelleme |
@@ -69,12 +70,22 @@ Okulun siteleri ve mevzuat.gov.tr
 | Sınav Takvimi | Ara Sınav, Final ya da Bütünleme; her sınav tek satırda |
 | Webmail | Okundu senkronizasyonu, yazma, yanıtlama, yıldızlar, isteğe bağlı otomatik silme (okunanlar 12 saat sonra Çöp'e) |
 | Piazza, UBS, UZAKYDB | Kendi sade arayüzleri; PDF'ler uygulama içinde açılır |
-| Ekstra | Akademik Takvim, Akademik Kadro, Yabancı Diller, Mevzuat, Öğrenci İşleri Duyuruları |
+| Ekstra | Açılan Dersler ve haftalık plan, Akademik Takvim, Akademik Kadro, Yabancı Diller, Mevzuat, Öğrenci İşleri Duyuruları |
 | ÇAP/YAP - Başvurular | ÇAP/YAP, Staj, Öğrenim ve Mezuniyet Sonrası Staj hareketliliği |
 | Hakkında ve SSS | Hakkımızda, Okulun Siteleri, SSS, Sorumluluk Reddi |
 | Hesap | Tek giriş, siteye özel şifreler, Güvenlik ve Oturumlar, Bildirimler, Webmail ayarları, görünüm |
 
 **Mevzuat:** Belgeler okulun Mevzuat sayfasından keşfedilir, mevzuat.gov.tr, Resmî Gazete, PDF ve Word kaynaklarından madde madde ayrıştırılır, `.cache/mevzuat` altında tutulur. Hızlı yanıtlar `server/mevzuat-yanitlar.mjs` içindedir. Her yanıt kaynak maddeden birebir alıntı taşır; uygulama alıntının güncel metinde geçtiğini denetler, geçmiyorsa uyarır. Transkript varsa yanıtların altında "Senin durumun" çıkar.
+
+**Açılan Dersler ve haftalık plan:** Öğrenci ders ya da ders hocası arar, dersleri plana ekler ve şubelerini haftalık takvimden seçer. Kod `public/app.js` içinde `plArea`, `plCalendar`, `plPanel` ve `plFindCombos` çevresindedir.
+
+- **Arama:** Enter, listede işaretli ilk dersi ekler; kodu aramayla başlayan dersler önce gelir. Ders eklenince arama sıfırlanır.
+- **Takvim:** Seçili şube yeşil görünür, seçilmemiş şubeler hep kesik çizgili kutularda durur. Seçili kutuya ya da paneldeki aynı şubeye basmak seçimi kaldırır. Takvim yan panelle sığmazsa panel altına iner.
+- **Gizleme:** Paneldeki "gizle" şubeyi yalnızca takvimden kaldırır. Otomatik program bulmayı etkilemez.
+- **Çakışma:** Seçili şubelerin çakışan saatleri takvimde ince kırmızı kenarla, panelde listeyle gösterilir. Uyarı bilerek sakindir.
+- **Otomatik program:** Çakışmayan en iyi 5 kombinasyon üretilir. Etikette önce boşluk süresi, sonra gün sayısı yazar.
+- **Sıfırlama:** "Şube seçimlerini sıfırla" dersleri korur. "Planı temizle" seti saklar, "Son ders setini geri yükle" o anki setle yer değiştirir.
+- **Saklama:** Plan tarayıcıda `program-taslak` anahtarındadır (`courses`, `picks`, `off`, `active`, `last`).
 
 **Bilinen veri sorunu:** mevzuat.gov.tr'deki Lisans Yönetmeliği metni 2011 hâlidir ve "bütünleme yok" der. Kullanıcı bütünlemenin yapıldığını doğruladı; hızlı yanıt bunu açıkça söyler.
 
@@ -144,6 +155,7 @@ Sürüm paketi GitHub Actions'ta üretilir. Yerelde üretilen zip asla yüklenme
 **Çalışma biçimi**
 
 - Her istek bitince mutlaka commit at. Sık push serbest.
+- Her işten sonra bu belgeyi güncelle.
 - Sürüm artırma, paketleme ve sürüm etiketi kullanıcı tarafından önceden onaylı.
 - "Görünmez güncelleme yok": hiçbir şey kullanıcı onayı olmadan kurulmaz.
 - Kullanıcıyla Türkçe konuş, kısa ve net yaz.
@@ -151,6 +163,7 @@ Sürüm paketi GitHub Actions'ta üretilir. Yerelde üretilen zip asla yüklenme
 - Özellik eklerken yeni tarayıcı penceresi açma; görünür pencere yalnızca giriş için gerekir.
 - 3000 portundaki süreci yalnızca komut satırı `server/server.mjs` ise durdur.
 - Sayısal ya da hukuki bir bilgiyi kaynaksız yazma; Mevzuat yanıtları maddeye dayanmalı.
+- Dersliklerin boş ya da dolu durumunu hiçbir yerde gösterme.
 
 ## Geliştirme ortamı ve tuzaklar
 
