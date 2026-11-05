@@ -1,0 +1,170 @@
+# Ortam Sade: Proje Devir Belgesi
+
+Ortam Sade, TOBB ETÜ'nün okul sitelerini (Ortam, UBS, Uzak, UZAKYDB, Webmail, Piazza) tek ve sade bir arayüzde toplayan, öğrencinin kendi Windows bilgisayarında çalışan açık kaynaklı bir uygulamadır. Bu belge, projeyi devralan bir agent'ın önceki konuşmaları görmeden işe başlayabilmesi için yazıldı.
+
+- **Sahibi:** TOBB ETÜ öğrencisi Eren Akyurt. Türkçe konuşur, uygulamayı arkadaşlarıyla paylaşır.
+- **Depo:** https://github.com/Soft-Coder-183/ortam-sade (herkese açık, MIT lisansı).
+- **Durum:** Güncel sürüm 1.6.0. GitHub hesabı `gh` ile bağlı.
+- **Kapsam notu:** Bu belge uygulamanın her parçasını saymaz. Kodda burada anlatılmayan bir bölüm görürsen değiştirmeden önce kullanıcıya sor.
+
+## Mimari
+
+Tarayıcıdaki arayüz yalnızca bilgisayardaki yerel Node sunucusuyla konuşur. Sunucu okulun sitelerine kullanıcının oturumuyla bağlanır, sayfayı ayrıştırır ve sadeleştirilmiş JSON döndürür. Arada başka bir sunucu yoktur.
+
+```
+Tarayıcı (public/app.js)
+   │  /api/*  (yalnızca 127.0.0.1)
+Node sunucusu (server/server.mjs)
+   │  site modülleri: ortam, ubs, moodle, webmail, piazza, etu, mevzuat
+   │  oturum katmanı: session.mjs + autologin.mjs
+Okulun siteleri ve mevzuat.gov.tr
+```
+
+- **Çalışma biçimi:** Node ESM. Sayfa ayrıştırma `cheerio`, görünür tarayıcı ve PDF üretimi `playwright-core` ile yapılır. PDF görüntüleme tarayıcıda `pdfjs-dist` ile çalışır.
+- **Tarayıcı:** Kurulu Chrome kullanılır, yoksa Edge'e düşülür (`session.mjs` içindeki `CHANNEL`).
+- **Akıllı maskeleme:** Her ekran yalnızca kendi `/api/*` ucunu, o uç da okulun tek sayfasını çağırır. Özgün alt menüler korunur.
+- **Önbellek:** Yanıtlar önce önbellekten gelir, süresi geçmişse arka planda yenilenir (SWR). Dosyalar `.cache/api/v{CACHE_VER}-*` altında durur. `STALE_MIN` uç başına tazelik süresini belirler.
+- **`CACHE_VER`:** Şu an 13. Bir ayrıştırıcının çıktısı değişince artırılır; eski kayıtlar açılışta silinir.
+- **Port:** Varsayılan 3000, `PORT` ortam değişkeniyle değişir.
+- **Başlatma:** `Ortam Sade.cmd`, `server/start.mjs` başlatıcısını çalıştırır; o da `server/server.mjs` sürecini açar. Sunucu 75 koduyla çıkarsa başlatıcı yeniden açar. İkinci kopya portu dolu bulursa yalnızca tarayıcıyı açıp çıkar.
+
+## Dosya haritası
+
+| Yol | Görev |
+|---|---|
+| `server/server.mjs` | HTTP sunucusu, API uçları, önbellek, kilit, durum, arka plan işleri |
+| `server/start.mjs` | Başlatıcı: sunucuyu gözetir, güncelleme sonrası yeniden açar |
+| `server/session.mjs` | Site tanımları (`SITES`), çerez kutuları, görünür giriş penceresi, oturum canlı tutma, oturum kapatma |
+| `server/autologin.mjs` | Kayıtlı bilgiyle doğrudan giriş |
+| `server/credentials.mjs` | E-posta ve şifrenin DPAPI ile saklanması |
+| `server/vault.mjs` | AES-256-GCM yerel şifreleme, anahtar DPAPI ile korunur |
+| `server/settings.mjs` | Güvenlik ve oturum ayarları, PIN özeti |
+| `server/ortam.mjs` | Ortam ayrıştırıcıları (profil, notlar, sınavlar, başvurular, ana sayfa kartları) |
+| `server/ubs.mjs` | UBS sayfaları, formlar, belgeler |
+| `server/moodle.mjs` | Uzak ve UZAKYDB (ortak Moodle kodu) |
+| `server/piazza.mjs` | Piazza API |
+| `server/webmail.mjs` | Roundcube üzerinden e-posta, yıldızlar, otomatik silme |
+| `server/courses.mjs` | Ortam, Uzak ve Piazza derslerini birleştirir (`courseKey`) |
+| `server/plan.mjs` | Ortalama ve ders planı verisi (transkript + müfredat) |
+| `server/etu.mjs` | Okulun herkese açık sitesi (akademik takvim, kadro) |
+| `server/mevzuat.mjs`, `server/mevzuat-yanitlar.mjs` | Mevzuat dizini, belge ayrıştırma, arama, duyurular, hızlı yanıtlar |
+| `server/notify.mjs` | Bildirimler, hatırlatmalar, e-posta giden kutusu |
+| `server/update.mjs` | Onaylı güncelleme |
+| `server/pdf.mjs` | PDF üretimi |
+| `public/app.js` | Tek sayfalık arayüzün tamamı (menü, görünümler, yönlendirme) |
+| `public/style.css` | Stiller; açık ve koyu tema token'ları |
+| `public/pdfview.js` | Uygulama içi PDF görüntüleyici |
+| `scripts/paketle.mjs` | Windows paketi üretir (`npm run paketle`) |
+| `.github/workflows/surum.yml` | Etiketle tetiklenen sürüm üretimi |
+| `notlar/vX.Y.Z.md` | Sürüm notları |
+| `Ortam Sade.cmd` | Kullanıcının çift tıkladığı başlatıcı (CRLF olmalı) |
+
+## Özellikler
+
+| Menü | İçerik |
+|---|---|
+| Profil | Bilgilerim, Not Görüntüleme, Ortalama ve Ders Planı, Müfredat, Ortak Eğitim, İkinci Yabancı Dil, Ödeme |
+| Ana Sayfa | Bugünkü dersler ve sınavlar, yaklaşan sınavlar, posta, Piazza, son kullanılan 6 sayfa; üstte Ortam'da bekleyen anket ve duyurular, UZAKYDB ek içerik, yaklaşan son tarihler |
+| Dönem Bilgilerim | Derslerim (Ortam, Uzak, Piazza tek sayfada), Ders Programım |
+| Sınav Takvimi | Ara Sınav, Final ya da Bütünleme; her sınav tek satırda |
+| Webmail | Okundu senkronizasyonu, yazma, yanıtlama, yıldızlar, isteğe bağlı otomatik silme (okunanlar 12 saat sonra Çöp'e) |
+| Piazza, UBS, UZAKYDB | Kendi sade arayüzleri; PDF'ler uygulama içinde açılır |
+| Ekstra | Akademik Takvim, Akademik Kadro, Yabancı Diller, Mevzuat, Öğrenci İşleri Duyuruları |
+| ÇAP/YAP - Başvurular | ÇAP/YAP, Staj, Öğrenim ve Mezuniyet Sonrası Staj hareketliliği |
+| Hakkında ve SSS | Hakkımızda, Okulun Siteleri, SSS, Sorumluluk Reddi |
+| Hesap | Tek giriş, siteye özel şifreler, Güvenlik ve Oturumlar, Bildirimler, Webmail ayarları, görünüm |
+
+**Mevzuat:** Belgeler okulun Mevzuat sayfasından keşfedilir, mevzuat.gov.tr, Resmî Gazete, PDF ve Word kaynaklarından madde madde ayrıştırılır, `.cache/mevzuat` altında tutulur. Hızlı yanıtlar `server/mevzuat-yanitlar.mjs` içindedir. Her yanıt kaynak maddeden birebir alıntı taşır; uygulama alıntının güncel metinde geçtiğini denetler, geçmiyorsa uyarır. Transkript varsa yanıtların altında "Senin durumun" çıkar.
+
+**Bilinen veri sorunu:** mevzuat.gov.tr'deki Lisans Yönetmeliği metni 2011 hâlidir ve "bütünleme yok" der. Kullanıcı bütünlemenin yapıldığını doğruladı; hızlı yanıt bunu açıkça söyler.
+
+## Arka plan işleri ve bildirimler
+
+Uygulama yalnızca siyah pencere açıkken çalışır. Bilgisayar açılınca kendiliğinden başlamaz.
+
+| İş | Sıklık |
+|---|---|
+| Ortam oturumunu açık tutma | 10 dk |
+| UBS oturumunu açık tutma | 15 dk |
+| Webmail oturumu | 150 dk |
+| Uzak ve UZAKYDB oturumu | 180 dk |
+| Piazza oturumu | 240 dk |
+| Piazza yeni gönderi kontrolü | 30 dk |
+| Uzak yeni içerik kontrolü | 60 dk |
+| Akademik takvim ve sınav hatırlatmaları | 180 dk |
+| Webmail otomatik silme kontrolü (ayar açıksa) | 60 dk |
+| Yeni sürüm denetimi | 6 saat |
+
+- O aralıkta siteye gerçek istek gittiyse oturum kontrolü atlanır (`usedAt`). Kullanıcı Hesap'tan açık tutmayı ve kendiliğinden yeniden girmeyi kapatabilir.
+- Bildirimler Windows bildirimi ve isteğe bağlı özet e-posta olarak gider. E-posta kullanıcının kendi adresinedir ve konusu `[Ortam Sade · Bildirim]` ile başlar.
+- Gönderilemeyen e-postalar giden kutusunda en fazla 2 gün bekler ve yeniden denenir.
+- Renkler: Uzak kırmızımsı turuncu, Piazza mavi. Menüde sade nokta, derslerin üzerinde sayılı rozet görünür.
+- Hatırlatmalar: Akademik Takvim satırları 3 gün kala, başladığı gün ve son gün gelir. Sınavlar Ortam'daki sınav takviminden, sınavdan önceki 24 saat içinde bir kez gelir.
+
+## Güvenlik modeli
+
+- Sunucu yalnızca `127.0.0.1` dinler. `Host` başlığı denetlenir. POST isteklerinde `Origin` ve içerik türü doğrulanır.
+- Şifre yalnızca "Beni hatırla" seçiliyse `.cache/credentials.dpapi` içinde DPAPI ile saklanır. Seçili değilse bellekte kalır ve yeniden başlatınca kaybolur.
+- Çerezler (`.cache/jars.enc`), kişisel önbellek (`.cache/api`) ve `.cache/notify.json` AES-256-GCM ile şifrelidir. Anahtar `.cache/key.dpapi` içinde DPAPI ile korunur.
+- Bu şifreleme, aynı Windows hesabında çalışan başka bir programa karşı koruma sağlamaz. Bunu kullanıcıya söylerken abartma.
+- Oturumu kapatma sitenin kendisinde de çıkış yapar (UBS hariç), çerezleri ve o sitenin önbelleğini siler. Site, kullanıcı yeniden girene kadar `loggedOut` kalır.
+- İsteğe bağlı PIN 4–8 rakamdır, scrypt özeti saklanır. Kilit açılmadan veri uçları 423 döner.
+- `.cache`, `.profile`, `dump`, `tools` ve `local.txt` kişisel ya da yereldir, `.gitignore` içindedir. Asla yayımlanmaz.
+
+## Sürüm, paketleme ve güncelleme
+
+Sürüm paketi GitHub Actions'ta üretilir. Yerelde üretilen zip asla yüklenmez.
+
+1. `package.json` sürümünü artır.
+2. `notlar/vX.Y.Z.md` dosyasını yaz.
+3. Commit'le ve `main`'e gönder.
+4. `git tag -a vX.Y.Z -m "Ortam Sade X.Y.Z"` ve `git push origin vX.Y.Z`.
+5. `.github/workflows/surum.yml` Windows üzerinde paketi üretir, imzalı kaynak kanıtı ekler ve sürümü yayımlar.
+
+`npm run paketle` yalnızca yerel deneme içindir. Paket `dist/OrtamSade-X.Y.Z-win-x64.zip` adıyla çıkar ve `runtime/node.exe` içerir. Yeni bir kök klasör pakete girecekse `scripts/paketle.mjs` listesine eklenmelidir.
+
+**Güncelleme (`server/update.mjs`):** Uygulama GitHub'daki son sürümü açılıştan 1 dakika sonra ve 6 saatte bir denetler, yeni sürüm varsa sorar. Kurulum yalnızca kullanıcı "Güncelle"ye basınca yapılır.
+
+- Paketli ya da git'siz kurulum: zip indirilir, GitHub'ın SHA-256 özetiyle doğrulanır, dosyalar yedekli değiştirilir.
+- Git klasörü: sürüm etiketine ileri sarılır, gerekirse bağımlılıklar kurulur.
+- Sonra uygulama yeniden açılır ve `.cache` korunur.
+
+## Değişmez kurallar
+
+**Güvenlik**
+
+- `local.txt` dosyasını asla okuma. Kullanıcı oraya kimlik bilgisi yazdı.
+- Şifreyi hiçbir forma kendin yazma. Şifreyi kullanıcı Hesap ekranında girer.
+- CAPTCHA ve güvenlik doğrulamalarını çözme, aşma, atlatma. Doğrulama sorusunu kullanıcı yanıtlar.
+- Testte form gönderme, e-posta gönderme, e-posta silme ya da geri alınamaz düğmeye basma; açık izin olmadan yapma.
+- Her push'tan önce kişisel veri olmadığını kontrol et.
+- TC kimlik, adres, iletişim ve telefon bilgilerini arayüzde gizle.
+- Kalıcı silme yapma (yayımlanmış sürüm silme, geçmişi zorla yeniden yazma dahil). Gerekirse kullanıcının çalıştıracağı komutu ya da betiği hazırla.
+
+**Çalışma biçimi**
+
+- Her istek bitince mutlaka commit at. Sık push serbest.
+- Sürüm artırma, paketleme ve sürüm etiketi kullanıcı tarafından önceden onaylı.
+- "Görünmez güncelleme yok": hiçbir şey kullanıcı onayı olmadan kurulmaz.
+- Kullanıcıyla Türkçe konuş, kısa ve net yaz.
+- Yalnızca açılan ekranın verisini çek, okulun sunucularını yorma.
+- Özellik eklerken yeni tarayıcı penceresi açma; görünür pencere yalnızca giriş için gerekir.
+- 3000 portundaki süreci yalnızca komut satırı `server/server.mjs` ise durdur.
+- Sayısal ya da hukuki bir bilgiyi kaynaksız yazma; Mevzuat yanıtları maddeye dayanmalı.
+
+## Geliştirme ortamı ve tuzaklar
+
+- **Kurulum:** `npm install`, sonra `npm run dev` (dosya değişince yeniden başlar) ya da `npm start`. `dev` modu yalnızca `server/` klasörünü izler.
+- **Bash ters eğik çizgileri yer:** Heredoc ve `sed` içinde `\b`, `\s` gibi ifadeler bozulur. Ters eğik çizgili kodu Edit ya da Write aracıyla yaz.
+- **Git Bash yol dönüştürmesi:** `/tr/...` gibi argümanlar Windows yoluna çevrilir. `MSYS_NO_PATHCONV=1` kullan.
+- **Git Bash `tar`:** Zip açamaz. `C:/Windows/System32/tar.exe` kullan.
+- **`fs.cpSync`:** Node 24'te Türkçe karakterli yollarda çöker (`0xC0000409`). Paketleme bu yüzden elle kopyalar.
+- **`Ortam Sade.cmd`:** CRLF olmalı, `.gitattributes` bunu sağlar. `sed -i` satır sonlarını bozabilir. `if (...)` bloklarında parantezli metin kullanma.
+- **JS `/i` ve Türkçe:** `İ` ile `i` kendiliğinden eşleşmez. Türkçe karşılaştırmada `trFold` (arayüz) ya da `norm` (mevzuat) kullan.
+- **Uzak TLS:** `uzak.etu.edu.tr` ara sertifikayı göndermez. Windows sertifika deposu `session.mjs` içinde güvenilenlere eklenir.
+- **`public/app.js`:** Tek dosyadır ve üst düzey adlar çakışabilir. Yeni `const` eklemeden önce arat. Hızlı denetim: `node --check public/app.js`.
+- **`details` ve `data-lazy`:** `data-lazy` tembel yükleme işleyicisini tetikler. Yalnızca açık durumu korumak için `data-keep` kullan.
+- **Windows bildirimi:** Otomatik testte gerçek bildirim üretme. `/api/notifications` yanıtını Playwright ile sahte veriyle değiştir.
+- **Güncelleme testi:** `ORTAM_UPDATE_FEED=http://127.0.0.1:<port>/...` ile sahte sürüm kaynağı verilebilir. Paketi temiz klasörde, ayrı `PORT` ile dene.
+- **Arayüz testi:** Başsız Chrome ile `playwright-core` kullan, masaüstü (1280) ve telefon (390) ekran görüntüsü alıp bak. `tools/` klasörü gitignore'dadır, yardımcı betikler orada durabilir.
+- **Test sonrası:** Başlattığın sunucuyu kapat. Kullanıcı uygulamanın ne zaman açık olduğunu bilmek ister.
