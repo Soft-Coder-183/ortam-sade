@@ -5,6 +5,8 @@ import { chromium } from 'playwright-core';
 import fs from 'node:fs';
 import tls from 'node:tls';
 import path from 'node:path';
+import * as vault from './vault.mjs';
+import * as settings from './settings.mjs';
 
 // Giriş penceresi ve PDF için tarayıcı: Chrome yoksa Windows'ta her zaman bulunan Edge kullanılır.
 const CHROME = [process.env.PROGRAMFILES, process.env['PROGRAMFILES(X86)'], process.env.LOCALAPPDATA].filter(Boolean)
@@ -19,7 +21,7 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 const PROFILE = '.profile';               // giriş bilgileri bu Chrome profilinde kalır
 const CDP = process.env.CDP_URL || 'http://127.0.0.1:9222';
 const TTL = 10_000;                       // aynı sayfayı bu süre içinde tekrar çekme
-const JARS_FILE = '.cache/jars.json';
+const JARS_FILE = '.cache/jars.enc';      // çerez kutuları: AES-256-GCM ile şifreli (vault.mjs)
 const LOGIN_TIMEOUT = 10 * 60_000;
 
 // home: oturum açıkken açılan sayfa (giriş penceresi de buradan başlar; oturum yoksa site girişe yönlendirir).
@@ -61,13 +63,16 @@ export class ExternalRedirect extends Error {
 
 const state = Object.fromEntries(Object.keys(SITES).map(k => [k, { jar: new Map(), pages: new Map(), failedAt: 0, seeding: null, loggingIn: null }]));
 fs.mkdirSync('.cache/api', { recursive: true });
-try {
-  for (const [site, jar] of Object.entries(JSON.parse(fs.readFileSync(JARS_FILE, 'utf8'))))
-    if (state[site]) for (const [k, v] of Object.entries(jar)) state[site].jar.set(k, v);
-} catch {
-  try { for (const [k, v] of Object.entries(JSON.parse(fs.readFileSync('.cache/jar.json', 'utf8')))) state.ortam.jar.set(k, v); } catch {}
+for (const site of settings.get().loggedOut) if (state[site]) state[site].loggedOut = true;
+const saveJars = () => vault.writeSync(JARS_FILE, Object.fromEntries(Object.entries(state).map(([k, s]) => [k, Object.fromEntries(s.jar)])));
+{
+  // Eski sürümlerin düz metin çerez dosyaları okunur, şifreli dosyaya taşınır ve silinir
+  const plain = ['.cache/jars.json', '.cache/jar.json'].filter(f => fs.existsSync(f));
+  const saved = vault.readSync(JARS_FILE) ?? vault.readSync('.cache/jars.json');
+  if (saved) for (const [site, jar] of Object.entries(saved)) if (state[site]) for (const [k, v] of Object.entries(jar)) state[site].jar.set(k, v);
+  if (!saved) { const old = vault.readSync('.cache/jar.json'); if (old) for (const [k, v] of Object.entries(old)) state.ortam.jar.set(k, v); }
+  if (plain.length) { saveJars(); for (const f of plain) fs.rmSync(f, { force: true }); }
 }
-const saveJars = () => fs.writeFileSync(JARS_FILE, JSON.stringify(Object.fromEntries(Object.entries(state).map(([k, s]) => [k, Object.fromEntries(s.jar)]))));
 
 const cookieHeader = jar => [...jar].map(([k, v]) => `${k}=${v}`).join('; ');
 export const cookie = (site, name) => state[site].jar.get(name);    // ör. Piazza'nın CSRF başlığı oturum çerezinden gelir
@@ -77,7 +82,14 @@ function takeCookies(site, cookies) {
   jar.clear();
   for (const c of cookies) jar.set(c.name, c.value);
   state[site].pages.clear();
+  loggedIn(site);
   saveJars();
+}
+// Kullanıcı yeniden giriş yaptı: "oturumu kapattım" işareti kalkar
+function loggedIn(site) {
+  if (!state[site].loggedOut) return;
+  state[site].loggedOut = false;
+  settings.setLoggedOut(site, false);
 }
 
 // Giriş denemeleri geçici bir kutuda yapılır; yalnızca başarılı olursa sitenin kutusunun yerine geçer.
@@ -88,6 +100,7 @@ export function commitJar(site, jar) {
   for (const [k, v] of jar) st.jar.set(k, v);
   st.pages.clear();
   st.failedAt = 0;
+  loggedIn(site);
   saveJars();
 }
 
@@ -164,6 +177,25 @@ function releaseVisible(ctx) {
   if (visible?.ctx !== ctx || --visible.users > 0) return;
   visible = null;
   return exclusive(() => ctx.close().catch(() => {}));
+}
+
+// Kullanıcının kendisinin kullandığı görünür sekme: url açılır, kullanıcı sayfada istediğini yapar (form seçer, gönderir;
+// doğrulama çıkarsa kendisi yanıtlar). Uygulama hiçbir şeye tıklamaz; onResponse yalnızca sayfanın aldığı yanıtları okur
+// (ör. kullanıcının yaptığı aramanın sonucu). onLoad her sayfa yüklenişinde çağrılır (ör. bilgi şeridi göstermek için).
+// Sekme kapanınca ya da süre dolunca biter.
+export async function userWindow(url, { onResponse, onLoad, timeout = 30 * 60_000 } = {}) {
+  const ctx = await acquireVisible();
+  const page = await ctx.newPage();
+  try {
+    if (onResponse) page.on('response', r => { Promise.resolve(onResponse(r, page)).catch(() => {}); });
+    if (onLoad) page.on('load', () => { Promise.resolve(onLoad(page)).catch(() => {}); });
+    await page.goto(url, { waitUntil: 'load' });
+    await page.bringToFront();
+    await Promise.race([page.waitForEvent('close', { timeout: 0 }), new Promise(ok => setTimeout(ok, timeout))]);
+  } finally {
+    if (!page.isClosed()) await page.close().catch(() => {});
+    await releaseVisible(ctx);
+  }
 }
 
 // ---------- oturum alma ----------
@@ -252,9 +284,11 @@ export const setRelogin = fn => { relogin = fn; };
 
 async function authed(site, path, opts) {
   const st = state[site];
+  if (st.loggedOut) throw new LoginRequired(site);           // kullanıcı bu sitede oturumu kapattı: kendisi girene kadar girilmez
   const recentlyFailed = Date.now() - st.failedAt < 15_000;
   let r = st.jar.size ? await rawRequest(site, path, opts) : null;
-  if (r === null && !recentlyFailed) {
+  // Ayar kapalıysa oturum düşünce kendiliğinden yeniden girilmez; kullanıcı Giriş yap'a basar
+  if (r === null && !recentlyFailed && settings.get().autoRelogin) {
     if (await relogin(site).catch(() => false)) r = await rawRequest(site, path, opts);
     if (r === null) {
       await seed(site);
@@ -296,6 +330,37 @@ export function fileName(disposition, fallback) {
 
 // ---------- canlı tutma ----------
 
+// ---------- oturumu kapatma ----------
+// Sitenin kendisinde çıkış (oturum sunucuda da biter), sonra uygulamadaki ve kayıtlı tarayıcı profilindeki çerezler silinir.
+// UBS'nin bilinen bir çıkış adresi yok: orada yalnızca uygulamadaki oturum silinir, sunucudaki oturum kısa sürede kendiliğinden düşer.
+const LOGOUT = {
+  ortam: async () => '/cikis-yap',
+  uzak: async site => moodleLogout(site), uzakydb: async site => moodleLogout(site),
+  webmail: async () => { const r = await rawFetch('webmail', '/roundcube/?_task=mail'); const t = (r.text.match(/"request_token":"(\w+)"/) || [])[1]; return t ? `/roundcube/?_task=logout&_token=${t}` : null; },
+  piazza: async () => '/logout',
+};
+async function moodleLogout(site) {
+  const r = await rawFetch(site, '/my/');
+  const k = (r.text.match(/"sesskey":"(\w+)"/) || [])[1];
+  return k ? `/login/logout.php?sesskey=${k}` : null;
+}
+export async function logout(site) {
+  const st = state[site];
+  let remote = false;
+  if (st.jar.size && LOGOUT[site]) {
+    try { const p = await LOGOUT[site](site); if (p) { await rawFetch(site, p); remote = true; } } catch {}
+  }
+  st.jar.clear();
+  st.pages.clear();
+  st.loggedOut = true;
+  settings.setLoggedOut(site, true);
+  saveJars();
+  // Kayıtlı tarayıcı profili (Ortam/UBS penceresiyle giriş) bu sitenin çerezlerini de unutur
+  await withHiddenBrowser(ctx => ctx.clearCookies({ domain: new URL(SITES[site].base).hostname })).catch(() => {});
+  return { site, remote };
+}
+export const sessionInfo = () => Object.fromEntries(Object.keys(SITES).map(s => [s, { cookies: state[s].jar.size > 0, loggedOut: !!state[s].loggedOut, usedAt: state[s].usedAt ?? null }]));
+
 // Verilen çerez kutusuyla sitenin oturumu açık mı? (giriş doğrulaması ve canlı tutma ortak kullanır)
 export async function isAlive(site, jar = state[site].jar) {
   const s = SITES[site];
@@ -308,6 +373,7 @@ export async function isAlive(site, jar = state[site].jar) {
 // Oturum açık değilse null, açıksa true, kapanmışsa false döner. Sonuç .cache/session.log'a yazılır.
 // Son ping aralığı içinde siteye gerçek bir istek gittiyse (ekran açıldı, bildirim kontrolü) ayrıca sorulmaz: 'skip'.
 export async function keepAlive(site) {
+  if (!settings.get().keepAlive || state[site].loggedOut) return 'off';
   if (!state[site].jar.size) return null;
   if (Date.now() - (state[site].usedAt ?? 0) < SITES[site].ping.every * 60_000 * 0.8) return 'skip';
   const alive = await isAlive(site);

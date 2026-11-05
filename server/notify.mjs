@@ -14,19 +14,28 @@ import { courseKey } from './courses.mjs';
 import * as webmail from './webmail.mjs';
 import * as credentials from './credentials.mjs';
 import * as etu from './etu.mjs';
+import * as ortam from './ortam.mjs';
+import * as vault from './vault.mjs';
 
 const FILE = '.cache/notify.json';
-const EVERY = { piazza: 30, uzak: 60, takvim: 360 };   // dakika (okul sunucularını yormamak için seyrek)
+const EVERY = { piazza: 30, uzak: 60, takvim: 180 };   // dakika (okul sunucularını yormamak için seyrek)
 const KEEP = 200;                                  // saklanan en fazla bildirim
 
 let db = { seen: {}, items: [], settings: { toast: true, mail: true, takvim: true }, last: {} };
 let loaded = false;
 async function load() {
   if (loaded) return;
-  try { db = { ...db, ...JSON.parse(await fs.readFile(FILE, 'utf8')) }; } catch {}
+  db = { ...db, ...(await vault.read(FILE)) };       // bildirim metinleri diskte şifreli (vault.mjs)
   loaded = true;
 }
-const save = () => fs.writeFile(FILE, JSON.stringify(db)).catch(() => {});
+const save = () => vault.write(FILE, db).catch(() => {});
+
+// Hesap > Güvenlik: arka plan kontrollerinin aralığı, son ve sonraki zamanı
+const LABELS = { piazza: 'Piazza yeni gönderi kontrolü', uzak: 'Uzak yeni içerik kontrolü', takvim: 'Akademik takvim ve sınav hatırlatmaları' };
+export function schedule() {
+  return Object.fromEntries(Object.entries(EVERY).map(([k, every]) => [k, { label: LABELS[k], every, last: db.last?.[k] ?? null,
+    on: k === 'takvim' ? db.settings.takvim !== false : true }]));
+}
 
 // Kaynaktaki kimlikleri öncekilerle karşılaştırır (görülenler birikir; listeden düşüp geri gelen eski öğe yeni sayılmaz).
 // İlk kez görülen kaynakta yalnızca kaydeder.
@@ -110,6 +119,22 @@ async function checkTakvim() {
     for (const k of order.slice(0, order.indexOf(mark[0]) + 1)) db.reminded[`${key}|${k}`] = now;
     out.push({ source: 'takvim', course: null, courseName: 'Akademik Takvim', title: 'Akademik Takvim', text: mark[1], link: '#/ekstra/takvim', read: true });
   }
+  // Kişisel sınavlar: Akademik Takvim ara sınav, telafi ve bütünlemeleri her zaman göstermiyor; Ortam'daki sınav takvimine
+  // (Ara Sınav / Final / Bütünleme, hangisi açıksa) göre her sınav için bir kez, son 24 saat içinde hatırlatılır.
+  try {
+    const e = await ortam.exams();
+    for (const x of e.exams ?? []) {
+      const [h, m] = String(x.start || '').split(':').map(Number);
+      if (!x.ts || !Number.isFinite(h)) continue;
+      const at = x.ts + (h * 60 + (m || 0)) * 60_000;
+      const key = `sinav|${e.active?.kind}|${x.code}|${x.dateText}|${x.start}`;
+      if (at <= now || at - now > DAY || db.reminded[key]) continue;
+      db.reminded[key] = now;
+      const today = new Date(at).toLocaleDateString('en-CA', { timeZone: 'Europe/Istanbul' }) === new Date(now).toLocaleDateString('en-CA', { timeZone: 'Europe/Istanbul' });
+      out.push({ source: 'takvim', course: null, courseName: 'Sınav', title: `${e.active?.label || 'Sınav'} hatırlatması`,
+        text: `${today ? 'Bugün' : 'Yarın'} ${x.start}–${x.end}: ${x.code} ${x.name} · ${x.room || 'derslik belli değil'}`, link: '#/sinav', read: true });
+    }
+  } catch {}                                                          // Ortam oturumu kapalı: sonraki turda
   for (const [k, t] of Object.entries(db.reminded)) if (now - t > 90 * DAY) delete db.reminded[k];
   return out;
 }

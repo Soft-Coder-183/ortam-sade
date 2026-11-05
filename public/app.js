@@ -19,7 +19,7 @@ const NAV = [
   { id: 'cap', label: 'ÇAP/YAP - Başvurular', short: 'Başvuru', icon: 'arrows', bottom: true, rare: true, items: [
     ['capyap', 'ÇAP / YAP'], ['staj', 'Staj Hareketliliği'], ['ogrenim', 'Öğrenim Hareketliliği'], ['mezun', 'Mezuniyet Sonrası Staj']] },
   { id: 'hakkinda', label: 'Hakkında ve SSS', short: 'Hakkında', icon: 'help', rare: true, items: [
-    ['hakkimizda', 'Hakkımızda'], ['sss', 'Sık Sorulan Sorular'], ['sorumluluk', 'Sorumluluk Reddi']] },
+    ['hakkimizda', 'Hakkımızda'], ['siteler', 'Okulun Siteleri'], ['sss', 'Sık Sorulan Sorular'], ['sorumluluk', 'Sorumluluk Reddi']] },
   { id: 'hesap', label: 'Hesap', short: 'Hesap', icon: 'settings', bottom: true, extra: true },
 ];
 
@@ -81,6 +81,7 @@ let loginStale = null;         // önbellekten eski veri gösteriliyor ve bu sit
 async function api(name) {
   const r = await fetch('/api/' + name);
   const j = await r.json().catch(() => ({}));
+  if (r.status === 423) showLock();                       // PIN kilidi: kilit ekranı açılır, kilit açılınca ekran yeniden çizilir
   if (!r.ok) throw Object.assign(new Error(j.error || 'Hata'), r.status === 401 ? { login: j.site, siteName: j.siteName } : {});
   if (r.headers.get('X-Refreshing')) needsRefresh = true;
   if (r.headers.get('X-Login-Required')) loginStale = r.headers.get('X-Login-Required');
@@ -920,6 +921,7 @@ async function oSubmit(btn) {
 // o ayrıntı gösterilmez. Ders hocası araması: o dönem ders verenler + okulun sitesindeki akademik kadro bilgisi (bölüm, unvan,
 // profil bağlantısı). Bölüm bazlı arama ve "hızlı dersler" yoktur. Taslak ders listesi bu cihazda 'program-taslak' anahtarında.
 let acilanQ = '';
+let acilanClosed = false;            // arama sonuçları kapatıldı (metin silinmeden)
 let acilanMode = 'ders';               // 'ders' | 'hoca' (ders hocası araması)
 let acilanData = null;
 let kadroIndex = null;                 // okulun sitesindeki akademik kadro dizini (ilk ders hocası aramasında yüklenir)
@@ -943,9 +945,10 @@ acilanRedirect();
 window.addEventListener('hashchange', acilanRedirect);
 
 async function viewAcilan() {
-  acilanData = await api('ortam-acilan');
+  [acilanData, progData] = await Promise.all([api('ortam-acilan'), api('program').catch(() => null)]);
   const d = acilanData;
-  if (!d.active) return header('Açılan Dersler') + `<div class="card msg">${esc(d.message)}</div>`;
+  if (progData?.capture?.active) setTimeout(progPoll, 0);
+  if (!d.active) return header('Açılan Dersler') + `<div class="card msg">${esc(d.message)}</div>` + progCard();
   if (taslak.term !== d.term) taslak = { term: d.term, ids: [] };
   const modes = [['ders', 'Ders'], ['hoca', 'Ders hocası']];
   return header('Açılan Dersler', `${d.term} · ${d.courses.length} ders, ${d.academics.length} ders hocası`) +
@@ -953,20 +956,21 @@ async function viewAcilan() {
       <input type="search" data-ac-q placeholder="${acilanMode === 'hoca' ? 'Ders hocası adı ara (ör. Yılmaz)' : 'Ders kodu ya da adı ara (ör. BİL 214, Olasılık)'}" value="${esc(acilanQ)}" autocomplete="off">
       <div id="ac-list">${acilanList()}</div></div>
     <h2>Taslak ders listem</h2><div id="ac-draft">${acilanDraft()}</div>
-    <div class="card ac-ortam"><div><b>Şube, gün/saat, derslik ve ders hocası</b>
-      <p class="muted small">Bu ayrıntıları Ortam yalnızca doğrulamalı (reCAPTCHA) aramayla veriyor; uygulama bu doğrulamayı aşmıyor.
-      Ders programı aramasını okulun sayfasında yapabilirsin.</p></div>
-      <a class="btn primary" href="https://ortam.etu.edu.tr${esc(d.path || '/Guz-Donemi-Ders-Programi')}" target="_blank" rel="noopener">${icon('external')}Ortam'da ders programı</a></div>`;
+    ${progCard()}`;
 }
 
 function acilanList() {
   const d = acilanData, q = trFold(acilanQ.trim());
   if (!q) return `<p class="muted small">${acilanMode === 'hoca' ? 'Ada göre ara: bu dönem ders veren ders hocaları listelenir.' : 'Aramak için ders kodu ya da adı yaz. Listede olan ders bu dönem açılmış demektir.'}</p>`;
+  if (acilanClosed) return `<p class="muted small">“${esc(acilanQ.trim())}” araması kapatıldı. <button type="button" class="linkbtn" data-ac-open>Sonuçları göster</button></p>`;
+  return `<div class="ac-head"><span class="muted small">Sonuçlar</span><button type="button" class="btn ghost ac-close" data-ac-close title="Sonuçları kapat (Esc)">× Kapat</button></div>` + acilanResults(d, q);
+}
+function acilanResults(d, q) {
   if (acilanMode === 'hoca') return hocaList(q);
   const hits = d.courses.filter(c => trFold(`${c.code} ${c.name}`).includes(q) || trFold(c.code).replace(/\s/g, '').includes(q.replace(/\s/g, '')));
   if (!hits.length) return '<p class="muted">Bu aramayla açılan ders yok.</p>';
   const chosen = new Set(taslak.ids || []);
-  return `<div class="ac-rows">${hits.slice(0, 50).map(c => `<div class="ac-row"><span><b>${esc(c.code)}</b> ${c.name ? `<span class="muted">${esc(c.name)}</span>` : ''}</span>
+  return `<div class="ac-rows">${hits.slice(0, 50).map(c => `<div class="ac-row"><span><b>${esc(c.code)}</b> ${c.name ? `<span class="muted">${esc(c.name)}</span>` : ''}${sectionsHtml(c.code)}</span>
     <span class="pill ok">Açıldı</span><button class="btn ${chosen.has(c.id) ? '' : 'primary'}" data-ac-toggle="${esc(c.id)}">${chosen.has(c.id) ? 'Listeden çıkar' : 'Listeye ekle'}</button></div>`).join('')}</div>
     ${hits.length > 50 ? `<p class="muted small">${hits.length - 50} sonuç daha; aramayı daralt.</p>` : ''}`;
 }
@@ -990,7 +994,7 @@ function hocaList(q) {
     const m = match(n);
     const info = m.length ? [...new Set(m.map(p => `${p.title ? p.title + ' · ' : ''}${p.unit}`))].join(' / ') : '';
     const link = m[0] ? `<a class="btn" href="${esc(m[0].url)}" target="_blank" rel="noopener">${icon('external')}Akademik kadro</a>` : '';
-    return `<div class="ac-row"><span><b>${esc(n)}</b>${info ? ` <span class="muted">${esc(info)}</span>` : ''}</span><span class="pill ok">Bu dönem ders veriyor</span>${link}</div>`;
+    return `<div class="ac-row"><span><b>${esc(n)}</b>${info ? ` <span class="muted">${esc(info)}</span>` : ''}${hocaSecs(n)}</span><span class="pill ok">Bu dönem ders veriyor</span>${link}</div>`;
   }).join('')}</div>
   ${kadroIndex === 'yükleniyor' ? '<p class="muted small">Bölüm ve unvan bilgileri yükleniyor…</p>' : ''}
   ${hits.length > 40 ? `<p class="muted small">${hits.length - 40} sonuç daha; aramayı daralt.</p>` : ''}`;
@@ -1000,20 +1004,45 @@ function acilanDraft() {
   const byId = new Map(acilanData.courses.map(c => [c.id, c]));
   const ids = (taslak.ids || []).filter(id => byId.has(id));
   if (!ids.length) return '<div class="card msg">Liste boş. Yukarıdan ders ekle.</div>';
+  // Ders programı verisi varsa: her dersin şubeleri ve hiçbir şube eşleşmesiyle birlikte alınamayan ders çiftleri
+  const codes = ids.map(id => byId.get(id).code);
+  const clash = draftConflicts(codes);
   return `<div class="card"><div class="ac-chips">${ids.map(id => `<span class="att"><b>${esc(byId.get(id).code)}</b> ${esc(byId.get(id).name || '')}
-    <button type="button" class="x" data-ac-toggle="${esc(id)}" title="Çıkar">×</button></span>`).join('')}</div></div>`;
+    <button type="button" class="x" data-ac-toggle="${esc(id)}" title="Çıkar">×</button></span>`).join('')}</div>
+    <div class="ac-fetch"><button type="button" class="btn primary" data-prog-fetch="${esc(ids.join(','))}"${progData?.capture?.active ? ' disabled' : ''}>${icon('external')}Bu derslerin şube ve saatlerini Ortam'dan getir</button>
+      <span class="muted small">Ortam'ın ders programı sayfası açılır, bu dersler işaretlenmiş olur; aramayı başlatan düğmeye sen basarsın, sonuç burada görünür.</span></div>
+    ${clash.length ? `<div class="banner mv-banner"><span><b>Çakışma:</b> ${clash.map(([a, b]) => `${esc(a)} ile ${esc(b)}`).join('; ')}. Bu derslerin bütün şubeleri aynı saatlere denk geliyor; birlikte alınamaz.</span></div>` : ''}
+    ${progIndex() ? `<div class="ac-draft-secs">${codes.map(c => `<div><b>${esc(c)}</b>${sectionsHtml(c) || '<p class="muted small">Ders programında şube bilgisi yok.</p>'}</div>`).join('')}</div>` : ''}</div>`;
 }
 
 $view.addEventListener('input', e => {
-  if (e.target.matches('[data-ac-q]')) { acilanQ = e.target.value; const l = document.getElementById('ac-list'); if (l) l.innerHTML = acilanList(); }
+  if (e.target.matches('[data-ac-q]')) { acilanQ = e.target.value; acilanClosed = false; const l = document.getElementById('ac-list'); if (l) l.innerHTML = acilanList(); }
+});
+// Esc: arama sonuçlarını kapatır (metin silinmez); arama kutusuna tıklayınca yeniden açılır
+$view.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && e.target.matches('[data-ac-q]') && acilanQ.trim()) {
+    e.preventDefault();
+    acilanClosed = true;
+    const l = document.getElementById('ac-list'); if (l) l.innerHTML = acilanList();
+  }
+});
+$view.addEventListener('focusin', e => {
+  if (e.target.matches('[data-ac-q]') && acilanClosed) { acilanClosed = false; const l = document.getElementById('ac-list'); if (l) l.innerHTML = acilanList(); }
 });
 $view.addEventListener('click', e => {
   const mode = e.target.closest('[data-ac-mode]');
   if (mode) { acilanMode = mode.dataset.acMode; acilanQ = ''; return render(); }
+  if (e.target.closest('[data-ac-close], [data-ac-open]')) {
+    acilanClosed = !!e.target.closest('[data-ac-close]');
+    const l = document.getElementById('ac-list'); if (l) l.innerHTML = acilanList();
+    return;
+  }
   const tog = e.target.closest('[data-ac-toggle]');
   if (tog) {
     const id = tog.dataset.acToggle;
-    taslak.ids = (taslak.ids || []).includes(id) ? taslak.ids.filter(x => x !== id) : [...(taslak.ids || []), id];
+    const adding = !(taslak.ids || []).includes(id);
+    taslak.ids = adding ? [...(taslak.ids || []), id] : taslak.ids.filter(x => x !== id);
+    if (adding && tog.closest('#ac-list')) acilanClosed = true;     // ders seçilince sonuçlar kapanır; arama metni durur
     saveTaslak();
     const l = document.getElementById('ac-list'); if (l) l.innerHTML = acilanList();
     const dr = document.getElementById('ac-draft'); if (dr) dr.innerHTML = acilanDraft();
@@ -1080,6 +1109,122 @@ $view.addEventListener('click', e => {
 $view.addEventListener('input', e => {
   if (e.target.matches('[data-kadro-q]')) { kadroQ = e.target.value; const h = document.getElementById('kadro-hits'); if (h) h.innerHTML = kadroHits(); }
 });
+// ---------- Dönem ders programı: şube, gün/saat, derslik (yerel veri; server/program.mjs) ----------
+// Açılan Dersler'de her dersin şubeleri ve ders hocasının dersleri, taslak listede çakışma uyarısı.
+let progData = null;
+const PDAY = ['', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
+const slotFrom = s => s.split('-')[0].trim(), slotTo = s => s.split('-')[1].trim();
+const tmin = t => { const [h, m] = String(t).split(':').map(Number); return h * 60 + (m || 0); };
+const progKey = code => trFold(code).replace(/\s+/g, '');
+// Ardışık saatler tek aralık olur: "Pzt 16:30–18:20 · Amfi 2"
+function meets(slots) {
+  const out = [];
+  for (const s of [...slots].sort((a, b) => a.d - b.d || tmin(slotFrom(a.s)) - tmin(slotFrom(b.s)))) {
+    const last = out.at(-1);
+    if (last && last.d === s.d && last.r === s.r && tmin(slotFrom(s.s)) - tmin(last.to) <= 15) last.to = slotTo(s.s);
+    else out.push({ d: s.d, from: slotFrom(s.s), to: slotTo(s.s), r: s.r, b: s.b, cap: s.cap });
+  }
+  return out;
+}
+// Ders kodu (şubesiz, ör. "BİL 214") → şubeler [{ code, sec, t, i, meets }]
+function progIndex() {
+  if (!progData?.sessions?.length) return null;
+  if (progData._idx) return progData._idx;
+  const by = new Map();
+  for (const s of progData.sessions) {
+    const [base, sec = ''] = s.c.split(/\.(?=\d+$)/);
+    const k = progKey(base);
+    if (!by.has(k)) by.set(k, new Map());
+    const secs = by.get(k);
+    if (!secs.has(s.c)) secs.set(s.c, { code: s.c, base, sec, t: s.t, i: s.i, slots: [] });
+    secs.get(s.c).slots.push(s);
+  }
+  progData._idx = new Map([...by].map(([k, secs]) => [k, [...secs.values()].map(x => ({ ...x, meets: meets(x.slots) }))
+    .sort((a, b) => (+a.sec || 0) - (+b.sec || 0))]));
+  return progData._idx;
+}
+const meetChip = m => `<span class="mt">${PDAY[m.d]} ${esc(m.from)}–${esc(m.to)} <i>${esc(m.r)}</i></span>`;
+function sectionsHtml(code) {
+  const secs = progIndex()?.get(progKey(code));
+  if (!secs?.length) return '';
+  return `<div class="ac-secs">${secs.map(x => `<div class="ac-sec"><b>${x.sec ? `Şube ${esc(x.sec)}` : esc(x.code)}</b>
+    <span class="mts">${x.meets.map(meetChip).join('')}</span>${x.i ? `<span class="muted small">${esc(x.i)}</span>` : ''}</div>`).join('')}</div>`;
+}
+// Ders hocasının bu dönemki dersleri (ders programındaki adla birebir eşleşir)
+function hocaSecs(name) {
+  if (!progData?.sessions?.length) return '';
+  const k = trFold(name);
+  const by = new Map();
+  for (const s of progData.sessions) if (trFold(s.i) === k) { if (!by.has(s.c)) by.set(s.c, { t: s.t, slots: [] }); by.get(s.c).slots.push(s); }
+  if (!by.size) return '';
+  return `<div class="ac-secs">${[...by].sort((a, b) => a[0].localeCompare(b[0], 'tr')).map(([c, x]) => `<div class="ac-sec"><b>${esc(c)}</b>
+    <span class="mts">${meets(x.slots).map(meetChip).join('')}</span><span class="muted small">${esc(x.t)}</span></div>`).join('')}</div>`;
+}
+// Taslak listede: iki dersin bütün şube eşleşmeleri çakışıyorsa ikisi birlikte alınamaz
+const overlap = (a, b) => a.some(m => b.some(n => m.d === n.d && tmin(m.from) < tmin(n.to) && tmin(n.from) < tmin(m.to)));
+function draftConflicts(codes) {
+  const idx = progIndex();
+  if (!idx) return [];
+  const out = [];
+  for (let i = 0; i < codes.length; i++) for (let j = i + 1; j < codes.length; j++) {
+    const A = idx.get(progKey(codes[i])), B = idx.get(progKey(codes[j]));
+    if (A?.length && B?.length && A.every(a => B.every(b => overlap(a.meets, b.meets)))) out.push([codes[i], codes[j]]);
+  }
+  return out;
+}
+
+function progCard() {
+  const p = progData, st = p?.capture;
+  const has = p?.sections > 0;
+  return `<div class="card prog-card" id="prog-card"><div><b>Şube, gün/saat, derslik ve ders hocası</b>
+    <p class="small ${has ? '' : 'muted'}">${has ? `${esc(p.term || '')} · ${p.depts.length} bölüm · ${p.sections} şube · ${p.rooms} derslik · son güncelleme ${whenTR(p.updated)}` : 'Henüz ders programı verisi yok.'}</p>
+    <p class="muted small">Ortam bu bilgiyi doğrulamalı (reCAPTCHA) bölüm aramasıyla veriyor; uygulama bu formu kendisi göndermez. "Ortam'dan güncelle" ile
+      açılan pencerede bölümü sen seçip aramayı sen yaparsın, açtığın her sonuç sayfası buraya kaydedilir. Kayıtlı bir sonuç sayfasını ya da
+      ETÜ Sınıf Durumu dosyasını da içe aktarabilirsin. Veri yalnızca bu bilgisayarda tutulur.</p>
+    ${st?.active ? `<p class="small prog-live"><b>Pencere açık:</b> ${st.count} bölüm kaydedildi${st.last ? ` (son: ${esc(st.last)})` : ''}. İstediğin bölümler bitince sekmeyi kapat.</p>`
+      : st?.error ? `<p class="small err">${esc(st.error)}</p>` : st?.count ? `<p class="small">Son pencerede ${st.count} bölüm kaydedildi.</p>` : ''}</div>
+    <div class="prog-act"><button type="button" class="btn primary" data-prog-capture${st?.active ? ' disabled' : ''}>${icon('external')}Ortam'dan güncelle</button>
+      <label class="btn">${icon('paperclip')}Dosyadan içe aktar<input type="file" data-prog-import accept=".html,.htm,.json" multiple hidden></label></div></div>`;
+}
+let progPolling = false;
+function progPoll() {
+  if (progPolling) return;
+  progPolling = true;
+  const tick = async () => {
+    const card = document.getElementById('prog-card');
+    if (!card) { progPolling = false; return; }
+    progData = await api('program').catch(() => progData);
+    card.outerHTML = progCard();
+    if (progData?.capture?.active) setTimeout(tick, 3000);
+    else { progPolling = false; render(true); }
+  };
+  setTimeout(tick, 3000);
+}
+$view.addEventListener('click', async e => {
+  const b = e.target.closest('[data-prog-capture], [data-prog-fetch]');
+  if (!b) return;
+  b.disabled = true;
+  const courses = b.dataset.progFetch ? b.dataset.progFetch.split(',').filter(Boolean) : [];
+  const r = await post('/api/program/capture', { courses }).catch(() => null);
+  const j = await r?.json().catch(() => null);
+  if (!r?.ok) { b.disabled = false; return toast(j?.error || 'Pencere açılamadı'); }
+  progData = { ...(progData || {}), capture: j };
+  document.getElementById('prog-card').outerHTML = progCard();
+  toast(courses.length ? 'Ortam penceresi açıldı: turuncu çerçeveli düğmeye bas' : 'Ortam penceresi açıldı: bölümü seçip aramayı yap');
+  progPoll();
+});
+$view.addEventListener('change', async e => {
+  const inp = e.target.closest('[data-prog-import]');
+  if (!inp) return;
+  let ok = 0;
+  for (const f of inp.files) {
+    const r = await fetch('/api/program/import?name=' + encodeURIComponent(f.name), { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: f }).catch(() => null);
+    const j = await r?.json().catch(() => null);
+    if (r?.ok) ok++; else toast(`${f.name}: ${j?.error || 'içe aktarılamadı'}`);
+  }
+  if (ok) { toast(`${ok} dosya içe aktarıldı`); progData = null; render(); }
+});
+
 // ---------- Açılan Dersler sonu ----------
 
 // ---------- UBS ----------
@@ -1697,7 +1842,7 @@ $view.addEventListener('click', async e => {
 // ---------- Webmail ayarları sonu ----------
 
 async function viewHesap() {
-  const a = await api('account');
+  const [a, st] = await Promise.all([api('account'), api('status')]);
   const resultText = site => {
     const x = lastLogin?.results?.[site];
     if (!x) return '';
@@ -1722,7 +1867,7 @@ async function viewHesap() {
         : '<span class="muted">tek tıkla: pencere açılır, bilgileriniz doldurulur (doğrulama sorusu çıkarsa siz yanıtlarsınız)</span>'],
       ['', r => resultText(r.site)]], rows)}</div>` +
     `<p class="muted">${a.email ? (a.remembered ? 'Bilgileriniz bu bilgisayarda şifreli olarak saklanıyor.' : 'Bilgileriniz yalnızca uygulama açıkken bellekte tutuluyor.') : 'Henüz kayıtlı bilgi yok.'}</p>` +
-    notifSection() + webmailSettingsSection() +
+    securitySection(st) + notifSection() + webmailSettingsSection() +
     `<h2>Görünüm</h2><div class="card">${themePicker()}<p class="muted small" style="margin:10px 0 0">Otomatik: cihazın açık/koyu ayarını izler. Seçim bu cihazda saklanır.</p></div>`;
 }
 
@@ -1783,9 +1928,51 @@ const SSS = [
   ['Uzak\'ta sınav, ödev yükleme ya da Safe Exam Browser isteyen içerik olursa?', 'İçeriğin kendisi (açıklama, dosyalar, bağlantılar, Safe Exam Browser indirme bağlantısı ve yapılandırma dosyası) uygulamada görünür. Sınava başlama, ödev yükleme, foruma yazma gibi işlemler okulun sitesinde yapılır; sayfanın üstünde "Sitede aç" bağlantısı çıkar.'],
   ['Uygulama nasıl güncellenir?', 'Yeni sürüm çıkınca uygulama sağ altta sorar; "Güncelle"ye basmadan hiçbir şey indirilmez. Basınca sürüm yalnızca GitHub sayfamızdan indirilir, SHA-256 özetiyle doğrulanır, kurulur ve uygulama kendini yeniden başlatır. Şifren, oturumların ve ayarların korunur. Hakkımızda sayfasından elle de denetleyebilirsin.'],
   ['Mevzuat bölümündeki yanıtlar ne kadar güvenilir?', 'Her hızlı yanıtın altında dayandığı madde yazar ve tıklayınca o madde açılır. Uygulama her açılışta o maddenin metninin hâlâ aynı olduğunu denetler; metin değişmişse yanıtın yanında uyarı çıkar. Belgeler okulun Mevzuat sayfasındaki kaynaklardan (mevzuat.gov.tr ve okulun dosyaları) alınır. Bir yönerge, dayandığı yönetmelik ondan sonra değişmişse işaretlenir; çelişki varsa üst mevzuat geçerlidir. Yine de resmî işlemlerde Öğrenci İşleri esastır.'],
+  ['Açılan Dersler\'deki şube ve derslik bilgisi nereden geliyor?', 'Ortam bu bilgiyi yalnızca doğrulamalı (reCAPTCHA) bölüm aramasıyla veriyor. Uygulama bu formu kendisi doldurup göndermez ve doğrulamayı aşmaz. Açılan Dersler sayfasındaki "Ortam\'dan güncelle" düğmesi Ortam\'ın ders programı sayfasını bir pencerede açar; bölümü sen seçip aramayı sen yaparsın, açtığın her sonuç sayfası uygulamaya kaydedilir. Daha önce kaydedilmiş sonuç sayfalarını ya da ETÜ Sınıf Durumu dosyasını da içe aktarabilirsin. Veri yalnızca bu bilgisayarda tutulur.'],
+  ['Uygulama ne zaman çalışıyor, arka planda açık mı kalıyor?', 'Yalnızca "Ortam Sade" siyah penceresi açıkken. Pencereyi kapatınca ya da Hesap > Güvenlik ve Oturumlar > "Uygulamayı kapat" deyince durur ve okul sitelerine hiçbir istek gitmez. Bilgisayar açılınca kendiliğinden başlamaz. Menünün altındaki yeşil nokta uygulamanın açık olduğunu gösterir; kapanırsa sayfanın üstünde kırmızı uyarı çıkar. Açıkken arka planda neyin ne sıklıkta yapıldığı da aynı sayfada yazar.'],
+  ['Oturumların açık tutulması güvenli mi?', 'Oturum çerezleri yalnızca bu bilgisayarda, AES-256 ile şifreli ve Windows hesabına bağlı bir anahtarla saklanır; uygulamaya yalnızca bu bilgisayardan erişilebilir. Yine de istersen Hesap > Güvenlik ve Oturumlar\'dan oturumları açık tutmayı ve kendiliğinden yeniden girmeyi kapatabilir, sitelerden çıkış yapabilir ve uygulamaya PIN koyabilirsin. Bilgisayarı başkalarıyla paylaşıyorsan PIN önerilir.'],
+  ['Okulun sitelerine doğrudan nasıl giderim?', 'Bütün sitelerin ve sık kullanılan sayfaların orijinal adresleri Hakkında ve SSS > Okulun Siteleri sayfasında. Uygulamadaki her bölümde ayrıca "Sitede aç" ya da benzeri bir bağlantı bulunur.'],
   ['Neden bazen eski bilgi görüyorum?', 'Hız için son alınan veri önce gösterilir, arka planda yenilenir ve birkaç saniye içinde güncellenir. Oturum kapanmışsa üstte bir uyarıyla son kaydedilen veri gösterilir.'],
   ['Bir sorun buldum, ne yapmalıyım?', 'Önemli bir işlemde (kayıt, başvuru, not, sınav yeri) her zaman okulun kendi sitesini esas al. Sorunu GitHub sayfasındaki Issues bölümünden (github.com/Soft-Coder-183/ortam-sade) bildirebilirsin.'],
 ];
+// Uygulamanın bağlandığı okul sitelerinin ve sık kullanılan sayfaların orijinal adresleri: her zaman doğrudan okulun sitesine gidilebilsin.
+const SITE_LINKS = [
+  ['Uygulamanın bağlandığı siteler', [
+    ['Ortam', 'https://ortam.etu.edu.tr/', 'Profil, dersler, ders programı, sınav takvimi, başvurular'],
+    ['UBS (Üniversite Bilgi Sistemi)', 'https://ubs.etu.edu.tr/', 'Transkript, ders kaydı, belgeler'],
+    ['Uzak', 'https://uzak.etu.edu.tr/', 'Ders içerikleri, ödevler, duyurular (Moodle)'],
+    ['UZAKYDB', 'https://uzakydb.etu.edu.tr/', 'Yabancı Diller dersleri (Moodle)'],
+    ['Webmail', 'https://webmail.etu.edu.tr/roundcube/', 'Okul e-postası'],
+    ['Piazza', 'https://piazza.com/class', 'Ders soru-cevap'],
+  ]],
+  ['Ortam\'daki sayfalar', [
+    ['Ders programı (açılan dersler)', 'https://ortam.etu.edu.tr/Guz-Donemi-Ders-Programi', 'Şube, gün/saat ve derslik araması'],
+    ['Ara sınav takvimim', 'https://ortam.etu.edu.tr/ara-sinav-takvimim', ''],
+    ['Final takvimim', 'https://ortam.etu.edu.tr/final-takvimim', ''],
+    ['Bütünleme takvimim', 'https://ortam.etu.edu.tr/butunleme-takvimim', ''],
+    ['Not görüntüleme', 'https://ortam.etu.edu.tr/bilgilerim/not-goruntuleme', ''],
+    ['ÇAP / YAP başvurusu', 'https://ortam.etu.edu.tr/CAP-YAP-Basvurusu', ''],
+  ]],
+  ['Okulun web sitesi', [
+    ['TOBB ETÜ', 'https://www.etu.edu.tr/', ''],
+    ['Akademik Takvim', 'https://www.etu.edu.tr/tr/akademik-takvim', ''],
+    ['Öğrenci İşleri', 'https://www.etu.edu.tr/tr/ogrenci-isleri', 'Duyurular ve sık sorulan sorular'],
+    ['Mevzuat', 'https://www.etu.edu.tr/tr/sayfa/mevzuat', 'Yönetmelik ve yönergeler'],
+    ['Akademik kadro', 'https://www.etu.edu.tr/tr/akademik', 'Fakülte ve bölümler'],
+    ['Yabancı Diller Bölümü', 'https://www.etu.edu.tr/tr/bolum/yabanci-diller-bolumu', ''],
+    ['Bilişim Portalı', 'https://bilisim.etu.edu.tr/linkler', 'Okulun bilişim hizmetleri'],
+  ]],
+  ['Bu proje', [
+    ['Ortam Sade (GitHub)', 'https://github.com/Soft-Coder-183/ortam-sade', 'Kaynak kod'],
+    ['Sürümler', 'https://github.com/Soft-Coder-183/ortam-sade/releases', 'İndirme ve sürüm notları'],
+    ['Sorun bildir', 'https://github.com/Soft-Coder-183/ortam-sade/issues', ''],
+  ]],
+];
+const viewSiteler = () => header('Okulun Siteleri', 'Uygulamanın bağlandığı sitelerin ve sık kullanılan sayfaların orijinal adresleri') +
+  SITE_LINKS.map(([title, list]) => `<h2>${esc(title)}</h2><div class="card mitems">${list.map(([name, url, note]) =>
+    `<div class="mi"><a class="mi-main" href="${esc(url)}" target="_blank" rel="noopener">${icon('external')}<span>${esc(name)}</span></a>
+      <div class="muted small">${esc(url.replace(/^https:\/\//, '').replace(/\/$/, ''))}${note ? ` · ${esc(note)}` : ''}</div></div>`).join('')}</div>`).join('');
+
 const viewSss = () => header('Sık Sorulan Sorular') +
   `<div class="list">${SSS.map(([q, a]) => `<details class="card faq"><summary>${esc(q)}</summary><p>${esc(a)}</p></details>`).join('')}</div>`;
 const viewSorumluluk = () => header('Sorumluluk Reddi') + aboutCard('Lütfen okuyun', `<ul>
@@ -2014,6 +2201,164 @@ function mvMine(id, p) {
 }
 // ---------- Mevzuat sonu ----------
 
+// ---------- Güvenlik: kilit (PIN), uygulama durumu, oturumlar ----------
+// Kilit: PIN açıksa sunucu kilit açılmadan veri vermez (423). Kilit ekranı tüm sayfanın üstünde durur; hareketsizlik süresi
+// dolunca (Hesap > Güvenlik) arayüz kendini kilitler. PIN yalnızca sunucuda tuzlu özet olarak saklanır.
+let lockInfo = { enabled: false, unlocked: true, idle: 15 };
+let lastInput = Date.now();
+['pointerdown', 'keydown', 'wheel', 'touchstart'].forEach(ev => addEventListener(ev, () => { lastInput = Date.now(); }, { passive: true }));
+function showLock(msg = '') {
+  if (document.getElementById('lock')) { if (msg) document.querySelector('#lock .lock-msg').textContent = msg; return; }
+  const d = document.createElement('div');
+  d.id = 'lock';
+  d.innerHTML = `<form class="lock-box" data-lock-form><span class="mark" aria-hidden="true"><i></i><i></i><i></i></span><h2>Ortam Sade kilitli</h2>
+    <p class="muted">Devam etmek için PIN'ini gir.</p>
+    <input name="pin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" pattern="[0-9]*" aria-label="PIN" autofocus>
+    <button type="submit">Kilidi aç</button><p class="lock-msg">${esc(msg)}</p></form>`;
+  document.body.appendChild(d);
+  document.body.classList.add('locked');
+  setTimeout(() => d.querySelector('input')?.focus(), 50);
+}
+document.addEventListener('submit', async e => {
+  const f = e.target.closest('[data-lock-form]');
+  if (!f) return;
+  e.preventDefault();
+  const r = await post('/api/lock/unlock', { pin: f.pin.value }).catch(() => null);
+  const j = await r?.json().catch(() => ({}));
+  if (!r?.ok) { f.pin.value = ''; f.querySelector('.lock-msg').textContent = j?.error || 'Uygulamaya ulaşılamadı'; return; }
+  document.getElementById('lock')?.remove();
+  document.body.classList.remove('locked');
+  lastInput = Date.now();
+  lockInfo.unlocked = true;
+  render();
+});
+async function checkLock() {
+  const r = await fetch('/api/lock').catch(() => null);
+  if (!r?.ok) return;
+  lockInfo = await r.json();
+  if (lockInfo.enabled && !lockInfo.unlocked) showLock();
+}
+// Hareketsizlikte kendiliğinden kilitlenme
+setInterval(() => {
+  if (!lockInfo.enabled || !lockInfo.idle || document.getElementById('lock')) return;
+  if (Date.now() - lastInput > lockInfo.idle * 60_000) { post('/api/lock/lock').catch(() => {}); showLock(); }
+}, 15_000);
+
+// Uygulama (sunucu) açık mı: menünün altında küçük gösterge; kapalıysa sayfanın üstünde uyarı
+let serverUp = true;
+async function checkServer() {
+  const ok = await fetch('/api/lock', { cache: 'no-store' }).then(r => r.ok).catch(() => false);
+  if (ok === serverUp) return;
+  serverUp = ok;
+  const el = document.querySelector('.srv-state');
+  if (el) el.outerHTML = srvStateHtml();
+  let b = document.getElementById('srv-down');
+  if (!ok && !b) {
+    b = document.createElement('div');
+    b.id = 'srv-down';
+    b.innerHTML = `<b>Uygulama kapalı.</b> Ortam Sade'nin siyah penceresi kapatılmış ya da bilgisayar yeniden başlatılmış olabilir.
+      Yeniden açmak için klasördeki <b>Ortam Sade.cmd</b> dosyasına çift tıkla. Bu sayfa kendiliğinden yenilenecek.`;
+    document.body.prepend(b);
+  } else if (ok && b) { b.remove(); render(); }
+}
+setInterval(checkServer, 20_000);
+const srvStateHtml = () => `<a class="srv-state${serverUp ? '' : ' down'}" href="#/hesap" title="Uygulamanın durumu: Hesap > Güvenlik ve Oturumlar"><i></i>${serverUp ? 'Uygulama açık' : 'Uygulama kapalı'}</a>`;
+
+const dur = ms => { const m = Math.round(ms / 60_000); return m < 60 ? `${m} dk` : m < 1440 ? `${Math.floor(m / 60)} sa ${m % 60} dk` : `${Math.floor(m / 1440)} gün ${Math.floor((m % 1440) / 60)} sa`; };
+const clock = t => (t ? new Date(t).toLocaleString('tr-TR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—');
+const everyText = m => (m < 60 ? `${m} dakikada bir` : m % 60 === 0 ? `${m / 60} saatte bir` : `${(m / 60).toLocaleString('tr-TR')} saatte bir`);
+function securitySection(st) {
+  const on = (k, label, note) => `<label class="check"><input type="checkbox" data-sec="${k}"${st[k] ? ' checked' : ''}><span>${label}<span class="muted"> ${note}</span></span></label>`;
+  const rows = Object.entries(st.sessions).map(([site, x]) => `<div class="sec-row"><b>${esc(SITE_NAMES[site] || site)}</b>
+    <span>${x.loggedOut ? '<span class="pill gray">çıkış yapıldı</span>' : x.cookies ? '<span class="pill ok">oturum kayıtlı</span>' : '<span class="pill gray">oturum yok</span>'}</span>
+    ${x.cookies && !x.loggedOut ? `<button type="button" class="btn" data-logout="${esc(site)}">Oturumu kapat</button>` : '<span></span>'}</div>`).join('');
+  const jobs = st.jobs.map(j => `<tr class="${j.on ? '' : 'off'}"><td>${esc(j.label)}</td><td>${j.on ? everyText(j.every) : 'kapalı'}</td><td>${clock(j.last)}</td><td>${j.on ? clock(j.next) : '—'}</td></tr>`).join('');
+  return `<h2>Güvenlik ve Oturumlar</h2>
+  <div class="card sec">
+    <div class="sec-app"><div><b>Uygulama açık</b> <span class="muted">· ${clock(st.startedAt)}'den beri (${dur(st.now - st.startedAt)}) · sürüm ${esc(st.version)}</span>
+      <p class="muted small">Uygulama yalnızca "Ortam Sade" siyah penceresi açıkken çalışır; pencere kapanınca okul sitelerine hiçbir istek gitmez,
+        bildirim ve hatırlatma da gelmez. Bilgisayar açılınca kendiliğinden başlamaz. Menünün altındaki gösterge her zaman uygulamanın açık olup olmadığını gösterir.</p></div>
+      <button type="button" class="btn danger" data-shutdown>Uygulamayı kapat</button></div>
+    <details class="sec-jobs" data-keep="sec-jobs"><summary>Uygulama açıkken arka planda yapılanlar</summary>
+      <table class="t"><thead><tr><th>İş</th><th>Sıklık</th><th>Son</th><th>Sonraki</th></tr></thead><tbody>${jobs}</tbody></table>
+      <p class="muted small">Oturum kontrolü atlanabilir: o aralıkta siteye zaten bir istek gittiyse ayrıca sorulmaz.</p></details>
+  </div>
+  <div class="card sec">
+    <b>Oturumlar</b>
+    ${on('keepAlive', 'Oturumları açık tut', '(arka planda düzenli kontrol; kapalıysa oturumlar okulun belirlediği sürede kendiliğinden düşer)')}
+    ${on('autoRelogin', 'Oturum düşünce kendiliğinden yeniden gir', '(kayıtlı bilgilerle ya da kayıtlı tarayıcı profiliyle; kapalıysa "Giriş yap" düğmesine sen basarsın)')}
+    <div class="sec-sites">${rows}</div>
+    <div class="row" style="justify-content:flex-start;gap:8px"><button type="button" class="btn danger" data-logout="all">Bütün sitelerden çıkış yap</button></div>
+    <p class="muted small">Oturumu kapat: sitenin kendisinde de çıkış yapılır (UBS hariç; UBS'de yalnızca uygulamadaki oturum silinir, okulun tarafında kısa sürede kendiliğinden düşer),
+      uygulamadaki çerezler ve o sitenin önbelleğe alınmış verileri silinir. Sen yeniden giriş yapana kadar uygulama o siteye girmez.</p>
+  </div>
+  <div class="card sec">
+    <b>Giriş PIN'i</b> ${st.lock ? '<span class="pill ok">açık</span>' : '<span class="pill gray">kapalı</span>'}
+    <p class="muted small">PIN açıkken uygulama her açılışta ve hareketsiz kalınca kilitlenir; kilit açılmadan hiçbir bilgi gösterilmez. Bilgisayarı başkalarıyla paylaşıyorsan işe yarar.</p>
+    <form class="sec-pin" data-pin-form><input name="pin" type="password" inputmode="numeric" maxlength="8" placeholder="${st.lock ? 'Yeni PIN (4–8 rakam)' : 'PIN (4–8 rakam)'}" autocomplete="new-password">
+      <button type="submit" class="btn primary">${st.lock ? 'PIN\'i değiştir' : 'PIN koy'}</button>
+      ${st.lock ? '<button type="button" class="btn" data-pin-clear>PIN\'i kaldır</button><button type="button" class="btn" data-pin-lock>Şimdi kilitle</button>' : ''}</form>
+    ${st.lock ? `<label class="sec-idle">Hareketsizlikte kilitle: <select data-lock-idle>${[[5, '5 dakika'], [15, '15 dakika'], [30, '30 dakika'], [60, '1 saat'], [0, 'Kilitleme']].map(([v, l]) =>
+      `<option value="${v}"${v === st.lockIdle ? ' selected' : ''}>${l}</option>`).join('')}</select></label>` : ''}
+  </div>
+  <div class="card sec">
+    <b>Bu bilgisayarda saklananlar</b>
+    <ul class="small sec-list">
+      <li>Okul sitelerinin oturum çerezleri, okuldan alınan kişisel veriler (notlar, e-postalar, ders bilgileri; hız için tutulan önbellek) ve bildirimler
+        <b>AES-256 ile şifreli</b>. Şifreleme anahtarı Windows hesabına bağlı (DPAPI): dosyalar kopyalanırsa başka bir hesapta ya da bilgisayarda açılamaz.</li>
+      <li>Şifren yalnızca "Beni hatırla" seçiliyse Windows'un şifreli kasasında (DPAPI) durur.</li>
+      <li>Ortam ve UBS'ye pencereyle girişte kullanılan tarayıcı profili Chrome'un kendi şifrelemesini kullanır.</li>
+      <li>Uygulama yalnızca bu bilgisayardan (127.0.0.1) erişilebilir; ağdaki başka cihazlar bağlanamaz.</li>
+    </ul>
+  </div>`;
+}
+$view.addEventListener('change', async e => {
+  const c = e.target.closest('[data-sec]');
+  if (c) { await post('/api/security', { [c.dataset.sec]: c.checked }).catch(() => toast('Ayar kaydedilemedi')); return toast('Kaydedildi'); }
+  const i = e.target.closest('[data-lock-idle]');
+  if (i) { await post('/api/security', { lockIdle: +i.value }); lockInfo.idle = +i.value; toast('Kaydedildi'); }
+});
+$view.addEventListener('submit', async e => {
+  const f = e.target.closest('[data-pin-form]');
+  if (!f) return;
+  e.preventDefault();
+  const r = await post('/api/lock/set', { pin: f.pin.value }).catch(() => null);
+  const j = await r?.json().catch(() => ({}));
+  if (!r?.ok) return toast(j?.error || 'PIN kaydedilemedi');
+  lockInfo = { ...lockInfo, enabled: true, unlocked: true };
+  toast('PIN kaydedildi');
+  render();
+});
+$view.addEventListener('click', async e => {
+  const lo = e.target.closest('[data-logout]');
+  if (lo) {
+    if (!lo.classList.contains('armed')) { lo.classList.add('armed'); lo.textContent = 'Emin misin? Tekrar bas'; return; }
+    lo.disabled = true;
+    const r = await post('/api/logout', { site: lo.dataset.logout }).catch(() => null);
+    toast(r?.ok ? 'Oturum kapatıldı' : 'Oturum kapatılamadı');
+    return render();
+  }
+  if (e.target.closest('[data-shutdown]')) {
+    const b = e.target.closest('[data-shutdown]');
+    if (!b.classList.contains('armed')) { b.classList.add('armed'); b.textContent = 'Kapatılsın mı? Tekrar bas'; return; }
+    await post('/api/shutdown').catch(() => {});
+    serverUp = true;
+    setTimeout(checkServer, 1500);
+    return;
+  }
+  if (e.target.closest('[data-pin-clear]')) {
+    const f = e.target.closest('.sec').querySelector('[data-pin-form] input');
+    if (!f.value) { f.placeholder = 'Kaldırmak için şimdiki PIN\'i yaz'; f.focus(); return toast('Kaldırmak için şimdiki PIN\'i yazıp tekrar bas'); }
+    const r = await post('/api/lock/clear', { pin: f.value }).catch(() => null);
+    const j = await r?.json().catch(() => ({}));
+    if (!r?.ok) return toast(j?.error || 'PIN kaldırılamadı');
+    lockInfo = { ...lockInfo, enabled: false };
+    toast('PIN kaldırıldı');
+    return render();
+  }
+  if (e.target.closest('[data-pin-lock]')) { await post('/api/lock/lock').catch(() => {}); showLock(); }
+});
+
 // ---------- yönlendirme ----------
 const views = {
   anasayfa: viewHome, 'donem/derslerim': viewDerslerim, 'donem/program': viewProgram, sinav: viewSinav,
@@ -2024,7 +2369,7 @@ const views = {
   'cap/capyap': viewCap, 'cap/staj': viewApply('staj'), 'cap/ogrenim': viewApply('ogrenim'), 'cap/mezun': viewApply('mezun'),
   ubs: viewUbs, uzakydb: viewUzakydb, webmail: viewWebmail, piazza: viewPiazza, hesap: viewHesap,
   'ekstra/mevzuat': viewMevzuat, 'ekstra/duyurular': viewMvDuyurular,
-  'hakkinda/hakkimizda': viewHakkimizda, 'hakkinda/sss': viewSss, 'hakkinda/sorumluluk': viewSorumluluk,
+  'hakkinda/hakkimizda': viewHakkimizda, 'hakkinda/siteler': viewSiteler, 'hakkinda/sss': viewSss, 'hakkinda/sorumluluk': viewSorumluluk,
 };
 
 // #/grup[/alt][/parametre…]: alt menüsü olan gruplarda alt sayfadan sonrası (ör. #/donem/derslerim/BIL214/uzak),
@@ -2055,7 +2400,7 @@ function renderNav({ group, sub }) {
       `<a href="#/${n.id}/${id}" class="${id === sub ? 'on' : ''}">${esc(label)}${n.id === 'donem' && id === 'derslerim' ? srcDots(notif.bySource, true) : ''}</a>`).join('')}</div>` : '';
     const cls = ['grp', n === firstBottom && 'push', n.extra && 'extra', n.rare && 'rare', n === group && 'on'].filter(Boolean).join(' ');
     return `<a href="${href}" class="${cls}"${n === group ? ' aria-current="page"' : ''}>${icon(n.icon)}<span class="full">${esc(n.label)}</span><span class="short">${esc(n.short)}</span>${n.id === 'donem' ? srcDots(notif.bySource, true) : ''}</a>${subs}`;
-  }).join('') + themeQuick();
+  }).join('') + srvStateHtml() + themeQuick();
 }
 
 // ---------- Tema ----------
@@ -2269,4 +2614,5 @@ document.addEventListener('click', async e => {
 setTimeout(() => checkUpdate(false), 3000);
 
 window.addEventListener('hashchange', () => render());
+checkLock();
 render();

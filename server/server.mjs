@@ -5,7 +5,10 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { SITES, LoginRequired, login, keepAlive, getPage, isAlive } from './session.mjs';
+import { SITES, LoginRequired, login, keepAlive, getPage, isAlive, logout, sessionInfo } from './session.mjs';
+import * as vault from './vault.mjs';
+import * as settings from './settings.mjs';
+import crypto from 'node:crypto';
 import * as autologin from './autologin.mjs';
 import * as credentials from './credentials.mjs';
 import * as ortam from './ortam.mjs';
@@ -19,13 +22,14 @@ import * as notify from './notify.mjs';
 import * as webmail from './webmail.mjs';
 import * as update from './update.mjs';
 import * as mevzuat from './mevzuat.mjs';
+import * as program from './program.mjs';
 
 const PORT = Number(process.env.PORT) || 3000;
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PUBLIC = path.join(ROOT, 'public');
 const PDFJS = path.join(ROOT, 'node_modules', 'pdfjs-dist');   // PDF görüntüleyici (tarayıcıda çalışır), /vendor/pdfjs/ altından sunulur
 const CACHE_DIR = '.cache/api';
-const CACHE_VER = 12;            // ayrıştırıcıların çıktısı değişince artır: eski kayıtlar açılışta silinir
+const CACHE_VER = 13;            // ayrıştırıcıların çıktısı değişince artır: eski kayıtlar açılışta silinir
 const STALE_AFTER = 20_000;      // varsayılan: kayıtlı veri hemen gösterilir, bu süreden eskiyse arka planda yenilenir
 // Seyrek değişen bilgiler okulun sunucusuna her açılışta sorulmaz (dakika cinsinden).
 const STALE_MIN = { exams: 10, schedule: 30, courses: 30, course: 360, derslerim: 10, mufredat: 60, bilgilerim: 60, notlar: 10,
@@ -80,13 +84,46 @@ const routes = {
 };
 
 const needLogin = new Set();  // oturumu kapalı olduğu bilinen siteler
+
+// ---------- kilit ----------
+const lockTokens = new Map();     // açık kilit oturumları: belirteç -> son kullanım (yalnızca bellekte; uygulama kapanınca biter)
+let lockFails = 0, lockFailedAt = 0;
+const lockWait = () => (lockFails < 5 ? 0 : Math.max(0, lockFailedAt + Math.min(15 * 60_000, 30_000 * 2 ** (lockFails - 5)) - Date.now()));
+const tokenOf = req => (/(?:^|;\s*)os_kilit=([0-9a-f]{48})/.exec(req.headers.cookie || '') || [])[1];
+function unlocked(req) {
+  if (!settings.get().lock) return true;
+  const t = tokenOf(req), seen = t && lockTokens.get(t);
+  const idle = (settings.get().lockIdle || 0) * 60_000;
+  if (!seen || (idle && Date.now() - seen > idle) || Date.now() - seen > 12 * 3600_000) { if (t) lockTokens.delete(t); return false; }
+  lockTokens.set(t, Date.now());
+  return true;
+}
+
+// ---------- durum ----------
+const STARTED = Date.now();
+const lastPing = {};
+function status() {
+  const s = settings.get(), info = sessionInfo(), n = notify.schedule(), u = update.status(), now = Date.now();
+  const jobs = [];
+  for (const [site, x] of Object.entries(SITES)) {
+    const every = x.ping.every;
+    const on = s.keepAlive && info[site].cookies && !info[site].loggedOut;
+    jobs.push({ id: 'ping-' + site, label: `${x.name} oturumunu açık tutma`, every, on, last: lastPing[site] ?? null, next: on ? (lastPing[site] ?? STARTED) + every * 60_000 : null });
+  }
+  for (const [k, v] of Object.entries(n)) jobs.push({ id: 'notify-' + k, label: v.label, every: v.every, on: v.on, last: v.last, next: v.on ? Math.max(now, (v.last ?? STARTED) + v.every * 60_000) : null });
+  jobs.push({ id: 'update', label: 'Yeni sürüm denetimi (GitHub)', every: 360, on: true, last: u.checkedAt, next: (u.checkedAt ?? STARTED) + (u.checkedAt ? 360 : 1) * 60_000 });
+  return { version: update.current, pid: process.pid, startedAt: STARTED, now, keepAlive: s.keepAlive, autoRelogin: s.autoRelogin,
+    lock: !!s.lock, lockIdle: s.lockIdle, sessions: info, jobs, encrypted: true };
+}
 const memo = new Map();       // anahtar -> { t, data }
 const inflight = new Map();   // anahtar -> Promise
 const fileOf = key => path.join(CACHE_DIR, `v${CACHE_VER}-${encodeURIComponent(key)}.json`);
 
 async function cached(key) {
   if (memo.has(key)) return memo.get(key);
-  try { const e = JSON.parse(await fs.readFile(fileOf(key), 'utf8')); memo.set(key, e); return e; } catch { return null; }
+  const e = await vault.read(fileOf(key));              // okuldan alınan kişisel veri: diskte AES-256-GCM ile şifreli
+  if (e) memo.set(key, e);
+  return e;
 }
 
 // Bir uç taze veriyle yenilendiğinde başka uçların önbelleği de eskir: e-posta önizlemesi postayı okundu yapar,
@@ -99,7 +136,7 @@ function refresh(key, site, fn) {
       needLogin.delete(site);
       const e = { t: Date.now(), data };
       memo.set(key, e);
-      await fs.writeFile(fileOf(key), JSON.stringify(e)).catch(() => {});
+      await vault.write(fileOf(key), e).catch(() => {});
       AFTER[key.split('?')[0]]?.();
       return e;
     }).finally(() => inflight.delete(key)));
@@ -169,7 +206,67 @@ const srv = http.createServer(async (req, res) => {
 
   if (url.pathname.startsWith('/api/')) {
     const name = url.pathname.slice(5);
-    if (req.method === 'POST' && !trustedPost(req, name === 'webmail/upload')) return send(403, { error: 'İzin verilmeyen istek' });
+    if (req.method === 'POST' && !trustedPost(req, name === 'webmail/upload' || name === 'program/import')) return send(403, { error: 'İzin verilmeyen istek' });
+
+    // ---------- Giriş PIN'i ----------
+    // PIN açıksa kilit açılmadan hiçbir veri ucu yanıt vermez (423); arayüz kilit ekranını gösterir.
+    if (name === 'lock' && req.method === 'GET') return send(200, { enabled: !!settings.get().lock, unlocked: unlocked(req), idle: settings.get().lockIdle });
+    if (name === 'lock/unlock' && req.method === 'POST') {
+      const wait = lockWait();
+      if (wait) return send(429, { error: `Çok fazla yanlış deneme. ${Math.ceil(wait / 1000)} saniye sonra tekrar dene.` });
+      const b = await readJson(req).catch(() => ({}));
+      if (!settings.get().lock || settings.checkPin(b.pin)) {
+        lockFails = 0;
+        const t = crypto.randomBytes(24).toString('hex');
+        lockTokens.set(t, Date.now());
+        return send(200, { ok: true }, undefined, { 'Set-Cookie': `os_kilit=${t}; HttpOnly; SameSite=Strict; Path=/` });
+      }
+      lockFails++; lockFailedAt = Date.now();
+      return send(403, { error: 'PIN yanlış' });
+    }
+    if (settings.get().lock && !unlocked(req)) return send(423, { locked: true, error: 'Uygulama kilitli' });
+    if (name === 'lock/lock' && req.method === 'POST') { lockTokens.delete(tokenOf(req)); return send(200, { ok: true }); }
+    if (name === 'lock/set' && req.method === 'POST') {
+      const b = await readJson(req).catch(() => ({}));
+      if (!settings.pinValid(b.pin)) return send(400, { error: 'PIN 4–8 rakam olmalı' });
+      settings.setPin(b.pin);
+      lockTokens.clear();
+      const t = crypto.randomBytes(24).toString('hex');
+      lockTokens.set(t, Date.now());
+      return send(200, { ok: true }, undefined, { 'Set-Cookie': `os_kilit=${t}; HttpOnly; SameSite=Strict; Path=/` });
+    }
+    if (name === 'lock/clear' && req.method === 'POST') {
+      const b = await readJson(req).catch(() => ({}));
+      if (!settings.checkPin(b.pin)) return send(403, { error: 'PIN yanlış' });
+      settings.clearPin();
+      return send(200, { ok: true });
+    }
+
+    // ---------- Uygulama durumu ve güvenlik ayarları ----------
+    if (name === 'status' && req.method === 'GET') return send(200, status());
+    if (name === 'shutdown' && req.method === 'POST') {
+      send(200, { ok: true });
+      console.log('\nUygulama arayüzden kapatıldı.');
+      setTimeout(() => process.exit(0), 300);
+      return;
+    }
+    if (name === 'security' && req.method === 'POST') {
+      const b = await readJson(req).catch(() => ({}));
+      const patch = {};
+      for (const k of ['keepAlive', 'autoRelogin']) if (typeof b[k] === 'boolean') patch[k] = b[k];
+      if ([0, 5, 15, 30, 60].includes(b.lockIdle)) patch.lockIdle = b.lockIdle;
+      settings.set(patch);
+      return send(200, status());
+    }
+    if (name === 'logout' && req.method === 'POST') {
+      const b = await readJson(req).catch(() => ({}));
+      const sites = b.site === 'all' ? Object.keys(SITES) : SITES[b.site] ? [b.site] : [];
+      if (!sites.length) return send(400, { error: 'Bilinmeyen site' });
+      const results = await Promise.all(sites.map(s => logout(s).catch(e => ({ site: s, error: e.message }))));
+      for (const s of sites) needLogin.add(s);
+      for (const [n, [site]] of Object.entries(routes)) if (sites.includes(site)) await invalidate(n);   // o sitenin önbelleğe alınmış verisi silinir
+      return send(200, { results, status: status() });
+    }
 
     // UBS formları: düğme/seçim, sayfanın kendi geri gönderimiyle okulun sistemine iletilir (yalnızca kullanıcının tıklamasıyla).
     // Ortam: başvuru formu gönderimi (iki tıklamalı onaydan sonra)
@@ -238,6 +335,19 @@ const srv = http.createServer(async (req, res) => {
       } catch (e) { return send(500, { error: e.message }); }
     }
     // Mevzuat (herkese açık kaynaklar, giriş gerekmez): modül belgeleri kendi önbelleğinde tutar (.cache/mevzuat)
+    // Dönem ders programı (şube/saat/derslik): yerel veri; içe aktarma ve kullanıcının yönettiği Ortam penceresi
+    if (name === 'program' && req.method === 'GET') return send(200, await program.get());
+    if (name === 'program/import' && trustedPost(req, true)) {
+      try { return send(200, await program.importFile((url.searchParams.get('name') || 'dosya').slice(0, 200), await readBody(req, 30 * 2 ** 20))); }
+      catch (e) { return send(400, { error: e.message }); }
+    }
+    if (name === 'program/capture' && trustedPost(req)) {
+      try {
+        const b = await readJson(req).catch(() => ({}));
+        const o = await ortam.offered().catch(() => null);           // açık dönemin sayfası ve adı (ör. 2026-2027 Güz)
+        return send(200, await program.startCapture(o?.path, o?.term || null, b.courses));
+      } catch (e) { return send(500, { error: e.message }); }
+    }
     const MEVZUAT = { mevzuat: () => mevzuat.listing(), 'mevzuat-doc': q => mevzuat.doc(q.get('id')), 'mevzuat-ara': q => mevzuat.search(q.get('q') || ''),
       'mevzuat-yanitlar': () => mevzuat.answers(), 'mevzuat-duyurular': () => mevzuat.news(), 'mevzuat-duyuru': q => mevzuat.newsItem(q.get('path')) };
     if (MEVZUAT[name] && req.method === 'GET') {
@@ -367,10 +477,13 @@ await new Promise(ok => srv.once('listening', ok));          // arka plan işler
 
 // Oturumları canlı tut: her site kendi aralığıyla (SITES[site].ping.every dakika). Düşen oturum,
 // kayıtlı bilgi varsa arka planda yeniden açılır.
+// Ayar kapalıysa (Güvenlik ve Oturumlar) hiç sorulmaz; kendiliğinden yeniden giriş de ayara bağlıdır.
 const ping = site => keepAlive(site)
   .then(async alive => {
+    if (alive === 'off') return;
+    lastPing[site] = Date.now();
     if (alive) return needLogin.delete(site);
-    if (alive === false && !(await autologin.relogin(site))) needLogin.add(site);
+    if (alive === false && !(settings.get().autoRelogin && await autologin.relogin(site))) needLogin.add(site);
     else if (alive === false) needLogin.delete(site);
   })
   .catch(() => {});

@@ -866,3 +866,71 @@ a.seb { display: inline-block; padding: 6px 12px; border-radius: 8px; border: 1p
   .exam.xrow { grid-template-columns: 66px auto auto minmax(0, 1fr) auto; }
   .x-room { white-space: normal; } .x-room span { overflow: visible; }
 }
+
+/* ---------- Dönem ders programı: şubeler ve veri kartı ---------- */
+.ac-secs { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.ac-sec { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; font-size: .88rem; }
+.ac-sec > b { min-width: 4.6em; font-weight: 650; }
+.mts { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.mt { display: inline-flex; gap: 5px; align-items: baseline; padding: 1px 8px; border-radius: 6px; background: var(--card-2); border: 1px solid var(--line);
+  font-variant-numeric: tabular-nums; white-space: nowrap; }
+.mt i { font-style: normal; font-weight: 650; }
+.ac-row { align-items: start; }
+.ac-draft-secs { display: grid; gap: 10px; margin-top: 12px; }
+.prog-card { display: flex; gap: 14px 20px; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; margin-top: 16px; }
+.prog-card > div:first-child { flex: 1 1 420px; }
+.prog-card p { margin: 6px 0 0; }
+.prog-act { display: flex; gap: 8px; flex-wrap: wrap; }
+.prog-act .btn { margin: 0; cursor: pointer; }
+.prog-live { color: var(--green); }
+.prog-card .err { color: var(--bad); }
+/* Açılan Dersler: sonuçları kapatma */
+.ac-head { display: flex; justify-content: space-between; align-items: center; margin: 2px 0 4px; }
+.ac-close { margin: 0; min-height: 30px; padding: 3px 10px; font-size: .86rem; }
+.linkbtn { border: 0; background: none; padding: 0; color: var(--accent); font: inherit; cursor: pointer; text-decoration: underline; }
+.ac-fetch { display: flex; gap: 6px 12px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
+.ac-fetch .btn { margin: 0; }
+
+/* ---------- Güvenlik: kilit ekranı, uygulama durumu, Güvenlik ve Oturumlar ---------- */
+#lock { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 16px; background: var(--bg); }
+body.locked > :not(#lock) { visibility: hidden; }
+.lock-box { width: min(340px, 100%); display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 28px 24px;
+  background: var(--card); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow-2); text-align: center; }
+.lock-box h2 { margin: 6px 0 0; }
+.lock-box p { margin: 0; }
+.lock-box .mark { display: inline-flex; gap: 3px; }
+.lock-box .mark i { width: 6px; height: 22px; border-radius: 2px; background: var(--accent); }
+.lock-box .mark i:nth-child(2) { background: var(--red); } .lock-box .mark i:nth-child(3) { background: var(--orange); }
+.lock-box input { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid var(--line-2); background: var(--bg); color: var(--ink);
+  font: inherit; font-size: 1.4rem; letter-spacing: .4em; text-align: center; }
+.lock-box button { width: 100%; min-height: 42px; border: 0; border-radius: 10px; background: var(--accent); color: var(--on-accent); font: inherit; font-weight: 650; cursor: pointer; }
+.lock-msg { color: var(--bad); min-height: 1.2em; font-size: .9rem; }
+.srv-state { display: flex; align-items: center; gap: 8px; margin: 2px 12px 4px; padding: 4px 6px; font-size: .78rem; color: var(--muted); text-decoration: none; }
+.srv-state i { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 20%, transparent); }
+.srv-state.down { color: var(--bad); font-weight: 650; }
+.srv-state.down i { background: var(--bad); box-shadow: 0 0 0 3px color-mix(in srgb, var(--bad) 20%, transparent); }
+@media (max-width: 800px) { .srv-state { display: none; } }
+#srv-down { position: sticky; top: 0; z-index: 900; padding: 12px 16px; background: var(--bad); color: #fff; line-height: 1.45; }
+.sec { margin-bottom: 12px; }
+.sec .check { margin-top: 10px; }
+.sec-app { display: flex; gap: 12px 20px; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; }
+.sec-app > div { flex: 1 1 380px; }
+.sec-app p { margin: 6px 0 0; }
+.sec-app .btn { margin: 0; }
+.sec-jobs { margin-top: 12px; }
+.sec-jobs > summary { cursor: pointer; font-weight: 600; }
+.sec-jobs table { margin-top: 8px; font-size: .88rem; }
+.sec-jobs tr.off td { color: var(--muted); }
+.sec-sites { margin: 12px 0 6px; }
+.sec-row { display: grid; grid-template-columns: 9em 1fr auto; gap: 10px; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--line); }
+.sec-row .btn { margin: 0; min-height: 32px; padding: 4px 12px; }
+.sec-pin { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+.sec-pin input { width: 12em; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--line-2); background: var(--bg); color: var(--ink); font: inherit; letter-spacing: .2em; }
+.sec-pin .btn { margin: 0; }
+.sec-idle { display: flex; gap: 8px; align-items: center; margin-top: 10px; font-size: .92rem; }
+.sec-idle select { padding: 6px 10px; border-radius: 8px; border: 1px solid var(--line-2); background: var(--card); color: var(--ink); font: inherit; }
+.sec-list { margin: 8px 0 0; padding-left: 18px; line-height: 1.5; }
+.sec-list li { padding: 2px 0; }
+.sec > b:first-child { display: block; font-size: 1.02rem; }
+.sec .check { display: flex; gap: 8px; align-items: flex-start; }
+.sec .check input { margin-top: 3px; }

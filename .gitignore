@@ -9,3 +9,5 @@ tools/
 # Bağımlılıklar ve paket çıktısı
 node_modules/
 dist/
+# Kullanıcının kendi klasörü (başka projeden betik ve veri)
+yeni/

@@ -27,17 +27,29 @@ toplayan, **senin bilgisayarında çalışan** açık kaynaklı bir öğrenci pr
   mazeret, not itirazı, MES, dönem izni…) dayandıkları maddeyle kısa yanıt olarak verilir. Uygulama, alıntılanan maddenin hâlâ
   aynı olduğunu her açılışta denetler. Dayandığı yönetmelik sonradan değişmiş yönergeler ve duyurulardaki eski sürüm bağlantıları
   işaretlenir. Öğrenci İşleri duyuruları da burada.
-- **Ekstra:** Açılan Dersler, Akademik Takvim, Akademik Kadro, Yabancı Diller; ÇAP/YAP ve hareketlilik başvuruları.
+- **Ekstra:** Açılan Dersler, Akademik Takvim, Akademik Kadro, Yabancı Diller, Mevzuat; ÇAP/YAP ve hareketlilik başvuruları.
+- **Ders programı (bütün bölümler):** Açılan Dersler'de her dersin şubeleri gün, saat, derslik ve hocasıyla; ders hocasının
+  bu dönemki dersleri; taslak listede birlikte alınamayan (bütün şubeleri çakışan) dersler.
+  Taslak listedeki derslerin şube ve saatleri tek düğmeyle Ortam'dan getirilir: Ortam'ın ders programı sayfası açılır, dersler
+  işaretlenmiş olur, aramayı başlatan düğmeye sen basarsın, sonuç uygulamada görünür ve sekme kapanır (Ortam bu aramayı
+  doğrulamalı yaptığı için son tıklama her zaman senindir). Bölüm bölüm güncelleme ve kayıtlı sonuç sayfası/"ETÜ Sınıf Durumu"
+  dosyası içe aktarma da var. Veri yalnızca senin bilgisayarında tutulur.
+- **Okulun Siteleri:** bütün sitelerin ve sık kullanılan sayfaların orijinal adresleri tek sayfada (Hakkında ve SSS).
 - Açık/koyu tema, telefona uygun düzen.
 
 ## İndir ve çalıştır (Windows 10/11)
 
 1. [Releases](https://github.com/Soft-Coder-183/ortam-sade/releases/latest) sayfasından `OrtamSade-…-win-x64.zip` dosyasını indir.
+   Paketler elle yüklenmez: 1.5.0'dan beri her sürüm **GitHub Actions'ta bu depodaki koddan üretilir** ([iş akışı](.github/workflows/surum.yml)).
+   İndirdiğin dosyanın gerçekten bu depodan ve bu iş akışından çıktığını GitHub'ın imzalı kanıtıyla doğrulayabilirsin:
+   `gh attestation verify OrtamSade-X.Y.Z-win-x64.zip --repo Soft-Coder-183/ortam-sade`
 2. Zip'i bir klasöre **çıkar** (zip'in içinden çalıştırma).
 3. **`Ortam Sade.cmd`** dosyasına çift tıkla. Uygulama tarayıcında `http://localhost:3000` adresinde açılır.
 4. **Hesap** ekranında okul e-postanı ve şifreni gir. Şifren sitelerde farklıysa "Siteye özel şifreler" bölümünü kullan.
 
-- Açılan siyah pencere açık kaldıkça uygulama çalışır; kapatınca durur.
+- Açılan siyah pencere açık kaldıkça uygulama çalışır; kapatınca (ya da Hesap > Güvenlik ve Oturumlar > "Uygulamayı kapat") durur.
+  Bilgisayar açılınca kendiliğinden başlamaz. Menünün altındaki gösterge uygulamanın açık olup olmadığını her zaman gösterir;
+  kapanırsa sayfanın üstünde uyarı çıkar.
 - Windows "bilinmeyen yayımcı" uyarısı verirse: *Ek bilgi → Yine de çalıştır*. (Dosya imzasız bir betik; içeriğini bu depoda görebilirsin.)
 - Gerekenler: Google Chrome **veya** Microsoft Edge (Ortam girişi ve PDF oluşturma için). Node.js kurmana gerek yok, pakette var.
 
@@ -58,6 +70,14 @@ Sürümü ve "Güncellemeleri denetle" düğmesini **Hakkında ve SSS → Hakkı
 - Uygulama yalnızca **senin bilgisayarında** çalışır ve yalnızca `127.0.0.1`'den erişilebilir; okulun sitelerine doğrudan, senin oturumunla bağlanır. Arada başka bir sunucu yoktur.
 - Şifren yalnızca "Beni hatırla" seçiliyse, **Windows'un şifreli kasasında (DPAPI)** saklanır; yalnızca o bilgisayardaki Windows hesabın açabilir.
 - Okuldan alınan sayfalar, çerezler ve ayarlar uygulama klasöründeki `.cache` içinde kalır; hiçbir yere gönderilmez, toplanmaz.
+- **Şifreli saklama:** okul sitelerinin oturum çerezleri, okuldan alınan kişisel veriler (önbellek) ve bildirimler AES-256-GCM ile
+  şifrelenir. Anahtar rastgele üretilir ve Windows DPAPI ile Windows hesabına bağlanır: dosyalar kopyalansa da başka bir hesapta ya
+  da bilgisayarda açılamaz. (Aynı Windows hesabında çalışan başka bir programa karşı koruma değildir.)
+- **Oturumlar senin kontrolünde** (Hesap > Güvenlik ve Oturumlar): oturumları açık tutmayı ve oturum düşünce kendiliğinden yeniden
+  girmeyi kapatabilir, her sitede ayrı ayrı ya da hepsinde birden **oturumu kapatabilirsin** (sitenin kendisinde de çıkış yapılır;
+  UBS'de yalnızca uygulamadaki oturum silinir). Arka planda ne yapıldığı, ne sıklıkta ve bir sonrakinin ne zaman olacağı da orada.
+- **İsteğe bağlı giriş PIN'i:** açıkken uygulama her açılışta ve hareketsiz kalınca kilitlenir; kilit açılmadan sunucu hiçbir veri
+  vermez. PIN yalnızca tuzlu özet (scrypt) olarak saklanır; art arda yanlış denemelerde bekleme süresi uzar.
 - Bildirim e-postaları senin okul adresinden yine sana gönderilir.
 - Uygulama **CAPTCHA ve güvenlik doğrulamalarını aşmaz**; doğrulama isteyen işlemler için okulun sayfasına bağlantı verir.
 - Okula bir şey gönderen işlemler (form, e-posta gönderme/silme) yalnızca senin tıklamanla ya da açtığın bir ayarla yapılır.
@@ -72,13 +92,13 @@ Yalnızca açtığın ekranın sayfası okuldan istenir ve kısa süre önbellek
 | UBS oturumunu açık tutma | 15 dakikada bir |
 | Webmail / Uzak / UZAKYDB / Piazza oturumu | 2,5–4 saatte bir |
 | Piazza yeni gönderi kontrolü | 30 dakikada bir |
-| Akademik Takvim hatırlatmaları (okulun herkese açık sitesi) | 6 saatte bir |
+| Akademik Takvim ve sınav hatırlatmaları | 3 saatte bir |
 | Ortam ana sayfa anket/duyuruları, UZAKYDB ek içerik | yalnızca Ana Sayfa / UZAKYDB açılınca (30 dk / 6 sa önbellek) |
 | Uzak yeni içerik kontrolü | saatte bir |
 | Yeni sürüm denetimi (GitHub) | 6 saatte bir |
 | Mevzuat metinleri (mevzuat.gov.tr, okulun sitesi) | yalnızca Mevzuat açılınca; her belge haftada en fazla bir kez |
 
-O aralıkta siteye zaten bir istek gittiyse oturum kontrolü atlanır. Uygulama kapalıyken hiçbir istek yapılmaz.
+O aralıkta siteye zaten bir istek gittiyse oturum kontrolü atlanır. Oturumları açık tutma kapatılabilir. Uygulama kapalıyken hiçbir istek yapılmaz.
 
 ## Geliştirme
 

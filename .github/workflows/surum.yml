@@ -1,0 +1,56 @@
+# Sürüm paketi: "vX.Y.Z" etiketi gönderilince Windows paketi GitHub'ın kendi sunucusunda, depodaki koddan üretilir ve
+# sürüm olarak yayımlanır. Paket elle yüklenmez; kimin, hangi commit'ten, hangi iş akışıyla ürettiği GitHub'ın imzalı
+# kaynak kanıtıyla (build provenance) doğrulanabilir:
+#   gh attestation verify OrtamSade-X.Y.Z-win-x64.zip --repo Soft-Coder-183/ortam-sade
+# Sürüm notu depodaki notlar/vX.Y.Z.md dosyasından gelir.
+name: Sürüm paketi
+
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: write        # sürümü oluşturmak ve paketi eklemek için
+  id-token: write        # kaynak kanıtı imzası için
+  attestations: write
+
+jobs:
+  paket:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.14.0'   # pakete giren Node.js (runtime/node.exe) bu sürüm
+
+      - name: Bağımlılıklar (package-lock.json'daki sürümlerle)
+        run: npm ci
+
+      - name: Etiket package.json sürümüyle aynı mı
+        shell: bash
+        run: |
+          v="v$(node -p "require('./package.json').version")"
+          if [ "$v" != "$GITHUB_REF_NAME" ]; then echo "Etiket $GITHUB_REF_NAME, package.json $v"; exit 1; fi
+          test -f "notlar/$GITHUB_REF_NAME.md" || { echo "notlar/$GITHUB_REF_NAME.md yok"; exit 1; }
+
+      - name: Sözdizimi denetimi
+        shell: bash
+        run: for f in server/*.mjs public/app.js; do node --check "$f"; done
+
+      - name: Paket
+        run: npm run paketle
+
+      - name: Kaynak kanıtı (provenance)
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: dist/OrtamSade-*-win-x64.zip
+
+      - name: Sürümü yayımla
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          zip=$(ls dist/OrtamSade-*-win-x64.zip)
+          gh release create "$GITHUB_REF_NAME" "$zip" --title "Ortam Sade ${GITHUB_REF_NAME#v}" --notes-file "notlar/$GITHUB_REF_NAME.md" --verify-tag
+          echo "SHA-256: $(sha256sum "$zip" | cut -d' ' -f1)" >> "$GITHUB_STEP_SUMMARY"
