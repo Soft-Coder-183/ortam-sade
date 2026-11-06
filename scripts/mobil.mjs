@@ -41,9 +41,17 @@ fs.writeFileSync(path.join(WWW, 'app.js'), rename(app));
 await esbuild.transform(app, { loader: 'js' });              // metin değişimi sözdizimini bozduysa derleme burada durur
 fs.writeFileSync(path.join(WWW, 'pdfview.js'), rename(fs.readFileSync(path.join(WWW, 'pdfview.js'), 'utf8')));
 fs.appendFileSync(path.join(WWW, 'style.css'), '\n[data-shutdown], .srv-state { display: none !important; }\n');
-const index = rename(fs.readFileSync(path.join(WWW, 'index.html'), 'utf8')).replace('<script src="app.js" type="module">', '<script src="core.js"></script>\n  <script src="app.js" type="module">');
+// Telefonda WebView'in köprüsü (Native) dosyalara erişebildiği için e-posta ve ders içeriğindeki HTML'e karşı sıkı içerik ilkesi uygulanır:
+// yalnızca uygulamanın kendi dosyalarındaki betikler çalışır, satır içi betik ve olay öznitelikleri çalışmaz.
+const CSP = "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; media-src https: blob:; font-src 'self' data:; connect-src 'self' data: blob:; worker-src 'self' blob:; frame-src https:; object-src 'none'; base-uri 'none'; form-action 'none'";
+let index = rename(fs.readFileSync(path.join(WWW, 'index.html'), 'utf8'));
+const theme = index.match(/<script>\s*([\s\S]*?)<\/script>/);
+if (!theme) throw new Error('index.html tema betiği bulunamadı');
+fs.writeFileSync(path.join(WWW, 'tema.js'), theme[1]);
+index = index.replace(theme[0], `<meta http-equiv="Content-Security-Policy" content="${CSP}">\n  <script src="tema.js"></script>`)
+  .replace('<script src="app.js" type="module">', '<script src="core.js"></script>\n  <script src="app.js" type="module">');
 fs.writeFileSync(path.join(WWW, 'index.html'), index);
-fs.writeFileSync(path.join(WWW, 'arka-plan.html'), '<!doctype html><meta charset="utf-8"><script>window.__ARKA_PLAN = true;</script><script src="core.js"></script>\n');
+fs.writeFileSync(path.join(WWW, 'arka-plan.html'), '<!doctype html><meta charset="utf-8"><script>window.__ARKA_PLAN = true; window.onerror = () => Native.backgroundDone();</script><script src="core.js"></script>\n');
 
 // PDF görüntüleyici ve ders verisi
 const PDFJS = path.join(ROOT, 'node_modules/pdfjs-dist');

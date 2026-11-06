@@ -4,7 +4,7 @@ Ortam Sade, TOBB ETÜ'nün okul sitelerini (Ortam, UBS, Uzak, UZAKYDB, Webmail, 
 
 - **Sahibi:** TOBB ETÜ öğrencisi Eren Akyurt. Türkçe konuşur, uygulamayı arkadaşlarıyla paylaşır.
 - **Depo:** https://github.com/Soft-Coder-183/ortam-sade (herkese açık, MIT lisansı).
-- **Durum:** Güncel sürüm 1.6.4. GitHub hesabı `gh` ile bağlı.
+- **Durum:** Yayımlanmış sürüm 1.6.4. Depoda 1.7.0 hazır, gerçek cihaz denemesinden sonra etiketlenecek. GitHub hesabı `gh` ile bağlı.
 - **Devam eden iş:** Android uygulaması "ETÜ Cep". Önce APK çıkacak; Play yayını ve geliştirici hesabı sonraya kaldı. Yalnızca Android hedefleniyor, Windows sürümü kalıyor.
 - **Kapsam notu:** Bu belge uygulamanın her parçasını saymaz. Kodda burada anlatılmayan bir bölüm görürsen değiştirmeden önce kullanıcıya sor.
 
@@ -128,6 +128,7 @@ Uygulama yalnızca siyah pencere açıkken çalışır. Bilgisayar açılınca k
 - **Yönlendirme:** `mobile/core.mjs` `fetch`'i üçe ayırır: `/api/*` doğrudan `handleApi`, okul siteleri `Native.http`, uygulama dosyaları WebView.
 - **Karşılıklar:** `browser`, `pdf`, `vault`, `credentials`, `update` dosyaları derlemede `mobile/shim/` sürümleriyle değişir. `node:fs`, `crypto`, `path`, `zlib` da orada.
 - **Köprü:** `Native.kt` dosya, şifreleme, ağ, bildirim, giriş penceresi, indirme ve APK kurulumunu sağlar. `Native` varlığı arayüzde `window.Native` ile anlaşılır.
+- **İçerik güvenliği:** `Native` dosyalara eriştiği için telefonda sıkı CSP vardır (`scripts/mobil.mjs`): satır içi betik ve olay özniteliği çalışmaz. `public/` içine `onclick=` gibi satır içi kod ekleme.
 - **Şifreleme:** AES-256-GCM veri anahtarı Android Keystore ile sarılır (`Vault.kt`). Yedekleme kapalıdır.
 - **Giriş:** Doğrudan girişler Windows'la aynıdır. Ortam ve doğrulama isteyen durumlar `LoginActivity`'deki gerçek site sayfasında yapılır, doğrulamayı kullanıcı yanıtlar.
 - **Bildirim:** `Background.kt` görünmez WebView'de `arka-plan.html` açar ve `notify.runDue()` çalıştırır. WorkManager 15 dakikada bir, ayrıca Doze'da da uyanan 30 dakikalık alarm vardır. Uzak aralığı Android'de 30 dakikadır. Gerçek zamanı Android belirler; pil kısıtlaması kapatılırsa gecikme azalır.

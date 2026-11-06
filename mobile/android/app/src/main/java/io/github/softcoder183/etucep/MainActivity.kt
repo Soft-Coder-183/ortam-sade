@@ -19,12 +19,13 @@ import org.json.JSONObject
 
 class MainActivity : Activity() {
     private lateinit var web: WebView
+    private lateinit var root: FrameLayout
     private var chooser: ValueCallback<Array<Uri>>? = null
 
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
         WindowCompat.setDecorFitsSystemWindows(window, false)
-        val root = FrameLayout(this)
+        root = FrameLayout(this)
         web = WebView(this)
         web.setBackgroundColor(0)
         root.addView(web, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
@@ -95,7 +96,9 @@ class MainActivity : Activity() {
         chooser = null
     }
 
+    /** Durum çubuğu ve alt çubuk uygulamanın temasına uyar (Hesap'taki Görünüm ayarı dahil). */
     fun setBars(dark: Boolean) = runOnUiThread {
+        root.setBackgroundColor(if (dark) 0xFF121418.toInt() else 0xFFF4F5F7.toInt())
         WindowCompat.getInsetsController(window, window.decorView).apply {
             isAppearanceLightStatusBars = !dark
             isAppearanceLightNavigationBars = !dark
