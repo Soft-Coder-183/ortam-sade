@@ -1,28 +1,14 @@
 // Okul sitelerinin oturumları: her site için ayrı çerez kutusu, sessiz oturum alma (kayıtlı Chrome profili),
 // kullanıcının kendisinin giriş yaptığı pencere ve oturumu canlı tutma. Kayıtlı bilgiyle doğrudan giriş
 // autologin.mjs'dedir; burası ona yalnızca çerez kutusu/istek araçlarını ve "yeniden giriş" kancasını sunar.
-import { chromium } from 'playwright-core';
 import fs from 'node:fs';
-import tls from 'node:tls';
-import path from 'node:path';
+import * as browser from './browser.mjs';
 import * as vault from './vault.mjs';
 import * as settings from './settings.mjs';
 
-// Giriş penceresi ve PDF için tarayıcı: Chrome yoksa Windows'ta her zaman bulunan Edge kullanılır.
-const CHROME = [process.env.PROGRAMFILES, process.env['PROGRAMFILES(X86)'], process.env.LOCALAPPDATA].filter(Boolean)
-  .map(d => path.join(d, 'Google', 'Chrome', 'Application', 'chrome.exe'));
-export const CHANNEL = process.platform !== 'win32' || CHROME.some(f => fs.existsSync(f)) ? 'chrome' : 'msedge';
-
-// uzak.etu.edu.tr sertifika zincirini eksik gönderiyor (ara sertifika yok). Tarayıcılar eksiği kendileri tamamlar,
-// Node tamamlamaz; Windows'un sertifika deposu da (ara sertifika orada) güvenilenlere eklenir (= node --use-system-ca).
-try { tls.setDefaultCACertificates([...new Set([...tls.getCACertificates('default'), ...tls.getCACertificates('system')])]); } catch {}
-
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36';
-const PROFILE = '.profile';               // giriş bilgileri bu Chrome profilinde kalır
-const CDP = process.env.CDP_URL || 'http://127.0.0.1:9222';
 const TTL = 10_000;                       // aynı sayfayı bu süre içinde tekrar çekme
 const JARS_FILE = '.cache/jars.enc';      // çerez kutuları: AES-256-GCM ile şifreli (vault.mjs)
-const LOGIN_TIMEOUT = 10 * 60_000;
 
 // home: oturum açıkken açılan sayfa (giriş penceresi de buradan başlar; oturum yoksa site girişe yönlendirir).
 // loginRedirect: girişe yönlendiren adres; loginPage: giriş formunu (ya da JSON/AJAX'ta "oturum yok" yanıtını) tanıtan metin;
@@ -65,6 +51,11 @@ const state = Object.fromEntries(Object.keys(SITES).map(k => [k, { jar: new Map(
 fs.mkdirSync('.cache/api', { recursive: true });
 for (const site of settings.get().loggedOut) if (state[site]) state[site].loggedOut = true;
 const saveJars = () => vault.writeSync(JARS_FILE, Object.fromEntries(Object.entries(state).map(([k, s]) => [k, Object.fromEntries(s.jar)])));
+// Android: arka plan kontrolü çerezleri yenilemiş olabilir, uygulama öne gelince diskten okunur
+export function reloadJars() {
+  const saved = vault.readSync(JARS_FILE);
+  if (saved) for (const [site, jar] of Object.entries(saved)) if (state[site]) { state[site].jar.clear(); for (const [k, v] of Object.entries(jar)) state[site].jar.set(k, v); }
+}
 {
   // Eski sürümlerin düz metin çerez dosyaları okunur, şifreli dosyaya taşınır ve silinir
   const plain = ['.cache/jars.json', '.cache/jar.json'].filter(f => fs.existsSync(f));
@@ -129,69 +120,12 @@ export async function rawFetch(site, path, { method = 'GET', headers = {}, body,
   return out;
 }
 
-// ---------- tarayıcı (yalnızca oturum almak/giriş için) ----------
-
-// Aynı profil aynı anda tek Chrome'da açılabilir; açma/kapama işlemleri sırayla yapılır.
-let visible = null;                       // { ctx, users } — açık giriş penceresi
-let lock = Promise.resolve();
-const exclusive = fn => { const p = lock.then(fn, fn); lock = p.catch(() => {}); return p; };
-
-async function cdpAvailable() {
-  try { return (await fetch(CDP + '/json/version', { signal: AbortSignal.timeout(500) })).ok; } catch { return false; }
-}
-
-async function pageLoggedIn(page, s) {
-  try {
-    if (new URL(page.url()).origin !== s.base) return false;
-    return await page.evaluate(sel => document.readyState === 'complete' && !document.querySelector(sel), s.passwordField);
-  } catch { return false; }       // sayfa o an yönleniyorsa
-}
-
-// Görünmez kontrol: açık giriş penceresi varsa onu, yoksa profilli görünmez Chrome'u kullanır.
-async function withHiddenBrowser(fn) {
-  if (visible) return fn(visible.ctx);
-  return exclusive(async () => {
-    if (visible) return fn(visible.ctx);
-    if (await cdpAvailable()) {
-      const b = await chromium.connectOverCDP(CDP, { timeout: 5000 });
-      try { return await fn(b.contexts()[0]); } finally { await b.close().catch(() => {}); }
-    }
-    const ctx = await chromium.launchPersistentContext(PROFILE, { channel: CHANNEL, headless: true });
-    try { return await fn(ctx); } finally { await ctx.close().catch(() => {}); }
-  });
-}
-
-function acquireVisible() {
-  return exclusive(async () => {
-    if (!visible) {
-      const ctx = await chromium.launchPersistentContext(PROFILE, { channel: CHANNEL, headless: false, viewport: null, args: ['--window-size=620,880'] });
-      visible = { ctx, users: 0 };
-      ctx.on('close', () => { if (visible?.ctx === ctx) visible = null; });
-    }
-    visible.users++;
-    return visible.ctx;
-  });
-}
-
-function releaseVisible(ctx) {
-  if (visible?.ctx !== ctx || --visible.users > 0) return;
-  visible = null;
-  return exclusive(() => ctx.close().catch(() => {}));
-}
-
 // ---------- oturum alma ----------
 
+// Görünmez kontrol: kayıtlı tarayıcı profilinden oturum alınabiliyorsa çerezler alınır.
 async function seedSilently(site) {
-  const s = SITES[site];
-  await withHiddenBrowser(async ctx => {
-    const page = await ctx.newPage();
-    try {
-      await page.goto(s.base + s.home, { waitUntil: 'load', timeout: 30_000 });
-      if (await pageLoggedIn(page, s)) takeCookies(site, await ctx.cookies(s.base));
-    } finally {
-      await page.close().catch(() => {});
-    }
-  });
+  const cookies = await browser.seedCookies(SITES[site]);
+  if (cookies) takeCookies(site, cookies);
 }
 
 function seed(site) {
@@ -200,43 +134,14 @@ function seed(site) {
   return st.seeding;
 }
 
-// Kayıtlı bilgiler (fill) varsa giriş formuna yazılır ve düğmeye basılır. Ortam'ın görünmez reCAPTCHA'sı gerçek tarayıcıda
-// kendi kontrolünü yapar; soru gösterirse kullanıcı pencerede yanıtlar (atlatılmaz, çözülmez). Doğrulama kodu kutusu olan
-// sayfalarda (UBS) yalnızca doldurulur, kodu kullanıcı yazar. Doldurulamazsa kullanıcı her şeyi kendisi girer.
-async function autofill(page, s, { user, password }) {
-  await page.waitForSelector(s.passwordField, { timeout: 15_000 });
-  await page.fill(s.userField, user);
-  await page.fill(s.passwordField, password);
-  if (s.submit && !(s.captchaField && (await page.$(s.captchaField)))) await page.click(s.submit);
-}
-
-// Sitenin giriş sayfasını görünür pencerede açar (fill varsa bilgileri doldurur); gerisini kullanıcı tamamlar.
-// Sayfada şifre alanı kalmayınca (iki kontrol üst üste) çerezleri alır ve sekmeyi kapatır.
+// Sitenin giriş sayfası görünür pencerede açılır (fill varsa bilgiler doldurulur); gerisini kullanıcı tamamlar.
 export function login(site, fill = null) {
-  const s = SITES[site], st = state[site];
-  st.loggingIn ??= (async () => {
-    const ctx = await acquireVisible();
-    const page = await ctx.newPage();
-    try {
-      await page.goto(s.base + s.home, { waitUntil: 'load' });
-      await page.bringToFront();
-      if (fill && s.userField && !(await pageLoggedIn(page, s))) await autofill(page, s, fill).catch(() => {});
-      const until = Date.now() + LOGIN_TIMEOUT;
-      let streak = 0;
-      while (streak < 2) {
-        if (page.isClosed()) throw new Error('Giriş penceresi kapatıldı');
-        if (Date.now() > until) throw new Error('Giriş için süre doldu');
-        streak = (await pageLoggedIn(page, s)) ? streak + 1 : 0;
-        await new Promise(r => setTimeout(r, 1000));
-      }
-      takeCookies(site, await ctx.cookies(s.base));
-      st.failedAt = 0;
-      return { ok: true };
-    } finally {
-      await page.close().catch(() => {});
-      await releaseVisible(ctx);
-    }
-  })().finally(() => { st.loggingIn = null; });
+  const st = state[site];
+  st.loggingIn ??= browser.visibleLogin(SITES[site], fill).then(cookies => {
+    takeCookies(site, cookies);
+    st.failedAt = 0;
+    return { ok: true };
+  }).finally(() => { st.loggingIn = null; });
   return st.loggingIn;
 }
 
@@ -337,7 +242,7 @@ export async function logout(site) {
   settings.setLoggedOut(site, true);
   saveJars();
   // Kayıtlı tarayıcı profili (Ortam/UBS penceresiyle giriş) bu sitenin çerezlerini de unutur
-  await withHiddenBrowser(ctx => ctx.clearCookies({ domain: new URL(SITES[site].base).hostname })).catch(() => {});
+  await browser.clearCookies(new URL(SITES[site].base).hostname).catch(() => {});
   return { site, remote };
 }
 export const sessionInfo = () => Object.fromEntries(Object.keys(SITES).map(s => [s, { cookies: state[s].jar.size > 0, loggedOut: !!state[s].loggedOut, usedAt: state[s].usedAt ?? null }]));

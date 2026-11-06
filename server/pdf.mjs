@@ -1,7 +1,7 @@
 // UBS sayfalarını ve transkripti kendi şablonumuzla PDF'e çevirir (görünmez Chrome). Okulun kendi PDF çıktılarında
 // Türkçe karakterler bozuk geldiği için hepsi buradan üretilir. Tarayıcı ilk istekte açılır, bir süre kullanılmazsa kapanır.
 import { chromium } from 'playwright-core';
-import { CHANNEL } from './session.mjs';
+import { CHANNEL } from './browser.mjs';
 
 const IDLE = 60_000;
 let browser = null;

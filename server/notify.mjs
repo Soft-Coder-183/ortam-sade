@@ -19,6 +19,13 @@ import * as vault from './vault.mjs';
 
 const FILE = '.cache/notify.json';
 const EVERY = { piazza: 30, uzak: 60, takvim: 180 };   // dakika (okul sunucularını yormamak için seyrek)
+// Platform ayarları: Android bildirimi kendi gösterir, Uzak'ı 30 dakikada bir denetler ve özet e-postayı varsayılan kapalı tutar.
+const platform = { toast: null, brand: 'Ortam Sade', device: 'bilgisayarınızda', appLink: true };
+export function configure({ every, defaults, ...rest }) {
+  Object.assign(EVERY, every);
+  Object.assign(db.settings, defaults);
+  Object.assign(platform, rest);
+}
 const KEEP = 200;                                  // saklanan en fazla bildirim
 
 let db = { seen: {}, items: [], settings: { toast: true, mail: true, takvim: true }, last: {} };
@@ -143,6 +150,7 @@ async function checkTakvim() {
 
 // Windows bildirimi (PowerShell ile; metin standart girdiden base64 gelir). Tıklayınca uygulamanın ilgili sayfası açılır.
 function toast(title, body, link) {
+  if (platform.toast) return platform.toast(title, body, link);
   if (process.platform !== 'win32') return;
   const payload = Buffer.from(JSON.stringify({ title: `Ortam Sade · ${title}`, body, link: `http://localhost:${process.env.PORT || 3000}/${link || ''}` }), 'utf8').toString('base64');
   const script = `
@@ -167,15 +175,15 @@ async function mail(items) {
   const c = await webmail.compose({ mode: 'new' });
   // Konu ve metin, e-postanın okuldan değil Ortam Sade'den geldiğini açıkça söyler.
   const app = `http://localhost:${process.env.PORT || 3000}/`;
-  const lines = items.map(n => `• ${n.title}: ${n.text}\n  Aç: ${app}${n.link || ''}`).join('\n');
+  const lines = items.map(n => `• ${n.title}: ${n.text}${platform.appLink ? `\n  Aç: ${app}${n.link || ''}` : ''}`).join('\n');
   const rule = '-'.repeat(40);
   await webmail.send({ id: c.id, from: c.from.find(f => f.selected)?.id ?? c.from[0]?.id, to,
-    subject: `[Ortam Sade · Bildirim] ${items.length === 1 ? `${items[0].title}: ${items[0].text}` : `${items.length} yeni içerik`}`.slice(0, 180),
-    text: `ORTAM SADE BİLDİRİMİ\n${rule}\n${lines}\n${rule}\n\n` +
-      `Bu e-postayı okul değil, bilgisayarınızda çalışan Ortam Sade uygulaması gönderdi: Piazza ya da Uzak'ta yeni içerik ` +
+    subject: `[${platform.brand} · Bildirim] ${items.length === 1 ? `${items[0].title}: ${items[0].text}` : `${items.length} yeni içerik`}`.slice(0, 180),
+    text: `${platform.brand.toLocaleUpperCase('tr')} BİLDİRİMİ\n${rule}\n${lines}\n${rule}\n\n` +
+      `Bu e-postayı okul değil, ${platform.device} çalışan ${platform.brand} uygulaması gönderdi: Piazza ya da Uzak'ta yeni içerik ` +
       `görünce ve Akademik Takvimdeki önemli bir tarih yaklaşınca kendi okul adresinizden size kısa bir özet yollar. ` +
       `Okulun resmî bir duyurusu değildir; tarihler için okulun Akademik Takvimi esastır.\n` +
-      `Kapatmak için: Ortam Sade > Hesap > Bildirimler > e-posta seçeneği.` });
+      `Kapatmak için: ${platform.brand} > Hesap > Bildirimler > e-posta seçeneği.` });
 }
 
 // Gönderilemeyen bildirim e-postaları kaybolmaz: giden kutusunda (outbox) bekler, her kontrol turunda ve girişten sonra
@@ -230,6 +238,15 @@ async function run(source) {
   }
   await flushMail();                                                  // yeni ya da önceden bekleyen e-postalar
 }
+
+// Android'in arka plan kontrolü: süresi gelen kaynaklar sırayla denetlenir, uygulama kapalıyken zamanlayıcı kullanılmaz.
+export async function runDue() {
+  await load();
+  for (const source of Object.keys(EVERY))
+    if (Date.now() - (db.last[source] ?? 0) >= (EVERY[source] - 2) * 60_000) await run(source);
+}
+// Uygulama öne gelince: arka plan kontrolünün yazdıkları diskten yeniden okunur
+export function reload() { loaded = false; return load(); }
 
 export async function start() {
   await load();
