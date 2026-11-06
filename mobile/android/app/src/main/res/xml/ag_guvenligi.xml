@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- uzak.etu.edu.tr ara sertifikayı göndermiyor. Yalnızca bu alan adı için okulun sertifika zincirindeki ara sertifika eklenir;
+     sertifika denetimi kapatılmaz, diğer bütün adresler sistemin güvenilen sertifikalarını kullanır. Düz HTTP kapalıdır. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors><certificates src="system" /></trust-anchors>
+    </base-config>
+    <domain-config>
+        <domain includeSubdomains="false">uzak.etu.edu.tr</domain>
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="@raw/uzak_ara" />
+        </trust-anchors>
+    </domain-config>
+</network-security-config>

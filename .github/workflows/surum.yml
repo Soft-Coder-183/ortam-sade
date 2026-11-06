@@ -36,15 +36,38 @@ jobs:
 
       - name: Sözdizimi denetimi
         shell: bash
-        run: for f in server/*.mjs public/app.js; do node --check "$f"; done
+        run: for f in server/*.mjs mobile/*.mjs mobile/shim/*.mjs public/app.js; do node --check "$f"; done
 
       - name: Paket
         run: npm run paketle
 
+      - name: Java (Android derlemesi)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Android paketi (ETÜ Cep)
+        shell: bash
+        env:
+          ETUCEP_KEY_B64: ${{ secrets.ETUCEP_KEY_B64 }}
+          ETUCEP_KEY_PASSWORD: ${{ secrets.ETUCEP_KEY_PASSWORD }}
+        run: |
+          test -n "$ETUCEP_KEY_B64" || { echo "İmza anahtarı (ETUCEP_KEY_B64) tanımlı değil"; exit 1; }
+          v="$(node -p "require('./package.json').version")"
+          node scripts/mobil.mjs
+          echo "$ETUCEP_KEY_B64" | base64 -d > "$RUNNER_TEMP/etucep.keystore"
+          export ETUCEP_KEYSTORE="$RUNNER_TEMP/etucep.keystore"
+          (cd mobile/android && sh ./gradlew :app:assembleRelease --console=plain)
+          cp mobile/android/app/build/outputs/apk/release/app-release.apk "dist/EtuCep-$v.apk"
+          rm -f "$RUNNER_TEMP/etucep.keystore"
+
       - name: Kaynak kanıtı (provenance)
         uses: actions/attest-build-provenance@v2
         with:
-          subject-path: dist/OrtamSade-*-win-x64.zip
+          subject-path: |
+            dist/OrtamSade-*-win-x64.zip
+            dist/EtuCep-*.apk
 
       - name: Sürümü yayımla
         shell: bash
@@ -52,10 +75,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           zip=$(ls dist/OrtamSade-*-win-x64.zip)
+          apk=$(ls dist/EtuCep-*.apk)
           # Her sürümün notuna doğrulama komutu eklenir
           { cat "notlar/$GITHUB_REF_NAME.md"
             printf '\n## Doğrulama\n\nBu paket GitHub Actions'"'"'ta bu depodaki koddan üretildi. Kendin doğrulamak için:\n\n'
-            printf '```\ngh attestation verify %s --repo %s\n```\n' "$(basename "$zip")" "$GITHUB_REPOSITORY"
+            printf '```\ngh attestation verify %s --repo %s\ngh attestation verify %s --repo %s\n```\n' "$(basename "$zip")" "$GITHUB_REPOSITORY" "$(basename "$apk")" "$GITHUB_REPOSITORY"
           } > surum-notu.md
-          gh release create "$GITHUB_REF_NAME" "$zip" --title "Ortam Sade ${GITHUB_REF_NAME#v}" --notes-file surum-notu.md --verify-tag
-          echo "SHA-256: $(sha256sum "$zip" | cut -d' ' -f1)" >> "$GITHUB_STEP_SUMMARY"
+          gh release create "$GITHUB_REF_NAME" "$zip" "$apk" --title "Ortam Sade ${GITHUB_REF_NAME#v}" --notes-file surum-notu.md --verify-tag
+          sha256sum "$zip" "$apk" >> "$GITHUB_STEP_SUMMARY"

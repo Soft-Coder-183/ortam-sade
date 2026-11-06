@@ -1947,6 +1947,7 @@ function notifSection() {
       <span class="muted">(ders kaydı, ekle-sil, dersten vazgeçme, ÇAP/YAP başvurusu, sınavlar: 3 gün kala, başladığı gün ve son gün)</span></span></label>
     <label class="check"><input type="checkbox" data-notif="toast"${notif.settings.toast ? ' checked' : ''}> Windows bildirimi</label>
     <label class="check"><input type="checkbox" data-notif="mail"${notif.settings.mail ? ' checked' : ''}> E-posta <span class="muted">(kendi adresinize, her kontrolde tek özet)</span></label>
+    ${phoneNotif()}
     <div class="row" style="justify-content:flex-start;gap:8px;margin-top:10px"><button type="button" class="btn" data-notif-check>Şimdi kontrol et</button>
       <button type="button" class="btn ghost" data-notif-test>Deneme bildirimi</button></div>
     <p class="muted small">Son kontrol — Piazza: ${ago2(notif.last.piazza)} · Uzak: ${ago2(notif.last.uzak)}</p>
@@ -2617,6 +2618,7 @@ function applyTheme(t = getTheme()) {
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.content = getComputedStyle(root).getPropertyValue('--card').trim() || '#ffffff';
   document.querySelectorAll('[data-theme-set]').forEach(b => b.setAttribute('aria-checked', String(b.dataset.themeSet === t)));
+  window.Native?.setBars(t === 'dark' || (t === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches));
 }
 const themePicker = () => `<div class="theme-pick" role="radiogroup" aria-label="Görünüm">${THEMES.map(([id, label, ic]) =>
   `<button type="button" role="radio" aria-checked="${id === getTheme()}" data-theme-set="${id}">${icon(ic)}${label}</button>`).join('')}</div>`;
@@ -2740,6 +2742,21 @@ $view.addEventListener('toggle', e => {
   if (e.target.dataset.lazy) openLazy(e.target);
   if (e.target.dataset.mail) openMail(e.target);
 }, true);
+// ---------- Android ----------
+// Bildirimlerin zamanında gelmesi için telefonun izinleri; yalnızca uygulamanın Android sürümünde görünür.
+const phoneNotif = () => {
+  const N = window.Native;
+  if (!N) return '';
+  return `<div class="phone-set">${N.notificationsAllowed() ? '' : `<p class="small">Bildirim izni kapalı. <button type="button" class="btn" data-phone-notif>İzin ver</button></p>`}
+    ${N.batteryFree() ? '<p class="muted small">Pil kısıtlaması kapalı: kontroller yaklaşık 30 dakikada bir çalışır.</p>'
+      : `<p class="small">Telefon boştayken bildirimler gecikebilir. Yaklaşık 30 dakikada bir gelmesi için pil kısıtlamasını kapat. <button type="button" class="btn" data-phone-battery>Pil kısıtlamasını kapat</button></p>`}</div>`;
+};
+document.addEventListener('click', e => {
+  if (e.target.closest('[data-phone-notif]')) window.Native.askNotifications();
+  if (e.target.closest('[data-phone-battery]')) window.Native.askBattery();
+});
+window.addEventListener('app-resume', () => { loadNotif(); render(true); });
+
 // ---------- Güncelleme ----------
 // Yeni sürüm varsa sağ altta bir kart sorar; "Güncelle"ye basılmadan hiçbir şey indirilmez (görünmez güncelleme yok).
 // "Sonra": bu oturumda bir daha sorulmaz (uygulama yeniden açılınca tekrar sorar).
@@ -2785,6 +2802,7 @@ document.addEventListener('click', async e => {
     card.querySelectorAll('button').forEach(b => { b.disabled = false; });
     return;
   }
+  if (j.installer) { msg.textContent = 'Android kurulum ekranı açıldı. Kurulumu oradan onayla.'; return; }
   msg.textContent = `${j.version} kuruldu. Uygulama yeniden başlatılıyor…`;
   // Sunucu yeni sürümle açılınca sayfa yenilenir
   const t0 = Date.now();

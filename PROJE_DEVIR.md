@@ -1,11 +1,11 @@
 # Ortam Sade: Proje Devir Belgesi
 
-Ortam Sade, TOBB ETÜ'nün okul sitelerini (Ortam, UBS, Uzak, UZAKYDB, Webmail, Piazza) tek ve sade bir arayüzde toplayan, öğrencinin kendi Windows bilgisayarında çalışan açık kaynaklı bir uygulamadır. Bu belge, projeyi devralan bir agent'ın önceki konuşmaları görmeden işe başlayabilmesi için yazıldı.
+Ortam Sade, TOBB ETÜ'nün okul sitelerini (Ortam, UBS, Uzak, UZAKYDB, Webmail, Piazza) tek ve sade bir arayüzde toplayan açık kaynaklı bir uygulamadır. Windows'ta öğrencinin bilgisayarında, Android'de "ETÜ Cep" adıyla telefonunda çalışır. Bu belge, projeyi devralan bir agent'ın önceki konuşmaları görmeden işe başlayabilmesi için yazıldı.
 
 - **Sahibi:** TOBB ETÜ öğrencisi Eren Akyurt. Türkçe konuşur, uygulamayı arkadaşlarıyla paylaşır.
 - **Depo:** https://github.com/Soft-Coder-183/ortam-sade (herkese açık, MIT lisansı).
 - **Durum:** Güncel sürüm 1.6.4. GitHub hesabı `gh` ile bağlı.
-- **Devam eden iş:** Android uygulaması "ETÜ Cep" (önce APK; Play yayını ve geliştirici hesabı sonraya kaldı, yalnızca Android, Windows sürümü kalıyor).
+- **Devam eden iş:** Android uygulaması "ETÜ Cep". Önce APK çıkacak; Play yayını ve geliştirici hesabı sonraya kaldı. Yalnızca Android hedefleniyor, Windows sürümü kalıyor.
 - **Kapsam notu:** Bu belge uygulamanın her parçasını saymaz. Kodda burada anlatılmayan bir bölüm görürsen değiştirmeden önce kullanıcıya sor.
 
 ## Mimari
@@ -15,7 +15,7 @@ Tarayıcıdaki arayüz yalnızca bilgisayardaki yerel Node sunucusuyla konuşur.
 ```
 Tarayıcı (public/app.js)
    │  /api/*  (yalnızca 127.0.0.1)
-Node sunucusu (server/server.mjs)
+Node sunucusu (server/server.mjs) → çekirdek (server/api.mjs)
    │  site modülleri: ortam, ubs, moodle, webmail, piazza, etu, mevzuat
    │  oturum katmanı: session.mjs + autologin.mjs
 Okulun siteleri ve mevzuat.gov.tr
@@ -33,7 +33,9 @@ Okulun siteleri ve mevzuat.gov.tr
 
 | Yol | Görev |
 |---|---|
-| `server/server.mjs` | HTTP sunucusu, API uçları, önbellek, kilit, durum, arka plan işleri |
+| `server/server.mjs` | Windows HTTP sunucusu, statik dosyalar, istek denetimleri |
+| `server/api.mjs` | Çekirdek: API uçları (`handleApi`), önbellek, kilit, durum, arka plan işleri. HTTP bilmez |
+| `server/browser.mjs` | Masaüstü tarayıcısı: görünür giriş penceresi, kayıtlı profil |
 | `server/start.mjs` | Başlatıcı: sunucuyu gözetir, güncelleme sonrası yeniden açar |
 | `server/session.mjs` | Site tanımları (`SITES`), çerez kutuları, görünür giriş penceresi, oturum canlı tutma, oturum kapatma |
 | `server/autologin.mjs` | Kayıtlı bilgiyle doğrudan giriş |
@@ -52,7 +54,13 @@ Okulun siteleri ve mevzuat.gov.tr
 | `server/mevzuat.mjs`, `server/mevzuat-yanitlar.mjs` | Mevzuat dizini, belge ayrıştırma, arama, duyurular, hızlı yanıtlar |
 | `server/notify.mjs` | Bildirimler, hatırlatmalar, e-posta giden kutusu |
 | `server/update.mjs` | Onaylı güncelleme |
-| `server/pdf.mjs` | PDF üretimi |
+| `server/pdf.mjs`, `server/pdf-sablon.mjs` | PDF üretimi ve ortak şablon |
+| `server/program.mjs` | Açılan Dersler ekranının ders ve şube verisi (`/api/program`) |
+| `mobile/core.mjs` | Android çekirdeği: `fetch` yönlendirmesi, indirme, geri tuşu, arka plan girişi |
+| `mobile/shim/` | Node modüllerinin ve platforma bağlı dosyaların Android karşılıkları |
+| `mobile/metinler.mjs` | Windows'a özgü arayüz metinlerinin telefon karşılıkları |
+| `mobile/android/` | Kotlin kabuğu (Gradle projesi) |
+| `scripts/mobil.mjs` | Android web içeriğini üretir (`npm run mobil`) |
 | `public/app.js` | Tek sayfalık arayüzün tamamı (menü, görünümler, yönlendirme) |
 | `public/style.css` | Stiller; açık ve koyu tema token'ları |
 | `public/pdfview.js` | Uygulama içi PDF görüntüleyici |
@@ -113,6 +121,22 @@ Uygulama yalnızca siyah pencere açıkken çalışır. Bilgisayar açılınca k
 - Renkler: Uzak kırmızımsı turuncu, Piazza mavi. Menüde sade nokta, derslerin üzerinde sayılı rozet görünür.
 - Hatırlatmalar: Akademik Takvim satırları 3 gün kala, başladığı gün ve son gün gelir. Sınavlar Ortam'daki sınav takviminden, sınavdan önceki 24 saat içinde bir kez gelir.
 
+## Android (ETÜ Cep)
+
+`server/` kodunun aynısı WebView içinde çalışır, telefonda yerel sunucu yoktur. `scripts/mobil.mjs` esbuild ile `mobile/core.mjs` paketini (`core.js`) üretir ve `public/` ile birlikte APK'ya koyar.
+
+- **Yönlendirme:** `mobile/core.mjs` `fetch`'i üçe ayırır: `/api/*` doğrudan `handleApi`, okul siteleri `Native.http`, uygulama dosyaları WebView.
+- **Karşılıklar:** `browser`, `pdf`, `vault`, `credentials`, `update` dosyaları derlemede `mobile/shim/` sürümleriyle değişir. `node:fs`, `crypto`, `path`, `zlib` da orada.
+- **Köprü:** `Native.kt` dosya, şifreleme, ağ, bildirim, giriş penceresi, indirme ve APK kurulumunu sağlar. `Native` varlığı arayüzde `window.Native` ile anlaşılır.
+- **Şifreleme:** AES-256-GCM veri anahtarı Android Keystore ile sarılır (`Vault.kt`). Yedekleme kapalıdır.
+- **Giriş:** Doğrudan girişler Windows'la aynıdır. Ortam ve doğrulama isteyen durumlar `LoginActivity`'deki gerçek site sayfasında yapılır, doğrulamayı kullanıcı yanıtlar.
+- **Bildirim:** `Background.kt` görünmez WebView'de `arka-plan.html` açar ve `notify.runDue()` çalıştırır. WorkManager 15 dakikada bir, ayrıca Doze'da da uyanan 30 dakikalık alarm vardır. Uzak aralığı Android'de 30 dakikadır. Gerçek zamanı Android belirler; pil kısıtlaması kapatılırsa gecikme azalır.
+- **Ağ:** `uzak.etu.edu.tr` ara sertifika göndermediği için yalnızca o alan adına ara sertifika eklenir (`res/xml/ag_guvenligi.xml`, `res/raw/uzak_ara.pem`). Sertifikanın süresi dolunca dosya yenilenmelidir.
+- **Güncelleme:** `mobile/shim/update.mjs` GitHub'daki `.apk` dosyasını bulur. Yalnızca kullanıcı "Güncelle"ye basınca indirilir, SHA-256 doğrulanır ve Android kurulum ekranı açılır.
+- **İmza:** Anahtar `mobile/android/imza/` içindedir ve gitignore'dadır. GitHub'da `ETUCEP_KEY_B64` ve `ETUCEP_KEY_PASSWORD` gizli değişkenleridir. Anahtar kaybolursa kurulu uygulamalar güncellenemez.
+- **Derleme:** `npm run mobil`, sonra `mobile/android` içinde `sh ./gradlew :app:assembleRelease`. Java olarak Android Studio'nun `jbr` klasörü kullanılır (`JAVA_HOME`). Yerelde `local.properties` içinde `sdk.dir` gerekir.
+- **Masaüstünde deneme:** Telefon paketi sahte `Native` ile başsız Chrome'da çalıştırılabilir. Gerçek davranış için cihazda `adb install` ile dene.
+
 ## Güvenlik modeli
 
 - Sunucu yalnızca `127.0.0.1` dinler. `Host` başlığı denetlenir. POST isteklerinde `Origin` ve içerik türü doğrulanır.
@@ -131,7 +155,7 @@ Sürüm paketi GitHub Actions'ta üretilir. Yerelde üretilen zip asla yüklenme
 2. `notlar/vX.Y.Z.md` dosyasını yaz.
 3. Commit'le ve `main`'e gönder.
 4. `git tag -a vX.Y.Z -m "Ortam Sade X.Y.Z"` ve `git push origin vX.Y.Z`.
-5. `.github/workflows/surum.yml` Windows üzerinde paketi üretir, imzalı kaynak kanıtı ekler ve sürümü yayımlar.
+5. `.github/workflows/surum.yml` Windows üzerinde zip ve APK üretir, ikisine imzalı kaynak kanıtı ekler ve sürümü yayımlar. Sürüm notuna doğrulama komutu kendiliğinden eklenir.
 
 `npm run paketle` yalnızca yerel deneme içindir. Paket `dist/OrtamSade-X.Y.Z-win-x64.zip` adıyla çıkar ve `runtime/node.exe` içerir. Yeni bir kök klasör pakete girecekse `scripts/paketle.mjs` listesine eklenmelidir.
 
@@ -174,6 +198,7 @@ Sürüm paketi GitHub Actions'ta üretilir. Yerelde üretilen zip asla yüklenme
 - **Git Bash `tar`:** Zip açamaz. `C:/Windows/System32/tar.exe` kullan.
 - **`fs.cpSync`:** Node 24'te Türkçe karakterli yollarda çöker (`0xC0000409`). Paketleme bu yüzden elle kopyalar.
 - **`Ortam Sade.cmd`:** CRLF olmalı, `.gitattributes` bunu sağlar. `sed -i` satır sonlarını bozabilir. `if (...)` bloklarında parantezli metin kullanma.
+- **Bash heredoc:** Tırnak ya da ters eğik çizgi içeren uzun heredoc'lar bu ortamda bozulabilir. Dosyaları Write aracıyla yaz.
 - **JS `/i` ve Türkçe:** `İ` ile `i` kendiliğinden eşleşmez. Türkçe karşılaştırmada `trFold` (arayüz) ya da `norm` (mevzuat) kullan.
 - **Uzak TLS:** `uzak.etu.edu.tr` ara sertifikayı göndermez. Windows sertifika deposu `session.mjs` içinde güvenilenlere eklenir.
 - **`public/app.js`:** Tek dosyadır ve üst düzey adlar çakışabilir. Yeni `const` eklemeden önce arat. Hızlı denetim: `node --check public/app.js`.

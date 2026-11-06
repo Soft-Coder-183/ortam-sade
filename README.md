@@ -61,6 +61,17 @@ Sürüm numarasını kendi dosyanınkiyle değiştir. Komut başarılı olursa d
 - Windows "bilinmeyen yayımcı" uyarısı verirse: *Ek bilgi → Yine de çalıştır*. (Dosya imzasız bir betik; içeriğini bu depoda görebilirsin.)
 - Gerekenler: Google Chrome **veya** Microsoft Edge (Ortam girişi ve PDF oluşturma için). Node.js kurmana gerek yok, pakette var.
 
+## Android (ETÜ Cep)
+
+Aynı uygulama telefonda **ETÜ Cep** adıyla çalışır. [Releases](https://github.com/Soft-Coder-183/ortam-sade/releases/latest) sayfasından
+`EtuCep-…apk` dosyasını telefona indirip kur (Android 10 ve üzeri). Android bilinmeyen kaynak uyarısı verirse izin vermen gerekir.
+
+- Şifren ve okul verilerin yalnızca telefonda, Android Keystore ile korunan AES-256 şifrelemeyle durur. Arada başka bir sunucu yoktur.
+- Uygulama kapalıyken Piazza, Uzak ve Akademik Takvim yaklaşık 30 dakikada bir kontrol edilir. Kontrolün tam zamanını Android belirler;
+  Hesap > Bildirimler'den pil kısıtlamasını kapatırsan gecikme azalır.
+- Ortam girişi sitenin kendi sayfasında yapılır; bilgiler doldurulur, doğrulama sorusu çıkarsa sen yanıtlarsın.
+- APK da GitHub Actions'ta üretilir ve aynı komutla doğrulanır: `gh attestation verify EtuCep-X.Y.Z.apk --repo Soft-Coder-183/ortam-sade`
+
 ## Güncelleme
 
 Yeni sürüm çıkınca uygulama sağ altta **"Ortam Sade x.y.z yayınlandı — güncellemek ister misin?"** diye sorar (bir kez de Windows bildirimi gelir).

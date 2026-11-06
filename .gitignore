@@ -12,3 +12,13 @@ dist/
 # Kullanıcının kendi klasörü (başka projeden betik ve veri)
 yeni/
 Ortam_*.png
+
+# Android: üretilen içerik, derleme çıktıları ve imza anahtarı
+mobile/android/app/src/main/assets/
+mobile/android/.gradle/
+mobile/android/build/
+mobile/android/app/build/
+mobile/android/local.properties
+mobile/android/imza/
+*.keystore
+*.jks

@@ -306,6 +306,6 @@ export async function announceUpdate(version) {
 
 // Hesap ekranındaki "deneme bildirimi": yalnızca Windows bildirimi gösterir (e-posta göndermez).
 export function testToast() {
-  toast('Bildirim denemesi', 'Bildirimler bu bilgisayarda böyle görünecek.', '#/hesap');
+  toast('Bildirim denemesi', 'Bildirimler böyle görünecek.', '#/hesap');
   return { ok: true };
 }

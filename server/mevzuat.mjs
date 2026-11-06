@@ -162,7 +162,11 @@ async function pdfLines(buf) {
     const orig = { log: console.log, warn: console.warn };
     const quiet = f => (...a) => (/^Warning: Cannot (load|polyfill)/.test(String(a[0])) ? undefined : f(...a));
     console.log = quiet(orig.log); console.warn = quiet(orig.warn);
-    try { return await import('pdfjs-dist/legacy/build/pdf.mjs'); } finally { Object.assign(console, orig); }
+    try {
+      const lib = await import('pdfjs-dist/legacy/build/pdf.mjs');
+      if (globalThis.Native) lib.GlobalWorkerOptions.workerSrc = '/vendor/pdfjs/legacy/build/pdf.worker.min.mjs';   // Android: WebView içinde
+      return lib;
+    } finally { Object.assign(console, orig); }
   })();
   const { getDocument } = await pdfjsP;
   const task = getDocument({ data: new Uint8Array(buf), verbosity: 0, isEvalSupported: false, useSystemFonts: false });
