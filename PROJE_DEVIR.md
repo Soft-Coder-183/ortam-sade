@@ -4,8 +4,8 @@ Ortam Sade, TOBB ETÜ'nün okul sitelerini (Ortam, UBS, Uzak, UZAKYDB, Webmail, 
 
 - **Sahibi:** TOBB ETÜ öğrencisi Eren Akyurt. Türkçe konuşur, uygulamayı arkadaşlarıyla paylaşır.
 - **Depo:** https://github.com/Soft-Coder-183/ortam-sade (herkese açık, MIT lisansı).
-- **Durum:** Güncel sürüm 1.6.3. GitHub hesabı `gh` ile bağlı.
-- **Planlanan iş:** Android uygulaması (APK ve Play Store). Plan kullanıcıya sunuldu, kararları bekleniyor; karar gelmeden başlama.
+- **Durum:** Güncel sürüm 1.6.4. GitHub hesabı `gh` ile bağlı.
+- **Devam eden iş:** Android uygulaması "ETÜ Cep" (önce APK; Play yayını ve geliştirici hesabı sonraya kaldı, yalnızca Android, Windows sürümü kalıyor).
 - **Kapsam notu:** Bu belge uygulamanın her parçasını saymaz. Kodda burada anlatılmayan bir bölüm görürsen değiştirmeden önce kullanıcıya sor.
 
 ## Mimari
@@ -69,12 +69,11 @@ Okulun siteleri ve mevzuat.gov.tr
 | Ana Sayfa | Bugünkü dersler ve sınavlar, yaklaşan sınavlar, posta, Piazza, son kullanılan 6 sayfa; üstte Ortam'da bekleyen anket ve duyurular, UZAKYDB ek içerik, yaklaşan son tarihler |
 | Dönem Bilgilerim | Derslerim (Ortam, Uzak, Piazza tek sayfada), Ders Programım |
 | Sınav Takvimi | Ara Sınav, Final ya da Bütünleme; her sınav tek satırda |
-| Webmail | Okundu senkronizasyonu, yazma, yanıtlama, yıldızlar, isteğe bağlı otomatik silme (okunanlar 12 saat sonra Çöp'e) |
+| Webmail | Okundu senkronizasyonu, yazma, yanıtlama, yıldızlar, satırda Sil, isteğe bağlı otomatik silme (okunanlar 12 saat sonra Çöp'e; açık e-postanın altında "Otomatik silinmesin") |
 | Piazza, UBS, UZAKYDB | Kendi sade arayüzleri; PDF'ler uygulama içinde açılır |
-| Ekstra | Açılan Dersler ve haftalık plan, Akademik Takvim, Akademik Kadro, Yabancı Diller, Mevzuat, Öğrenci İşleri Duyuruları |
-| ÇAP/YAP - Başvurular | ÇAP/YAP, Staj, Öğrenim ve Mezuniyet Sonrası Staj hareketliliği |
+| Ekstra | Açılan Dersler ve haftalık plan, Akademik Takvim, Akademik Kadro (uygulamanın içinde), Yabancı Diller, Mevzuat, Öğrenci İşleri Duyuruları, ÇAP/YAP - Başvurular |
 | Hakkında ve SSS | Hakkımızda, Okulun Siteleri, SSS, Sorumluluk Reddi |
-| Hesap | Tek giriş, siteye özel şifreler, Güvenlik ve Oturumlar, Bildirimler, Webmail ayarları, görünüm |
+| Hesap | Tek giriş, siteye özel şifreler, Güvenlik ve Oturumlar, Bildirimler, Webmail ayarları, görünüm (aydınlık/karanlık) |
 
 **Mevzuat:** Belgeler okulun Mevzuat sayfasından keşfedilir, mevzuat.gov.tr, Resmî Gazete, PDF ve Word kaynaklarından madde madde ayrıştırılır, `.cache/mevzuat` altında tutulur. Hızlı yanıtlar `server/mevzuat-yanitlar.mjs` içindedir. Her yanıt kaynak maddeden birebir alıntı taşır; uygulama alıntının güncel metinde geçtiğini denetler, geçmiyorsa uyarır. Transkript varsa yanıtların altında "Senin durumun" çıkar.
 
@@ -84,7 +83,7 @@ Okulun siteleri ve mevzuat.gov.tr
 - **Takvim:** Seçili şube yeşil görünür, seçilmemiş şubeler hep kesik çizgili kutularda durur. Seçili kutuya ya da paneldeki aynı şubeye basmak seçimi kaldırır. Takvim en az 18.30 satırına kadar uzanır. Eklenen dersler paneli geniş ekranda hep takvimin sağındadır; dar kutular yalnızca ders kodunu gösterir.
 - **Gizleme:** Paneldeki "gizle" şubeyi yalnızca takvimden kaldırır. Otomatik program bulmayı etkilemez.
 - **Şube değiştirme:** Paneldeki her dersin altında şube düğmeleri vardır, dersi açmadan şube değişir. Şube satırındaki uyarı, çakışılan dersin seçili şubesini yazar.
-- **Çakışma:** Çakışan seçili şubeler takvimde gri kutu ve kırmızı sol kenarla görünür. Yalnızca gerçekten çakışan saat dilimi çizgilidir (`.pl-ov`). Panelde de liste vardır.
+- **Çakışma:** Çakışan seçili şubeler takvimde açık zemin, kalın kırmızı sol kenar, kesikli ince kırmızı çerçeve ve ders kodunun yanında kırmızı noktayla görünür. Panelde de liste vardır.
 - **Otomatik program:** Çakışmayan en iyi 5 kombinasyon üretilir. Etikette önce boşluk süresi, sonra gün sayısı yazar.
 - **Sıfırlama:** "Şube seçimlerini sıfırla" dersleri korur. "Planı temizle" seti saklar, "Son ders setini geri yükle" o anki setle yer değiştirir.
 - **Saklama:** Plan tarayıcıda `program-taslak` anahtarındadır (`courses`, `picks`, `off`, `active`, `last`).

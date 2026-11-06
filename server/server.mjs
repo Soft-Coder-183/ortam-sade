@@ -33,7 +33,7 @@ const CACHE_VER = 13;            // ayrıştırıcıların çıktısı değişin
 const STALE_AFTER = 20_000;      // varsayılan: kayıtlı veri hemen gösterilir, bu süreden eskiyse arka planda yenilenir
 // Seyrek değişen bilgiler okulun sunucusuna her açılışta sorulmaz (dakika cinsinden).
 const STALE_MIN = { exams: 10, schedule: 30, courses: 30, course: 360, derslerim: 10, mufredat: 60, bilgilerim: 60, notlar: 10,
-  ortak: 60, 'yabanci-dil': 60, odeme: 60, cap: 60, 'ortam-acilan': 360, 'ortam-basvuru': 10, 'etu-takvim': 1440, 'etu-fakulteler': 1440, 'etu-kadro': 1440, 'uzak-course': 10, 'piazza-resources': 30, 'uzakydb-course': 10, ubs: 5, plan: 10,
+  ortak: 60, 'yabanci-dil': 60, odeme: 60, cap: 60, 'ortam-acilan': 360, 'ortam-basvuru': 10, 'etu-takvim': 1440, 'etu-fakulteler': 1440, 'etu-kadro': 1440, 'etu-kadro-bolum': 1440, 'uzak-course': 10, 'piazza-resources': 30, 'uzakydb-course': 10, ubs: 5, plan: 10,
   'ortam-duyuru': 30, 'uzakydb-ek': 360, hatirlatmalar: 360 };
 const staleAfter = name => (STALE_MIN[name] ?? 0) * 60_000 || STALE_AFTER;
 const TYPES = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
@@ -64,6 +64,7 @@ const routes = {
   'ortam-acilan': ['ortam', ortam.offered],                 // dönemde açılan dersler (kodlar, ders veren öğretim elemanları)
   // Okulun herkese açık sitesi (giriş gerekmez): akademik takvim, fakülte/bölüm listesi, akademik kadro dizini
   'etu-takvim': ['etu', etu.calendar], 'etu-fakulteler': ['etu', etu.faculties], 'etu-kadro': ['etu', etu.staffIndex],
+  'etu-kadro-bolum': ['etu', q => etu.staff(q.get('slug'))],
   'ortam-basvuru': ['ortam', q => ortam.applyPage(q.get('path'))],   // hareketlilik formları ve başvurularım
   derslerim: ['ortam', courses.derslerim],
   'ortam-duyuru': ['ortam', ortam.notices],               // Ortam ana sayfasındaki anket ve duyuru kartları

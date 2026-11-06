@@ -35,12 +35,22 @@ toplayan, **senin bilgisayarında çalışan** açık kaynaklı bir öğrenci pr
 - **Okulun Siteleri:** bütün sitelerin ve sık kullanılan sayfaların orijinal adresleri tek sayfada (Hakkında ve SSS).
 - Açık/koyu tema, telefona uygun düzen.
 
+## Güvenilirlik
+
+Sürüm paketleri elle yüklenmez. 1.5.0'dan beri her sürüm **GitHub Actions'ta bu depodaki koddan üretilir** ([iş akışı](.github/workflows/surum.yml))
+ve GitHub'ın imzaladığı bir kaynak kanıtı (build provenance) taşır. İndirdiğin dosyayı [GitHub CLI](https://cli.github.com/) ile kendin doğrulayabilirsin:
+
+```
+gh attestation verify OrtamSade-1.6.4-win-x64.zip --repo Soft-Coder-183/ortam-sade
+```
+
+Sürüm numarasını kendi dosyanınkiyle değiştir. Komut başarılı olursa dosya bu depodan ve bu iş akışından çıkmıştır; arada değiştirilmemiştir.
+Şifren ve okul verilerin yalnızca kendi cihazında durur, arada başka bir sunucu yoktur.
+
 ## İndir ve çalıştır (Windows 10/11)
 
 1. [Releases](https://github.com/Soft-Coder-183/ortam-sade/releases/latest) sayfasından `OrtamSade-…-win-x64.zip` dosyasını indir.
-   Paketler elle yüklenmez: 1.5.0'dan beri her sürüm **GitHub Actions'ta bu depodaki koddan üretilir** ([iş akışı](.github/workflows/surum.yml)).
-   İndirdiğin dosyanın gerçekten bu depodan ve bu iş akışından çıktığını GitHub'ın imzalı kanıtıyla doğrulayabilirsin:
-   `gh attestation verify OrtamSade-X.Y.Z-win-x64.zip --repo Soft-Coder-183/ortam-sade`
+   Paketin bu koddan üretildiğini [doğrulayabilirsin](#güvenilirlik).
 2. Zip'i bir klasöre **çıkar** (zip'in içinden çalıştırma).
 3. **`Ortam Sade.cmd`** dosyasına çift tıkla. Uygulama tarayıcında `http://localhost:3000` adresinde açılır.
 4. **Hesap** ekranında okul e-postanı ve şifreni gir. Şifren sitelerde farklıysa "Siteye özel şifreler" bölümünü kullan.

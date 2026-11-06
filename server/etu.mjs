@@ -71,6 +71,30 @@ export async function faculties() {
   return { faculties: list.filter(f => f.units.length) };
 }
 
+// Bir bölümün kadro sayfası: kişiler, eğitim, araştırma alanları, iş deneyimi ve bağlantıları (uygulamanın içinde gösterilir).
+export async function staff(slug) {
+  if (!/^[\w-]+$/.test(slug || '')) throw new Error('Geçersiz bölüm');
+  const $ = await page(`/tr/bolum/${slug}/akademik-kadro`);
+  const people = $('article.user-list__item').map((_, a) => {
+    const el = $(a), h3 = el.find('h3').first(), name = txt(h3.find('strong').text());
+    if (!name) return [];
+    const img = el.find('.user-list__item__content img').attr('src');
+    const contact = el.find('h4').filter((_, h) => /Bağlantı/.test($(h).text())).first().parent();
+    return [{ id: el.attr('id') || '', name, title: txt(txt(h3.text()).replace(name, '').replace(/^\s*,\s*/, '')),
+      role: txt(el.find('.user-list__item__content > span').first().text()),
+      photo: img ? new URL(img, BASE).href : null,
+      education: el.find('.timeline__item').map((_, t) => ({ year: $(t).attr('data-year') || '', degree: txt($(t).find('h5').text()),
+        school: txt($(t).find('strong').text()), field: txt($(t).find('span').first().text()) })).get().filter(e => e.degree || e.school),
+      research: el.find('.user-list__detail__info__arastirma li').map((_, l) => txt($(l).text())).get().filter(Boolean),
+      experience: el.find('.user-list__detail__info__deneyim li').map((_, l) => ({ place: txt($(l).find('strong').text()), role: txt($(l).find('span').text()) })).get().filter(e => e.place || e.role),
+      links: contact.find('li').map((_, l) => {
+        const link = $(l).find('a').first(), href = link.attr('href');
+        return { text: txt($(l).text()), href: href ? new URL(href, BASE).href : null };
+      }).get().filter(l => l.text) }];
+  }).get();
+  return { people };
+}
+
 // Bütün bölümlerin kadro sayfalarından ad -> { unvan, bölüm, profil bağlantısı } dizini (aramada kullanılır).
 export async function staffIndex() {
   const { faculties: fs } = await faculties();

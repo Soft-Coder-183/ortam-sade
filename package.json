@@ -1,6 +1,6 @@
 {
   "name": "ortam-sade",
-  "version": "1.6.3",
+  "version": "1.6.4",
   "description": "TOBB ETÜ okul sitelerini (Ortam, UBS, Uzak, UZAKYDB, Webmail, Piazza) tek ve sade bir arayüzde toplayan, bilgisayarında çalışan bağımsız öğrenci projesi.",
   "license": "MIT",
   "private": true,

@@ -52,5 +52,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           zip=$(ls dist/OrtamSade-*-win-x64.zip)
-          gh release create "$GITHUB_REF_NAME" "$zip" --title "Ortam Sade ${GITHUB_REF_NAME#v}" --notes-file "notlar/$GITHUB_REF_NAME.md" --verify-tag
+          # Her sürümün notuna doğrulama komutu eklenir
+          { cat "notlar/$GITHUB_REF_NAME.md"
+            printf '\n## Doğrulama\n\nBu paket GitHub Actions'"'"'ta bu depodaki koddan üretildi. Kendin doğrulamak için:\n\n'
+            printf '```\ngh attestation verify %s --repo %s\n```\n' "$(basename "$zip")" "$GITHUB_REPOSITORY"
+          } > surum-notu.md
+          gh release create "$GITHUB_REF_NAME" "$zip" --title "Ortam Sade ${GITHUB_REF_NAME#v}" --notes-file surum-notu.md --verify-tag
           echo "SHA-256: $(sha256sum "$zip" | cut -d' ' -f1)" >> "$GITHUB_STEP_SUMMARY"

@@ -15,10 +15,8 @@ const NAV = [
   // Ekstra: telefonda alt çubukta yok (Ana Sayfa kısayollarında)
   { id: 'ekstra', label: 'Ekstra', short: 'Ekstra', icon: 'star', rare: true, items: [
     ['acilan', 'Açılan Dersler'], ['takvim', 'Akademik Takvim'], ['kadro', 'Akademik Kadro'], ['yabanci-diller', 'Yabancı Diller'],
-    ['mevzuat', 'Mevzuat'], ['duyurular', 'Öğrenci İşleri Duyuruları']] },
-  { id: 'cap', label: 'ÇAP/YAP - Başvurular', short: 'Başvuru', icon: 'arrows', bottom: true, rare: true, items: [
-    ['capyap', 'ÇAP / YAP'], ['staj', 'Staj Hareketliliği'], ['ogrenim', 'Öğrenim Hareketliliği'], ['mezun', 'Mezuniyet Sonrası Staj']] },
-  { id: 'hakkinda', label: 'Hakkında ve SSS', short: 'Hakkında', icon: 'help', rare: true, items: [
+    ['mevzuat', 'Mevzuat'], ['duyurular', 'Öğrenci İşleri Duyuruları'], ['cap', 'ÇAP/YAP - Başvurular']] },
+  { id: 'hakkinda', label: 'Hakkında ve SSS', short: 'Hakkında', icon: 'help', bottom: true, rare: true, items: [
     ['hakkimizda', 'Hakkımızda'], ['siteler', 'Okulun Siteleri'], ['sss', 'Sık Sorulan Sorular'], ['sorumluluk', 'Sorumluluk Reddi']] },
   { id: 'hesap', label: 'Hesap', short: 'Hesap', icon: 'settings', bottom: true, extra: true },
 ];
@@ -884,6 +882,14 @@ const viewApply = kind => async () => {
   return header(title, 'Dış İlişkiler başvurusu') + `<h2>Başvuru formu</h2>${part(form, 'Form bulunamadı.')}<h2>Başvurularım</h2>${part(list, 'Başvuru yok.')}`;
 };
 
+// Ekstra > ÇAP/YAP - Başvurular: dört sayfa tek bölümde sekmeli
+const BASVURU_TABS = [['', 'ÇAP / YAP'], ['staj', 'Staj Hareketliliği'], ['ogrenim', 'Öğrenim Hareketliliği'], ['mezun', 'Mezuniyet Sonrası Staj']];
+async function viewBasvuru(r) {
+  const k = APPLY_PAGES[r.param] ? r.param : '';
+  return `<div class="tabs">${BASVURU_TABS.map(([id, label]) => `<a href="#/ekstra/cap${id ? '/' + id : ''}" class="${id === k ? 'on' : ''}">${esc(label)}</a>`).join('')}</div>` +
+    await (k ? viewApply(k)() : viewCap());
+}
+
 function oFields(box) {
   const f = {};
   box.querySelectorAll('[name]').forEach(el => {
@@ -1040,7 +1046,7 @@ function hocaList(q) {
   return `<div class="ac-rows">${hits.slice(0, 30).map(n => {
     const m = match(n);
     const info = m.length ? [...new Set(m.map(p => `${p.title ? p.title + ' · ' : ''}${p.unit}`))].join(' / ') : '';
-    const link = m[0] ? `<a class="btn" href="${esc(m[0].url)}" target="_blank" rel="noopener">${icon('external')}Akademik kadro</a>` : '';
+    const link = m[0] ? `<a class="btn" href="${esc(kadroHref(m[0]))}">${icon('user')}Akademik kadro</a>` : '';
     return `<div class="pl-hoca"><div class="pl-hoca-h"><span><b>${esc(n)}</b>${info ? ` <span class="muted">${esc(info)}</span>` : ''}</span>${link}</div>
       ${hocaCourses(n).map(c => `<div class="${acRowCls(c)}"><span><b>${esc(c.c)}</b> <span class="muted">${esc(c.n)}</span></span><span></span>${acToggle(c)}</div>`).join('')}</div>`;
   }).join('')}</div>
@@ -1346,12 +1352,37 @@ async function viewTakvim() {
 }
 
 let kadroQ = '';
-async function viewKadro() {
+// Kişi bağlantısı uygulamanın içindeki bölüm sayfasına gider: #/ekstra/kadro/<bölüm>/<kişi>
+const kadroHref = p => {
+  const [, slug, id] = String(p.url).match(/\/bolum\/([\w-]+)\/akademik-kadro#?(.*)$/) || [];
+  return slug ? `#/ekstra/kadro/${slug}${id ? '/' + encodeURIComponent(id) : ''}` : '#/ekstra/kadro';
+};
+const kadroSearch = () => `<div class="card ac-search"><input type="search" data-kadro-q placeholder="İsimle ara (ör. Eravcı)" value="${esc(kadroQ)}" autocomplete="off"><div id="kadro-hits">${kadroHits()}</div></div>`;
+async function viewKadro(r, ctx) {
   const f = await api('etu-fakulteler');
-  return header('Akademik Kadro', 'Bölümü seç; okulun sitesindeki akademik kadro sayfası açılır') +
-    `<div class="card ac-search"><input type="search" data-kadro-q placeholder="İsimle ara (ör. Eravcı)" value="${esc(kadroQ)}" autocomplete="off"><div id="kadro-hits">${kadroHits()}</div></div>` +
+  if (r.param) return viewKadroBolum(r, ctx, f);
+  return header('Akademik Kadro', 'Bölümü seç ya da isimle ara') + kadroSearch() +
     f.faculties.map(fa => `<h2>${esc(fa.title)}</h2><div class="card mitems">${fa.units.map(u =>
-      `<div class="mi"><a class="mi-main" href="${esc(u.staffUrl)}" target="_blank" rel="noopener">${icon('external')}<span>${esc(u.name)}</span></a></div>`).join('')}</div>`).join('');
+      `<div class="mi"><a class="mi-main" href="#/ekstra/kadro/${esc(u.slug)}">${icon('user')}<span>${esc(u.name)}</span></a></div>`).join('')}</div>`).join('');
+}
+async function viewKadroBolum(r, ctx, f) {
+  const [slug, ...rest] = r.param.split('/');
+  const pick = rest.join('/');
+  const unit = f.faculties.flatMap(x => x.units).find(u => u.slug === slug);
+  const d = await api('etu-kadro-bolum?slug=' + encodeURIComponent(slug));
+  ctx.after = () => { if (pick) document.getElementById('k-' + pick)?.scrollIntoView({ block: 'start' }); };
+  const block = (title, html) => (html ? `<div class="k-block"><h3>${title}</h3>${html}</div>` : '');
+  const person = p => `<details class="card k-person" id="k-${esc(p.id)}" data-keep="k-${esc(p.id)}"${p.id === pick ? ' open' : ''}>
+    <summary>${p.photo ? `<img src="${esc(p.photo)}" alt="" loading="lazy">` : `<span class="k-nophoto">${icon('user')}</span>`}
+      <span class="k-id"><b>${esc(p.name)}</b><span class="muted">${esc(p.title)}</span>${p.role ? `<small class="muted">${esc(p.role)}</small>` : ''}</span></summary>
+    <div class="k-body">${
+      block('Eğitim', p.education.length ? `<ul>${p.education.map(e => `<li><b>${esc(e.degree)}</b>${e.year ? ` <span class="muted">${esc(e.year)}</span>` : ''}<br>${esc([e.school, e.field].filter(Boolean).join(' · '))}</li>`).join('')}</ul>` : '')}${
+      block('Araştırma alanları', p.research.length ? `<ul>${p.research.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : '')}${
+      block('İş deneyimi', p.experience.length ? `<ul>${p.experience.map(e => `<li><b>${esc(e.place)}</b>${e.role ? `<br>${esc(e.role)}` : ''}</li>`).join('')}</ul>` : '')}${
+      block('Bağlantı', p.links.length ? `<ul>${p.links.map(l => `<li>${l.href ? `<a href="${esc(l.href)}" target="_blank" rel="noopener">${esc(l.text)}</a>` : esc(l.text)}</li>`).join('')}</ul>` : '')}
+    </div></details>`;
+  return `<p class="k-back"><a href="#/ekstra/kadro">← Bütün bölümler</a></p>` + header(unit?.name || 'Akademik Kadro', `${d.people.length} kişi`) + kadroSearch() +
+    (d.people.map(person).join('') || '<div class="card msg">Bu bölümün kadro listesi boş.</div>');
 }
 function kadroHits() {
   const q = trFold(kadroQ.trim());
@@ -1367,7 +1398,7 @@ function kadroHits() {
   const hits = kadroIndex.people.filter(p => trFold(p.name).includes(q));
   if (!hits.length) return '<p class="muted">Bu adla kimse bulunamadı.</p>';
   return `<div class="ac-rows">${hits.slice(0, 30).map(p => `<div class="ac-row"><span><b>${esc(p.name)}</b> <span class="muted">${esc([p.title, p.unit].filter(Boolean).join(' · '))}</span></span>
-    <a class="btn" href="${esc(p.url)}" target="_blank" rel="noopener">${icon('external')}Profil</a></div>`).join('')}</div>`;
+    <a class="btn" href="${esc(kadroHref(p))}">${icon('user')}Profil</a></div>`).join('')}</div>`;
 }
 
 const YABANCI_DILLER = 'https://www.etu.edu.tr/tr/bolum/yabanci-diller-bolumu';
@@ -1535,10 +1566,11 @@ const TRASH = 'Trash';
 
 // ---------- Webmail: yıldızlar, Yıldızlılar görünümü, otomatik silme düğmeleri (fork D) ----------
 // state.mbox '__starred' iken Yıldızlılar (bütün klasörlerdeki yıldızlı e-postalar) gösterilir; her e-posta kendi klasörüyle
-// işlenir (mboxOf). Otomatik silme açıksa Gelen kutusundaki okunmuş e-postaların yanında "otomatik silme" düğmesi çıkar (basılı = korunur).
+// işlenir (mboxOf). Otomatik silme açıksa Gelen kutusundaki okunmuş e-postaların altında "Otomatik silinmesin" düğmesi çıkar (basılı = korunur).
 const STARRED = '__starred';
 const mailMbox = {};             // uid -> e-postanın klasörü (son listeden)
 const mboxOf = uid => mailMbox[uid] || (state.mbox === STARRED ? 'INBOX' : state.mbox);
+let mailAuto = null;             // otomatik silme açıksa uid -> { exempt, starred, dueAt } (son listeden)
 const hoursLeft = t => { const h = Math.max(0, Math.ceil((t - Date.now()) / 3600e3)); return h ? `${h} sa sonra` : 'bir sonraki turda'; };
 
 async function viewWebmail(r) {
@@ -1550,41 +1582,43 @@ async function viewWebmail(r) {
   const folders = `<div class="tabs">${m.folders.map((f, i) => tab(f.id, f.name) + (i === 0 ? tab(STARRED, 'Yıldızlılar', icon('star', 'sm')) : '')).join('')}</div>`;
   const total = (m.rowcount.match(/Toplam:\s*(\d+)/) || [])[1];
   const fname = id => m.folders.find(f => f.id === id)?.name || id;
-  const auto = m.auto?.enabled ? m.auto.items : null;
-  const autoBox = x => {
-    const a = auto?.[x.uid];
-    if (!a) return auto ? '<span class="ad-none"></span>' : '';   // hizalama: sütun her satırda var
-    if (a.starred) return '<span class="ad-tog on fixed" title="Yıldızlı e-postalar otomatik silinmez">otomatik silme</span>';
-    // Basılı (mavi) = "otomatik silme": bu e-posta korunur. Soluk = okunduktan 12 saat sonra Çöp'e taşınır.
-    return `<button type="button" class="ad-tog${a.exempt ? ' on' : ''}" data-autodel="${esc(x.uid)}" aria-pressed="${a.exempt}"
-      title="${a.exempt ? 'Korunuyor: otomatik silinmez. Kaldırmak için bas.' : `Okunduktan 12 saat sonra Çöp'e taşınır${a.dueAt ? ` (${hoursLeft(a.dueAt)})` : ''}. Korumak için bas.`}">otomatik silme</button>`;
-  };
+  mailAuto = m.auto?.enabled ? m.auto.items : null;
+  const auto = mailAuto;
+  // Satırın en sağındaki Sil: e-postayı açmadan Çöp'e taşır; Çöp'te kalıcı siler (iki tıklama)
+  const delBtn = x => (mboxOf(x.uid) === TRASH
+    ? `<button class="mdel" data-mact="purge" data-uid="${esc(x.uid)}" title="Kalıcı olarak sil">${icon('trash')}<span>Kalıcı sil</span></button>`
+    : `<button class="mdel" data-mact="delete" data-uid="${esc(x.uid)}" title="Çöp kutusuna taşı">${icon('trash')}<span>Sil</span></button>`);
   const sub = starredView ? `${m.messages.length} yıldızlı e-posta` : `${m.unread} okunmamış${total ? ` · ${total} ileti` : ''}`;
   return `<div class="row"><div>${header('Webmail', sub)}</div><span class="wm-head-actions"><a class="btn ghost" href="#/hesap" title="Webmail ayarları" data-goto-wmset>${icon('settings')}<span class="full">Ayarlar</span></a>
     <a class="btn primary newmail" href="#/webmail/yeni">${icon('pencil')}Yeni posta</a></span></div>` +
-    folders + (auto ? '<p class="muted small ad-info">Otomatik silme açık: okunmuş e-postalar okunduktan 12 saat sonra Çöp kutusuna taşınır. Korumak istediğin e-postanın yanındaki "otomatik silme" yazısına bas, mavi olur (yıldızlılar zaten silinmez).</p>' : '') +
-    `<div class="list${auto ? ' auto-on' : ''}">${m.messages.map(x =>
+    folders + (auto ? `<p class="muted small ad-info">Otomatik silme açık: okunan e-postalar 12 saat sonra Çöp'e taşınır.</p>` : '') +
+    `<div class="list">${m.messages.map(x =>
     `<details class="card mail ${x.seen ? '' : 'unread'} ${x.flagged ? 'starred' : ''}" data-mail="${esc(x.uid)}">
       <summary><button class="dot" data-mact="${x.seen ? 'unread' : 'read'}" data-uid="${esc(x.uid)}" title="${x.seen ? 'Okunmadı yap' : 'Okundu yap'}"></button>
         <span class="from">${esc(x.from)}</span><span class="subj">${x.attachment ? icon('paperclip', 'sm') : ''}${esc(x.subject)}${starredView && x.mbox !== 'INBOX' ? ` <span class="pill gray">${esc(fname(x.mbox))}</span>` : ''}</span>
         <span class="muted when">${esc(x.date)}</span>
         <button class="star ${x.flagged ? 'on' : ''}" data-mact="${x.flagged ? 'unflag' : 'flag'}" data-uid="${esc(x.uid)}" title="${x.flagged ? 'Yıldızı kaldır' : 'Yıldızla'}" aria-label="${x.flagged ? 'Yıldızı kaldır' : 'Yıldızla'}">${icon('star')}</button>
-        ${autoBox(x)}</summary>
+        ${delBtn(x)}</summary>
       <div class="mb">${mailBody[mboxOf(x.uid) + ':' + x.uid] ? mailView(mailBody[mboxOf(x.uid) + ':' + x.uid]) : '<p class="muted">Yükleniyor…</p>'}</div></details>`).join('') ||
     `<div class="card msg">${starredView ? 'Yıldızlı e-posta yok. Bir e-postayı yıldızlamak için satırdaki yıldıza dokun.' : 'Bu klasör boş.'}</div>`}</div>`;
 }
 // ---------- Webmail: yıldızlar … sonu ----------
 
+// Açık e-postanın sağ üstü: yanıt düğmeleri. Sağ altı: otomatik silme korumasını açıp kapatan düğme (Çöp'te geri alma).
 const mailTools = e => {
   const at = `${encodeURIComponent(e.uid)}/${encodeURIComponent(mboxOf(e.uid))}`;
-  const flagged = !!document.querySelector(`details[data-mail="${CSS.escape(String(e.uid))}"].starred`);
   return `<div class="mtools">
-    <a class="btn" href="#/webmail/yanit/${at}">${icon('reply')}Yanıtla</a><a class="btn" href="#/webmail/tumu/${at}">${icon('reply-all')}Tümünü yanıtla</a>
-    <a class="btn" href="#/webmail/ilet/${at}">${icon('forward')}İlet</a><button class="btn ghost" data-mact="unread" data-uid="${esc(e.uid)}">${icon('mail')}Okunmadı yap</button>
-    <button class="btn ghost" data-mact="${flagged ? 'unflag' : 'flag'}" data-uid="${esc(e.uid)}">${icon('star')}${flagged ? 'Yıldızı kaldır' : 'Yıldızla'}</button>
-    ${mboxOf(e.uid) === TRASH ? `<button class="btn" data-mact="restore" data-uid="${esc(e.uid)}">Gelen kutusuna taşı</button>
-      <button class="btn danger" data-mact="purge" data-uid="${esc(e.uid)}">${icon('trash')}Kalıcı sil</button>`
-      : `<button class="btn danger" data-mact="delete" data-uid="${esc(e.uid)}">${icon('trash')}Sil</button>`}</div>`;
+    <a class="btn" href="#/webmail/yanit/${at}">${icon('reply')}<span>Yanıtla</span></a><a class="btn" href="#/webmail/tumu/${at}">${icon('reply-all')}<span>Tümünü yanıtla</span></a>
+    <a class="btn" href="#/webmail/ilet/${at}">${icon('forward')}<span>İlet</span></a></div>`;
+};
+const mailFoot = e => {
+  const a = mailAuto?.[e.uid];
+  const parts = [];
+  if (mboxOf(e.uid) === TRASH) parts.push(`<button class="btn" data-mact="restore" data-uid="${esc(e.uid)}">Gelen kutusuna taşı</button>`);
+  if (a?.starred) parts.push('<span class="ad-tog on fixed" title="Yıldızlı e-postalar otomatik silinmez">Otomatik silinmesin</span>');
+  else if (a) parts.push(`<button type="button" class="ad-tog${a.exempt ? ' on' : ''}" data-autodel="${esc(e.uid)}" aria-pressed="${a.exempt}"
+    title="${a.exempt ? 'Korunuyor: otomatik silinmez. Kaldırmak için bas.' : `Okunduktan 12 saat sonra Çöp'e taşınır${a.dueAt ? ` (${hoursLeft(a.dueAt)})` : ''}. Korumak için bas.`}">Otomatik silinmesin</button>`);
+  return parts.length ? `<div class="mfoot">${parts.join('')}</div>` : '';
 };
 
 // Satırdaki ve açık e-postadaki işlemler. Kalıcı silme iki tıklama ister.
@@ -1599,7 +1633,7 @@ const MAIL_ACTIONS = {
 };
 async function mailAction(btn) {
   const { mact, uid } = btn.dataset;
-  if (mact === 'purge' && !btn.dataset.sure) { btn.dataset.sure = '1'; btn.textContent = 'Emin misiniz? Kalıcı olarak silinecek'; return; }
+  if (mact === 'purge' && !btn.dataset.sure) { btn.dataset.sure = '1'; btn.textContent = 'Emin misin?'; return; }
   const [endpoint, extra, msg] = MAIL_ACTIONS[mact]();
   btn.disabled = true;
   const r = await post('/api/webmail/' + endpoint, { uids: [uid], mbox: mboxOf(uid), ...extra });
@@ -1687,11 +1721,11 @@ async function sendMail(f) {
 // Ekler: PDF'ler uygulamanın içinde açılır, diğerleri indirilir.
 const attachUrl = (uid, a) => `/api/file/webmail?uid=${encodeURIComponent(uid)}&mbox=${encodeURIComponent(mboxOf(uid))}&part=${encodeURIComponent(a.part)}`;
 const isPdf = a => a.mime === 'application/pdf' || /\.pdf$/i.test(a.name);
-const mailView = e => `<p class="muted" style="margin:10px 0">${esc(e.from)}<br>Alıcı: ${esc(e.to)}${e.cc ? '<br>Bilgi: ' + esc(e.cc) : ''}<br>${esc(e.date)}</p>
+const mailView = e => `<div class="mhead"><p class="muted">${esc(e.from)}<br>Alıcı: ${esc(e.to)}${e.cc ? '<br>Bilgi: ' + esc(e.cc) : ''}<br>${esc(e.date)}</p>${mailTools(e)}</div>
   ${e.attachments.length ? `<div class="atts">${e.attachments.map(a => isPdf(a)
     ? `<button class="att" data-pdf="${esc(attachUrl(e.uid, a))}" data-title="${esc(a.name)}">${icon('file-text')}${esc(a.name)} <span class="muted">${esc(a.size)}</span></button>`
     : `<a class="att" href="${esc(attachUrl(e.uid, a))}&download=1" download="${esc(a.name)}">${icon('paperclip')}${esc(a.name)} <span class="muted">${esc(a.size)}</span></a>`).join('')}</div>` : ''}
-  ${mailTools(e)}<div class="mailbody">${e.html}</div>`;
+  <div class="mailbody">${e.html}</div>${mailFoot(e)}`;
 
 // Açılan e-posta okulun sunucusunda da okundu olur (önizleme bunu yapar; önbellekten açılsa bile ayrıca işaretlenir).
 async function openMail(el) {
@@ -1783,7 +1817,7 @@ const HOME_CARDS = [
   { id: 'piazza', title: 'Piazza', link: '#/donem/derslerim', api: 'piazza', body: homePiazza },
 ];
 const SHORTCUTS = [['#/profil/notlar', 'Not Görüntüleme'], ['#/donem/derslerim', 'Derslerim'],
-  ['#/ubs/' + encodeURIComponent('/Ogrenci/Ogr0204/Default.aspx?lang=tr-TR'), 'Transkript'], ['#/cap', 'ÇAP/YAP - Başvurular'],
+  ['#/ubs/' + encodeURIComponent('/Ogrenci/Ogr0204/Default.aspx?lang=tr-TR'), 'Transkript'], ['#/ekstra/cap', 'ÇAP/YAP - Başvurular'],
   ['#/ekstra/acilan', 'Açılan Dersler'], ['#/ekstra/takvim', 'Akademik Takvim']];
 
 // Kısayollar = en son kullanılan 6 sayfa (bu cihazda saklanır). Her çizimde adres ve sayfa başlığı kaydedilir;
@@ -1841,7 +1875,7 @@ async function viewHome(r, ctx) {
       <div class="hc-h"><a href="${c.link}">${esc(c.title)}</a><a class="muted" href="${c.link}">Tümü →</a></div>
       <div class="hc-b">${homeData[c.id] ? c.body(homeData[c.id]) : '<p class="muted">Yükleniyor…</p>'}</div></section>`).join('')}</div>` +
     `<h2>Son kullanılanlar</h2><div class="chips">${shortcuts().map(([href, label]) => `<a class="chip" href="${esc(href)}">${esc(label)}</a>`).join('')}</div>` +
-    `<p class="muted small home-more">Diğer bölümler: <a href="#/ekstra/acilan">Ekstra</a> · <a href="#/ekstra/mevzuat">Mevzuat</a> · <a href="#/cap/capyap">ÇAP/YAP - Başvurular</a> · <a href="#/hakkinda/hakkimizda">Hakkında ve SSS</a></p>`;
+    `<p class="muted small home-more">Diğer bölümler: <a href="#/ekstra/acilan">Ekstra</a> · <a href="#/ekstra/mevzuat">Mevzuat</a> · <a href="#/ekstra/cap">ÇAP/YAP - Başvurular</a> · <a href="#/hakkinda/hakkimizda">Hakkında ve SSS</a></p>`;
 }
 
 // Kart birden çok uçtan besleniyorsa (api dizi) gövde her ucun sonucunu alır: { site, data | login, siteName }.
@@ -1954,7 +1988,7 @@ async function fillWmSettings() {
   const when = t => (t ? whenTR(t) : '—');
   box.innerHTML = `<label class="check"><input type="checkbox" data-wm-auto${s.enabled ? ' checked' : ''}> Okunan e-postaları ${s.afterHours} saat sonra sil</label>
     <p class="muted small" style="margin:4px 0 8px">Gelen kutusundaki okunmuş e-postalar okunduktan ${s.afterHours} saat sonra <b>Çöp kutusuna taşınır</b> (kalıcı silinmez, Çöp'ten geri alınabilir).
-      Yıldızlı e-postalar hiç taşınmaz; açıkken listede her okunmuş e-postanın yanında çıkan "otomatik silme" yazısına basıp maviye çevirerek tek tek de koruyabilirsiniz.
+      Yıldızlı e-postalar hiç taşınmaz; açıkken okunmuş bir e-postayı açıp alttaki "Otomatik silinmesin" düğmesine basarak tek tek de koruyabilirsiniz.
       Kontrol saatte bir, uygulama açıkken yapılır.</p>
     ${s.enabled ? `<p class="small">Son tur: ${when(s.lastRun)}${s.lastRun ? ` · ${s.lastMoved} e-posta taşındı` : ''} · Sonraki tur: ${when(s.nextRun)} · Toplam taşınan: ${s.totalMoved}</p>` : ''}
     ${s.lastError ? `<p class="small bad">Son hata: ${esc(s.lastError)}</p>` : ''}
@@ -1971,7 +2005,7 @@ $view.addEventListener('change', async e => {
   }
 });
 $view.addEventListener('click', async e => {
-  // Satır başlığındaki "otomatik silme" düğmesi: basılı (mavi) = korunur, soluk = 12 saat sonra Çöp'e. E-postayı açıp kapatmaz.
+  // Açık e-postanın altındaki "Otomatik silinmesin" düğmesi: basılı (mavi) = korunur, soluk = 12 saat sonra Çöp'e.
   if (e.target.closest('.ad-tog.fixed')) { e.preventDefault(); return; }
   const tog = e.target.closest('button.ad-tog[data-autodel]');
   if (tog) {
@@ -2082,7 +2116,8 @@ const SSS = [
   ['Şifrelerim her sitede aynı değil, ne yapmalıyım?', 'Hesap sayfasında "Siteye özel şifreler" bölümünü aç; farklı olan sitenin şifresini oraya yaz. Boş bıraktığın siteler ana şifreni kullanır.'],
   ['Okulun sunucularını yorar mı?', 'Hayır, normal kullanıma yakındır. Yalnızca açtığın ekran okuldan istenir ve kısa süre önbellekte tutulur. Arka planda oturumu açık tutmak için seyrek kontroller yapılır; siteye zaten bir istek gittiyse o kontrol atlanır. Bildirimler için Piazza yarım saatte, Uzak saatte bir sorulur.'],
   ['Bildirimler nasıl geliyor?', 'Uygulama açıkken Piazza ve Uzak\'taki yeni içerikleri ve Akademik Takvimde yaklaşan önemli tarihleri kontrol eder (Uzak turuncu, Piazza mavi noktayla gösterilir); yenilik varsa Windows bildirimi gösterir ve (açıksa) okul adresine "[Ortam Sade · Bildirim]" konulu bir özet e-posta yollar. Uygulama kapalıyken kontrol yapılmaz. Hesap > Bildirimler\'den kapatabilirsin.'],
-  ['Otomatik silme e-postalarımı kalıcı olarak siler mi?', 'Hayır. Ayar açıksa okunmuş e-postalar 12 saat sonra Çöp kutusuna taşınır, oradan geri alınabilir. Yıldızlı e-postalar ve yanındaki "otomatik silme" yazısına basıp maviye çevirdiğin e-postalar hiç taşınmaz. Ayar varsayılan olarak kapalıdır.'],
+  ['İndirdiğim paketin bu koddan üretildiğini nasıl anlarım?', 'Sürüm paketleri elle yüklenmez: GitHub Actions bu depodaki koddan üretir ve imzalı kaynak kanıtı ekler. GitHub CLI kuruluysa indirdiğin dosyanın yanında şu komutu çalıştır: gh attestation verify OrtamSade-1.6.4-win-x64.zip --repo Soft-Coder-183/ortam-sade. Sürüm numarasını kendi dosyanınkiyle değiştir. "Verification succeeded" yazıyorsa dosya bu depodan ve bu iş akışından çıkmıştır.'],
+  ['Otomatik silme e-postalarımı kalıcı olarak siler mi?', 'Hayır. Ayar açıksa okunmuş e-postalar 12 saat sonra Çöp kutusuna taşınır, oradan geri alınabilir. Yıldızlı e-postalar ve "Otomatik silinmesin" düğmesine basılanlar taşınmaz. Ayar varsayılan olarak kapalıdır.'],
   ['Bazı bilgiler neden yok (ör. açılan derslerin şube ve saatleri)?', 'Ortam bu bilgileri yalnızca doğrulamalı (reCAPTCHA) aramayla veriyor. Uygulama doğrulamaları aşmadığı için bu bilgiler için okulun sayfasına bağlantı verilir.'],
   ['Uzak\'ta sınav, ödev yükleme ya da Safe Exam Browser isteyen içerik olursa?', 'İçeriğin kendisi (açıklama, dosyalar, bağlantılar, Safe Exam Browser indirme bağlantısı ve yapılandırma dosyası) uygulamada görünür. Sınava başlama, ödev yükleme, foruma yazma gibi işlemler okulun sitesinde yapılır; sayfanın üstünde "Sitede aç" bağlantısı çıkar.'],
   ['Uygulama nasıl güncellenir?', 'Yeni sürüm çıkınca uygulama sağ altta sorar; "Güncelle"ye basmadan hiçbir şey indirilmez. Basınca sürüm yalnızca GitHub sayfamızdan indirilir, SHA-256 özetiyle doğrulanır, kurulur ve uygulama kendini yeniden başlatır. Şifren, oturumların ve ayarların korunur. Hakkımızda sayfasından elle de denetleyebilirsin.'],
@@ -2421,7 +2456,7 @@ async function checkServer() {
   } else if (ok && b) { b.remove(); render(); }
 }
 setInterval(checkServer, 20_000);
-const srvStateHtml = () => `<a class="theme-quick srv-state${serverUp ? '' : ' down'}" href="#/hesap" title="Uygulamanın durumu: Hesap > Güvenlik ve Oturumlar"><i></i>Durum: ${serverUp ? 'Açık' : 'Kapalı'}</a>`;
+const srvStateHtml = () => `<a class="srv-state${serverUp ? '' : ' down'}" href="#/hesap" title="Uygulamanın durumu: Hesap > Güvenlik ve Oturumlar"><i></i>Durum: ${serverUp ? 'Açık' : 'Kapalı'}</a>`;
 
 const dur = ms => { const m = Math.round(ms / 60_000); return m < 60 ? `${m} dk` : m < 1440 ? `${Math.floor(m / 60)} sa ${m % 60} dk` : `${Math.floor(m / 1440)} gün ${Math.floor((m % 1440) / 60)} sa`; };
 const clock = t => (t ? new Date(t).toLocaleString('tr-TR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—');
@@ -2525,7 +2560,7 @@ const views = {
   'profil/ortak': simpleView('ortak', 'Ortak Eğitim Bilgilerim'), 'profil/yabanci-dil': simpleView('yabanci-dil', 'İkinci Yabancı Dil Bilgilerim'),
   'profil/odeme': simpleView('odeme', 'Ödeme Bilgilerim'), 'ekstra/acilan': viewAcilan, 'ekstra/takvim': viewTakvim,
   'ekstra/kadro': viewKadro, 'ekstra/yabanci-diller': viewYabanciDiller,
-  'cap/capyap': viewCap, 'cap/staj': viewApply('staj'), 'cap/ogrenim': viewApply('ogrenim'), 'cap/mezun': viewApply('mezun'),
+  'ekstra/cap': viewBasvuru,
   ubs: viewUbs, uzakydb: viewUzakydb, webmail: viewWebmail, piazza: viewPiazza, hesap: viewHesap,
   'ekstra/mevzuat': viewMevzuat, 'ekstra/duyurular': viewMvDuyurular,
   'hakkinda/hakkimizda': viewHakkimizda, 'hakkinda/siteler': viewSiteler, 'hakkinda/sss': viewSss, 'hakkinda/sorumluluk': viewSorumluluk,
@@ -2541,6 +2576,9 @@ function route() {
     location.replace(s === 'duyurular' ? `#/ekstra/duyurular${rest ? '/' + rest : ''}` : s === 'tumu' ? `#/ekstra/mevzuat/${rest ? 'belge/' + rest : 'tumu'}`
       : `#/ekstra/mevzuat${rest ? '/ara/' + rest : ''}`);
   }
+  // ÇAP/YAP - Başvurular da Ekstra'nın altına taşındı
+  const cap = location.hash.match(/^#\/cap(?:\/(capyap|staj|ogrenim|mezun))?/);
+  if (cap) location.replace(`#/ekstra/cap${cap[1] && cap[1] !== 'capyap' ? '/' + cap[1] : ''}`);
   const [g, s, ...rest] = location.hash.replace(/^#\/?/, '').split('/');
   const group = NAV.find(n => n.id === g) || NAV.find(n => n.id === 'anasayfa');
   const item = group.items && (group.items.find(i => i[0] === s) || group.items[0]);
@@ -2559,12 +2597,12 @@ function renderNav({ group, sub }) {
       `<a href="#/${n.id}/${id}" class="${id === sub ? 'on' : ''}">${esc(label)}${n.id === 'donem' && id === 'derslerim' ? srcDots(notif.bySource, true) : ''}</a>`).join('')}</div>` : '';
     const cls = ['grp', n === firstBottom && 'push', n.extra && 'extra', n.rare && 'rare', n === group && 'on'].filter(Boolean).join(' ');
     return `<a href="${href}" class="${cls}"${n === group ? ' aria-current="page"' : ''}>${icon(n.icon)}<span class="full">${esc(n.label)}</span><span class="short">${esc(n.short)}</span>${n.id === 'donem' ? srcDots(notif.bySource, true) : ''}</a>${subs}`;
-  }).join('') + srvStateHtml() + themeQuick();
+  }).join('') + srvStateHtml();
 }
 
 // ---------- Tema ----------
 // Görünüm tercihi bu cihazda saklanır: 'auto' (cihazın ayarı), 'light', 'dark'. index.html tercihi ilk çizimden önce
-// <html data-theme> olarak uygular; burada seçici, menüdeki hızlı düğme ve tarayıcı çubuğu rengi güncellenir.
+// <html data-theme> olarak uygular; burada Hesap'taki seçici ve tarayıcı çubuğu rengi güncellenir.
 const THEMES = [['auto', 'Otomatik', 'contrast'], ['light', 'Aydınlık', 'sun'], ['dark', 'Karanlık', 'moon']];
 function getTheme() {
   try { const t = localStorage.getItem('tema'); return t === 'light' || t === 'dark' ? t : 'auto'; } catch { return 'auto'; }
@@ -2579,23 +2617,12 @@ function applyTheme(t = getTheme()) {
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.content = getComputedStyle(root).getPropertyValue('--card').trim() || '#ffffff';
   document.querySelectorAll('[data-theme-set]').forEach(b => b.setAttribute('aria-checked', String(b.dataset.themeSet === t)));
-  const q = document.querySelector('[data-theme-cycle]');
-  if (q) q.outerHTML = themeQuick();
 }
 const themePicker = () => `<div class="theme-pick" role="radiogroup" aria-label="Görünüm">${THEMES.map(([id, label, ic]) =>
   `<button type="button" role="radio" aria-checked="${id === getTheme()}" data-theme-set="${id}">${icon(ic)}${label}</button>`).join('')}</div>`;
-// Masaüstünde menünün en altında: tıkladıkça Otomatik → Aydınlık → Karanlık
-function themeQuick() {
-  const [, label, ic] = THEMES.find(x => x[0] === getTheme());
-  return `<button type="button" class="theme-quick" data-theme-cycle title="Görünüm değiştir">${icon(ic)}<span>Görünüm: ${label}</span></button>`;
-}
 document.addEventListener('click', e => {
   const set = e.target.closest('[data-theme-set]');
-  if (set) return setTheme(set.dataset.themeSet);
-  if (e.target.closest('[data-theme-cycle]')) {
-    const i = THEMES.findIndex(x => x[0] === getTheme());
-    setTheme(THEMES[(i + 1) % THEMES.length][0]);
-  }
+  if (set) setTheme(set.dataset.themeSet);
 });
 try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => applyTheme()); } catch {}
 applyTheme();
