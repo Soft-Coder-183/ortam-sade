@@ -77,7 +77,7 @@ Okulun siteleri ve mevzuat.gov.tr
 | Ana Sayfa | Bugünkü dersler ve sınavlar, yaklaşan sınavlar, posta, Piazza, son kullanılan 6 sayfa; üstte Ortam'da bekleyen anket ve duyurular, UZAKYDB ek içerik, yaklaşan son tarihler |
 | Dönem Bilgilerim | Derslerim (Ortam, Uzak, Piazza tek sayfada), Ders Programım |
 | Sınav Takvimi | Ara Sınav, Final ya da Bütünleme; her sınav tek satırda |
-| Webmail | Okundu senkronizasyonu, yazma, yanıtlama, yıldızlar, satırda Sil, isteğe bağlı otomatik silme (okunanlar 12 saat sonra Çöp'e; açık e-postanın altında "Otomatik silinmesin") |
+| Webmail | Okundu senkronizasyonu, yazma, yanıtlama, yıldızlar, satırda Sil, Çöp'te Geri getir, isteğe bağlı otomatik silme (okunanlar 12 saat sonra Çöp'e; açık e-postanın altında "Otomatik silinmesin") |
 | Piazza, UBS, UZAKYDB | Kendi sade arayüzleri; PDF'ler uygulama içinde açılır |
 | Ekstra | Açılan Dersler ve haftalık plan, Akademik Takvim, Akademik Kadro (uygulamanın içinde), Yabancı Diller, Mevzuat, Öğrenci İşleri Duyuruları, ÇAP/YAP - Başvurular |
 | Hakkında ve SSS | Hakkımızda, Okulun Siteleri, SSS, Sorumluluk Reddi |
@@ -95,6 +95,8 @@ Okulun siteleri ve mevzuat.gov.tr
 - **Otomatik program:** Çakışmayan en iyi 5 kombinasyon üretilir. Etikette önce boşluk süresi, sonra gün sayısı yazar.
 - **Sıfırlama:** "Şube seçimlerini sıfırla" dersleri korur. "Planı temizle" seti saklar, "Son ders setini geri yükle" o anki setle yer değiştirir.
 - **Saklama:** Plan tarayıcıda `program-taslak` anahtarındadır (`courses`, `picks`, `off`, `active`, `last`).
+
+**Hesap ve giriş:** Hesap'tan giriş yapınca sayfada kalınır. Ortam doğrudan girişi desteklemez (görünmez reCAPTCHA); bilgiler bir sitede kabul edilince görünür pencere kendiliğinden açılır, Oturumlar tablosunda da giriş düğmesi vardır.
 
 **Bilinen veri sorunu:** mevzuat.gov.tr'deki Lisans Yönetmeliği metni 2011 hâlidir ve "bütünleme yok" der. Kullanıcı bütünlemenin yapıldığını doğruladı; hızlı yanıt bunu açıkça söyler.
 

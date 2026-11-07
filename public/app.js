@@ -1584,10 +1584,11 @@ async function viewWebmail(r) {
   const fname = id => m.folders.find(f => f.id === id)?.name || id;
   mailAuto = m.auto?.enabled ? m.auto.items : null;
   const auto = mailAuto;
-  // Satırın en sağındaki Sil: e-postayı açmadan Çöp'e taşır; Çöp'te kalıcı siler (iki tıklama)
-  const delBtn = x => (mboxOf(x.uid) === TRASH
-    ? `<button class="mdel" data-mact="purge" data-uid="${esc(x.uid)}" title="Kalıcı olarak sil">${icon('trash')}<span>Kalıcı sil</span></button>`
-    : `<button class="mdel" data-mact="delete" data-uid="${esc(x.uid)}" title="Çöp kutusuna taşı">${icon('trash')}<span>Sil</span></button>`);
+  // Satırın en sağındaki Sil: e-postayı açmadan Çöp'e taşır. Çöp'te: Geri getir ve Kalıcı sil (iki tıklama).
+  const delBtn = x => `<span class="mrow">${mboxOf(x.uid) === TRASH
+    ? `<button class="mdel back" data-mact="restore" data-uid="${esc(x.uid)}" title="Gelen kutusuna geri getir">${icon('reply')}<span>Geri getir</span></button>
+       <button class="mdel" data-mact="purge" data-uid="${esc(x.uid)}" title="Kalıcı olarak sil">${icon('trash')}<span>Kalıcı sil</span></button>`
+    : `<button class="mdel" data-mact="delete" data-uid="${esc(x.uid)}" title="Çöp kutusuna taşı">${icon('trash')}<span>Sil</span></button>`}</span>`;
   const sub = starredView ? `${m.messages.length} yıldızlı e-posta` : `${m.unread} okunmamış${total ? ` · ${total} ileti` : ''}`;
   return `<div class="row"><div>${header('Webmail', sub)}</div><span class="wm-head-actions"><a class="btn ghost" href="#/hesap" title="Webmail ayarları" data-goto-wmset>${icon('settings')}<span class="full">Ayarlar</span></a>
     <a class="btn primary newmail" href="#/webmail/yeni">${icon('pencil')}Yeni posta</a></span></div>` +
@@ -1614,7 +1615,7 @@ const mailTools = e => {
 const mailFoot = e => {
   const a = mailAuto?.[e.uid];
   const parts = [];
-  if (mboxOf(e.uid) === TRASH) parts.push(`<button class="btn" data-mact="restore" data-uid="${esc(e.uid)}">Gelen kutusuna taşı</button>`);
+  if (mboxOf(e.uid) === TRASH) parts.push(`<button class="btn" data-mact="restore" data-uid="${esc(e.uid)}">${icon('reply')}Geri getir</button>`);
   if (a?.starred) parts.push('<span class="ad-tog on fixed" title="Yıldızlı e-postalar otomatik silinmez">Otomatik silinmesin</span>');
   else if (a) parts.push(`<button type="button" class="ad-tog${a.exempt ? ' on' : ''}" data-autodel="${esc(e.uid)}" aria-pressed="${a.exempt}"
     title="${a.exempt ? 'Korunuyor: otomatik silinmez. Kaldırmak için bas.' : `Okunduktan 12 saat sonra Çöp'e taşınır${a.dueAt ? ` (${hoursLeft(a.dueAt)})` : ''}. Korumak için bas.`}">Otomatik silinmesin</button>`);
@@ -1748,7 +1749,6 @@ async function openMail(el) {
 // ---------- Ana Sayfa ----------
 // Sayfa hemen çizilir; kartlar birbirini beklemeden kendi uçlarından (sunucuda önbellekli) dolar.
 // Oturumu kapalı sitenin kartında giriş düğmesi çıkar.
-let flash = null;                // Hesap'tan gelince bir kez gösterilecek uyarı (güvenli HTML)
 const homeData = {};             // kart -> son veri (Ana Sayfa'ya dönünce kartlar boş görünmesin)
 const minutes = hm => { const [h, m] = hm.split(':').map(Number); return h * 60 + m; };
 const whenTR = t => new Date(t).toLocaleString('tr-TR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -1867,10 +1867,8 @@ async function viewHome(r, ctx) {
   const now = new Date();
   const h = now.getHours();
   const greet = h < 5 ? 'İyi geceler' : h < 12 ? 'Günaydın' : h < 18 ? 'İyi günler' : 'İyi akşamlar';
-  const note = flash ? `<div class="banner">${flash} <a href="#/hesap">Hesap</a></div>` : '';
-  flash = null;
   ctx.after = () => { HOME_CARDS.forEach(c => loadCard(c)); loadHomeNotices(); };
-  return header(greet, now.toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long' })) + note + '<div id="home-notices"></div>' +
+  return header(greet, now.toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long' })) + '<div id="home-notices"></div>' +
     `<div class="home">${HOME_CARDS.map(c => `<section class="card hc" data-card="${c.id}">
       <div class="hc-h"><a href="${c.link}">${esc(c.title)}</a><a class="muted" href="${c.link}">Tümü →</a></div>
       <div class="hc-b">${homeData[c.id] ? c.body(homeData[c.id]) : '<p class="muted">Yükleniyor…</p>'}</div></section>`).join('')}</div>` +
@@ -2054,12 +2052,13 @@ async function viewHesap() {
       <label class="check"><input name="remember" type="checkbox" checked><span>Beni hatırla <span class="muted">(Windows'un şifreli kasasında saklanır)</span></span></label>
       <div class="row"><button type="submit">Giriş yap</button>${a.email ? '<button type="button" class="ghost" data-forget>Kayıtlı bilgileri sil</button>' : ''}</div>
     </form></div>` +
-    `<h2>Oturumlar</h2><div class="card">${table([
+    `<h2>Oturumlar</h2><div class="card" id="acct-sessions">${table([
       ['Site', r => `<b>${esc(SITE_NAMES[r.site] || r.site)}</b>`],
       ['Durum', r => r.alive ? '<span class="pill ok">açık</span>' : '<span class="pill warn">kapalı</span>'],
-      ['Giriş', r => r.direct ? (r.blocked ? '<span class="pill bad">otomatik giriş durdu</span>' : 'otomatik')
-        : '<span class="muted">tek tıkla: pencere açılır, bilgileriniz doldurulur (doğrulama sorusu çıkarsa siz yanıtlarsınız)</span>'],
-      ['', r => resultText(r.site)]], rows)}</div>` +
+      ['Giriş', r => (r.direct ? (r.blocked ? '<span class="pill bad">otomatik giriş durdu</span>' : 'otomatik')
+        : r.alive ? 'tarayıcı penceresi' : loginButton(`${SITE_NAMES[r.site] || r.site} için giriş yap`, r.site))],
+      ['', r => resultText(r.site)]], rows)}
+      ${rows.some(r => !r.direct && !r.alive) ? `<p class="muted small">Ortam'a yalnızca tarayıcı penceresinden girilebilir, çünkü sitede güvenlik doğrulaması var. Pencere açılır, bilgilerin doldurulur; doğrulama sorusu çıkarsa sen yanıtlarsın.</p>` : ''}</div>` +
     `<p class="muted">${a.email ? (a.remembered ? 'Bilgileriniz bu bilgisayarda şifreli olarak saklanıyor.' : 'Bilgileriniz yalnızca uygulama açıkken bellekte tutuluyor.') : 'Henüz kayıtlı bilgi yok.'}</p>` +
     securitySection(st) + notifSection() + webmailSettingsSection() +
     `<h2>Görünüm</h2><div class="card">${themePicker()}<p class="muted small" style="margin:10px 0 0">Otomatik: cihazın açık/koyu ayarını izler. Seçim bu cihazda saklanır.</p></div>`;
@@ -2079,12 +2078,14 @@ async function submitAccount(f) {
     return btn.insertAdjacentHTML('afterend', `<span class="muted">${esc(j.error || 'Giriş başarısız')}</span>`);
   }
   lastLogin = j;
-  // En az bir site kabul ettiyse Ana Sayfa'ya geç; kabul etmeyen site varsa orada bir kez uyar.
-  const results = Object.entries(j.results || {});
-  if (!results.some(([, x]) => x.ok)) return render();
-  const failed = results.filter(([, x]) => !x.ok);
-  flash = failed.length ? failed.map(([s, x]) => `${esc(SITE_NAMES[s] || s)}: ${x.rejected ? 'şifre kabul edilmedi' : esc(x.error)}`).join(' · ') : null;
-  location.hash = '#/anasayfa';
+  // Hesap'ta kalınır: Oturumlar tablosunda her sitenin durumu ve sonucu görünür.
+  await render();
+  document.getElementById('acct-sessions')?.scrollIntoView({ block: 'center' });
+  // Ortam yalnızca tarayıcı penceresiyle girilir: bilgiler bir sitede kabul edildiyse pencere kendiliğinden açılır
+  if (Object.values(j.results || {}).some(x => x.ok)) {
+    const b = document.querySelector('#acct-sessions [data-login="ortam"]');
+    if (b) doLogin(b);
+  }
 }
 
 // ---------- Hakkında: Hakkımızda, Sık Sorulan Sorular, Sorumluluk Reddi ----------

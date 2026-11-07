@@ -641,6 +641,8 @@ tr.ac-picked td { background: var(--accent-soft); }
 .mdel { display: inline-flex; align-items: center; gap: 4px; height: 30px; padding: 0 9px; border: 0; border-radius: 8px; background: none; color: var(--muted); font: inherit; font-size: .82rem; font-weight: 550; cursor: pointer; white-space: nowrap; }
 .mdel .ic { width: 15px; height: 15px; }
 .mdel:hover { color: var(--red); background: var(--red-soft); }
+.mdel.back:hover { color: var(--accent); background: var(--accent-soft); }
+.mrow { display: inline-flex; gap: 2px; justify-self: end; }
 .mhead { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px 14px; flex-wrap: wrap; margin: 10px 0 12px; }
 .mhead p { flex: 1 1 220px; min-width: 0; margin: 0; overflow-wrap: anywhere; font-size: .9rem; line-height: 1.4; }
 .mfoot { display: flex; justify-content: flex-end; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
@@ -661,8 +663,9 @@ a.inapp { color: var(--accent); font-weight: 600; }
 @media (max-width: 800px) {
   .mail summary { grid-template-columns: auto 1fr auto auto; }
   .mail summary .subj { grid-column: 2 / 4; grid-row: 2; }
-  .mail summary .mdel { grid-column: 4; grid-row: 2; padding: 0 4px; justify-self: end; }
-  .mail summary .mdel span { display: none; }
+  .mail summary .mrow { grid-column: 4; grid-row: 2; }
+  .mail summary .mdel { padding: 0 4px; }
+  .mail summary .mdel:not(.back) span { display: none; }
   .wm-head-actions .btn.ghost .full { display: none; }
 }
 
