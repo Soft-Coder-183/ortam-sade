@@ -118,4 +118,31 @@ export async function visibleLogin(s, fill = null) {
   }
 }
 
+// Sitenin bir sayfası görünür pencerede açılır ve kullanıcı sekmeyi ya da pencereyi kapatana kadar açık kalır (ör. Ortam'daki
+// anket). Uygulamanın oturum çerezleri pencereye verilir. Oturum düşmüşse giriş formu kayıtlı bilgilerle doldurulur ve gönderilir
+// (doğrulama sorusu çıkarsa kullanıcı yanıtlar). Pencerede yeniden girildiyse yeni çerezler döner, girilmediyse null.
+export async function openPage(s, url, { fill = null, cookies = [] } = {}) {
+  const ctx = await acquireVisible();
+  try {
+    if (cookies.length) await ctx.addCookies(cookies.map(c => ({ name: c.name, value: c.value, url: s.base }))).catch(() => {});
+    const page = await ctx.newPage();
+    await page.goto(url, { waitUntil: 'load' }).catch(() => {});
+    await page.bringToFront().catch(() => {});
+    const until = Date.now() + 60 * 60_000;
+    let filled = false;
+    while (!page.isClosed() && Date.now() < until) {
+      if (!filled && fill && s.userField && (await page.$(s.passwordField).catch(() => null))) {
+        filled = true;
+        await autofill(page, s, fill).catch(() => {});
+      }
+      await new Promise(r => setTimeout(r, 1000));
+    }
+    const back = filled ? await ctx.cookies(s.base).catch(() => null) : null;
+    await page.close().catch(() => {});
+    return back;
+  } finally {
+    await releaseVisible(ctx);
+  }
+}
+
 export const clearCookies = host => withHiddenBrowser(ctx => ctx.clearCookies({ domain: host }));

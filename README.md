@@ -59,7 +59,9 @@ Windows "bilinmeyen yayımcı" uyarısı verirse: *Ek bilgi → Yine de çalış
 1. [Releases](https://github.com/Soft-Coder-183/ortam-sade/releases/latest) sayfasından `OrtamSade-…-win-x64.zip` dosyasını indir.
    Paketin bu koddan üretildiğini [doğrulayabilirsin](#güvenilirlik).
 2. Zip'i bir klasöre **çıkar** (zip'in içinden çalıştırma).
-3. **`Ortam Sade.cmd`** dosyasına çift tıkla. Uygulama tarayıcında `http://localhost:3000` adresinde açılır.
+3. **`Ortam Sade.cmd`** dosyasına çift tıkla. Uygulama kendi penceresinde açılır (adres çubuğu yok, görev çubuğunda ayrı simge):
+   varsayılan tarayıcın Chrome, Edge, Brave ya da Vivaldi ise onun uygulama modu, değilse Edge kullanılır. Aynı adres
+   (`http://localhost:3000`) normal tarayıcıda da açılır.
 4. **Hesap** ekranında okul e-postanı ve şifreni gir. Şifren sitelerde farklıysa "Siteye özel şifreler" bölümünü kullan.
 
 - Açılan siyah pencere açık kaldıkça uygulama çalışır; kapatınca (ya da Hesap > Güvenlik ve Oturumlar > "Uygulamayı kapat") durur.

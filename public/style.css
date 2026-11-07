@@ -109,6 +109,8 @@ main { margin-left: var(--nav-w); padding: 32px clamp(16px, 4vw, 44px) 64px; max
 .btn.danger { border-color: color-mix(in srgb, var(--red) 45%, transparent); color: var(--red); background: none; }
 .btn.danger:hover { background: var(--red-soft); border-color: var(--red); color: var(--red); }
 .btn:disabled, .msg button:disabled, .banner button:disabled, .acct button:disabled { opacity: .6; cursor: wait; }
+.rz-form [data-rez-go]:disabled { cursor: not-allowed; }       /* saat seçilmedi: yalnızca tıklanmaz, yükleniyor imleci yok */
+.rz-form [data-rez-go].busy { cursor: wait; }
 .msg button { margin-top: 12px; }
 .banner button { margin: 0; min-height: 34px; padding: 5px 12px; }
 

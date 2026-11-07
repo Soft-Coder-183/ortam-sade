@@ -4,7 +4,7 @@ title Ortam Sade
 cd /d "%~dp0"
 if /i "%~1"=="arka" set ORTAM_ARKA=1
 if not defined ORTAM_YENIDEN if not defined ORTAM_ARKA set ORTAM_AC=1
-echo Ortam Sade baslatiliyor; tarayicida kendiliginden acilacak.
+echo Ortam Sade baslatiliyor; uygulama penceresi kendiliginden acilacak.
 echo Bu pencere acik kaldikca uygulama calisir. Kapatinca uygulama durur.
 echo.
 if exist "runtime\node.exe" (set "NODE=runtime\node.exe") else (set "NODE=node")

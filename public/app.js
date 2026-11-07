@@ -613,7 +613,7 @@ async function viewNotlar() {
     : `<div class="grid">${n.donemlik.map(t => `<div class="card"><h2 style="margin-top:0">${esc(t.term)}</h2>${
         table([['Kod', r => `<b>${esc(r.code)}</b>`], ['Not', r => gradeChip(r.grade)]], t.courses)}</div>`).join('')}</div>`;
   const survey = n.survey ? `<div class="banner mv-banner"><span><b>Anket gerekiyor.</b> ${esc(n.survey.text)}</span>
-    <a class="btn" href="${esc(n.survey.link)}" target="_blank" rel="noopener">${icon('external')}Anketi Ortam'da doldur</a></div>` : '';
+    <button type="button" class="btn" data-open-page="${esc(new URL(n.survey.link).pathname)}">${icon('external')}Ankete git</button></div>` : '';
   return header('Not Görüntüleme') + survey + identityCard(n.identity) + tabs([['liste', 'Liste'], ['donemlik', 'Dönemlik']], state.notTab, 'notTab') + body;
 }
 
@@ -1483,11 +1483,13 @@ async function rezGo(btn) {
   store('rez-katilimci', people);
   rez.people = people.length ? people : [''];
   btn.disabled = true;
+  btn.classList.add('busy');
   btn.textContent = 'Okulun sistemi denetliyor…';
   const r = await post('/api/rezervasyon/check', { kind: rez.kind, date: rez.date, slot: rez.slot, studentNo: rez.no, password: f.pw.value === REZ_KAYITLI ? '' : f.pw.value,
     people: people.filter(Boolean), code: f.code?.value || '' }).catch(() => null);
   const j = r ? await r.json().catch(() => ({})) : { error: 'Uygulamaya ulaşılamadı' };
   btn.disabled = false;
+  btn.classList.remove('busy');
   btn.textContent = 'Rezerve et';
   if (!r?.ok) return rezStep(`<p class="rz-step bad">${esc(j.error || 'Rezervasyon yapılamadı')}</p>`);
   if (j.stage === 'captcha') { btn.textContent = 'Kodla gönder'; return rezCaptcha(j.message); }
@@ -1985,7 +1987,7 @@ async function loadHomeNotices() {
   if (!box) return;
   const parts = [];
   for (const x of o?.items ?? []) parts.push(`<div class="banner hn"><span>${icon(x.kind === 'anket' ? 'clipboard' : 'megaphone')}<span><b>Ortam'da seni bekleyen ${x.kind === 'anket' ? 'anket' : 'duyuru'}:</b>
-    ${esc(x.title)}</span></span><a class="btn" href="${esc(o.url)}" target="_blank" rel="noopener">${icon('external')}Ortam'da aç</a></div>`);
+    ${esc(x.title)}</span></span><button type="button" class="btn" data-open-page="${esc(x.link || '/')}">${icon('external')}${x.kind === 'anket' ? 'Ankete git' : "Ortam'da aç"}</button></div>`);
   if (y?.items?.length) parts.push(`<div class="banner hn"><span>${icon('globe')}<span><b>UZAKYDB'de ek içerik:</b> ${y.items.map(b => esc(b.title)).join(', ')}</span></span>
     <a class="btn" href="#/uzakydb">Göster</a></div>`);
   if (d?.items?.length) parts.push(`<section class="card hn-dates"><div class="hc-h"><a href="#/ekstra/takvim">Yaklaşan son tarihler</a><a class="muted" href="#/ekstra/takvim">Takvim →</a></div>
@@ -1993,6 +1995,22 @@ async function loadHomeNotices() {
       i.last ? ' <span class="pill due-now">bugün son gün</span>' : i.live ? ' <span class="pill due-soon">sürüyor</span>' : ''}</span></li>`).join('')}</ul></section>`);
   box.innerHTML = parts.join('');
 }
+// Ortam'daki anket/duyuru: uygulamanın oturumuyla açık bir pencerede açılır (giriş gerekirse bilgiler dolu gelir).
+// Pencere kapatılınca uyarılar Ortam'dan yeniden alınır; anket doldurulduysa uyarı kalkar.
+$view.addEventListener('click', async e => {
+  const b = e.target.closest('[data-open-page]');
+  if (!b) return;
+  b.disabled = true;
+  const label = b.innerHTML;
+  b.textContent = 'Pencere açıldı · bitince pencereyi kapat';
+  const r = await post('/api/open-page?site=ortam&path=' + encodeURIComponent(b.dataset.openPage)).catch(() => null);
+  if (!r?.ok) {
+    const j = r ? await r.json().catch(() => ({})) : {};
+    b.disabled = false; b.innerHTML = label;
+    return toast(j.error || 'Pencere açılamadı');
+  }
+  if (document.getElementById('home-notices')) loadHomeNotices(); else render(true);
+});
 async function loadYdbExtra() {
   const box = document.getElementById('ydb-extra');
   if (!box) return;

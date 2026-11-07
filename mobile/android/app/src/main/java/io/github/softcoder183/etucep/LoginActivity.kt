@@ -35,6 +35,9 @@ object LoginBroker {
 }
 
 /**
+ * stay: true ise pencere giriş için değil bir sayfayı (ör. Ortam'daki anket) uygulamanın oturumuyla göstermek için açılır;
+ * girişten sonra kapanmaz, kullanıcı "Kapat"a basınca biter. Oturum düşmüşse giriş formu yine kayıtlı bilgilerle doldurulur.
+ *
  * Sitenin kendi giriş sayfası uygulama içinde açılır. Kayıtlı bilgi varsa form doldurulur ve düğmeye basılır; doğrulama sorusu
  * çıkarsa ya da kod istenirse kullanıcı kendisi yanıtlar (atlatılmaz, çözülmez). Sayfada şifre alanı kalmayınca çerezler alınır.
  */
@@ -47,10 +50,11 @@ class LoginActivity : Activity() {
     private var finished = false
     private var typed: JSONObject? = null           // kullanıcının forma yazdığı e-posta ve şifre (diğer sitelere de girilebilsin diye)
     private val until = System.currentTimeMillis() + 10 * 60_000
+    private val stay by lazy { cfg.optBoolean("stay") }
 
     private val poll = object : Runnable {
         override fun run() {
-            if (finished) return
+            if (finished || stay) return
             if (System.currentTimeMillis() > until) return end(Result.failure(Exception("Giriş için süre doldu")))
             val onSite = web.url?.startsWith(cfg.getString("base")) == true
             val pass = JSONObject.quote(cfg.getString("passwordField"))
@@ -73,8 +77,8 @@ class LoginActivity : Activity() {
         cfg = JSONObject(intent.getStringExtra("ayar")!!)
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(Color.WHITE) }
         val bar = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(32, 8, 8, 8) }
-        bar.addView(TextView(this).apply { text = cfg.getString("name") + " girişi"; textSize = 16f; setTextColor(Color.BLACK) }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-        bar.addView(Button(this, null, android.R.attr.borderlessButtonStyle).apply { text = "Kapat"; setOnClickListener { end(Result.failure(Exception("Giriş penceresi kapatıldı"))) } })
+        bar.addView(TextView(this).apply { text = cfg.getString("name") + if (stay) "" else " girişi"; textSize = 16f; setTextColor(Color.BLACK) }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        bar.addView(Button(this, null, android.R.attr.borderlessButtonStyle).apply { text = "Kapat"; setOnClickListener { close() } })
         web = WebView(this)
         root.addView(bar)
         root.addView(web, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
@@ -88,6 +92,11 @@ class LoginActivity : Activity() {
         web.settings.javaScriptEnabled = true
         web.settings.domStorageEnabled = true
         CookieManager.getInstance().setAcceptCookie(true)
+        // Uygulamanın oturumu pencereye taşınır (stay: anket gibi sayfalar giriş istemeden açılır)
+        cfg.optJSONArray("cookies")?.let { list ->
+            val base = cfg.getString("base")
+            for (i in 0 until list.length()) list.optJSONObject(i)?.let { CookieManager.getInstance().setCookie(base, it.getString("name") + "=" + it.getString("value") + "; Path=/; Secure") }
+        }
         web.webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView, url: String) { fill() }
         }
@@ -121,8 +130,12 @@ class LoginActivity : Activity() {
         finish()
     }
 
+    /** Kapat: giriş penceresinde başarısızlık; sayfa penceresinde (stay) sonuç olarak o anki çerezler (girişten sonra yenilenmiş olabilir). */
+    private fun close() = end(if (stay) Result.success((if (filled) LoginBroker.cookies(cfg.getString("base")) else org.json.JSONArray()) to null)
+        else Result.failure(Exception("Giriş penceresi kapatıldı")))
+
     @Deprecated("Android 12 ve öncesi") override fun onBackPressed() {
-        if (web.canGoBack()) web.goBack() else end(Result.failure(Exception("Giriş penceresi kapatıldı")))
+        if (web.canGoBack()) web.goBack() else close()
     }
-    override fun onDestroy() { end(Result.failure(Exception("Giriş penceresi kapatıldı"))); web.destroy(); super.onDestroy() }
+    override fun onDestroy() { close(); web.destroy(); super.onDestroy() }
 }

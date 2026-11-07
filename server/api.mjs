@@ -3,7 +3,7 @@
 // Daha önce açılmış bir ekranın son verisi anında döner, yenisi arka planda çekilir (X-Refreshing başlığı).
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { SITES, LoginRequired, login, keepAlive, getPage, isAlive, logout, sessionInfo } from './session.mjs';
+import { SITES, LoginRequired, login, keepAlive, getPage, isAlive, logout, sessionInfo, openPage } from './session.mjs';
 import * as vault from './vault.mjs';
 import * as settings from './settings.mjs';
 import crypto from 'node:crypto';
@@ -385,6 +385,19 @@ export async function handleApi(req) {
       needLogin.delete(site);
       return send(200, { ok: true });
     } catch (e) { return send(500, { error: 'Giriş tamamlanmadı: ' + e.message.split('\n')[0] }); }
+  }
+  // Okul sitesinin bir sayfasını (ör. Ortam'daki anket) uygulamanın oturumuyla görünür pencerede açar; kullanıcı pencereyi
+  // kapatınca yanıt döner ve o sayfaya bağlı önbellek silinir (anket doldurulduysa uyarı kalkar).
+  if (name === 'open-page' && req.method === 'POST') {
+    const site = url.searchParams.get('site') || 'ortam';
+    const p = url.searchParams.get('path') || '/';
+    if (!SITES[site] || !p.startsWith('/') || p.startsWith('//')) return send(400, { error: 'Geçersiz sayfa' });
+    const c = credentials.get();
+    const fill = c ? { user: SITES[site].user === 'local' ? c.email.split('@')[0] : c.email, password: credentials.passwordFor(c, site) } : null;
+    try { await openPage(site, p, fill); }
+    catch (e) { return send(500, { error: 'Pencere açılamadı: ' + e.message.split('\n')[0] }); }
+    if (site === 'ortam') { await invalidate('ortam-duyuru'); await invalidate('notlar'); }
+    return send(200, { ok: true });
   }
   // Dosyalar (PDF, e-posta ekleri): önbelleğe alınmaz, her istekte okulun sunucusundan çekilir.
   if (name.startsWith('file/')) {

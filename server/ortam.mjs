@@ -91,7 +91,10 @@ export async function notices() {
     if (!title || HOME_FIXED.test(title)) return;
     const survey = $c.find('form').length > 0 || /anket/i.test(title);
     const text = txt($c.find('.card-body p').first().text() || $c.find('.card-body').first().text()).slice(0, 300);
-    out.push({ id: $c.attr('id') || title, title, kind: survey ? 'anket' : 'duyuru', text });
+    const href = $c.find('a[href]').filter((_, a) => !/^(#|javascript:)/i.test($(a).attr('href'))).first().attr('href');
+    let link = '/';
+    try { const u = new URL(href || '/', 'https://ortam.etu.edu.tr/'); if (u.origin === 'https://ortam.etu.edu.tr') link = u.pathname + u.search; } catch {}
+    out.push({ id: $c.attr('id') || title, title, kind: survey ? 'anket' : 'duyuru', text, link });
   });
   return { items: out, url: 'https://ortam.etu.edu.tr/' };
 }

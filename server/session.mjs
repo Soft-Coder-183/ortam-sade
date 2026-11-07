@@ -145,6 +145,13 @@ export function login(site, fill = null) {
   return st.loggingIn;
 }
 
+// Sitenin bir sayfası görünür pencerede, uygulamanın oturumuyla açılır (ör. Ortam'daki anket); kullanıcı kapatınca döner.
+// Pencerede yeniden girildiyse (oturum düşmüştü) yeni oturum uygulamaya alınır.
+export async function openPage(site, path, fill = null) {
+  const s = SITES[site];
+  const back = await browser.openPage(s, s.base + path, { fill, cookies: [...state[site].jar].map(([name, value]) => ({ name, value })) });
+  if (back?.length) takeCookies(site, back);
+}
 
 // ---------- sayfa çekme ----------
 

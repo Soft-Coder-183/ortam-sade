@@ -75,7 +75,7 @@ Okulun siteleri ve mevzuat.gov.tr
 | Menü | İçerik |
 |---|---|
 | Profil | Bilgilerim, Not Görüntüleme, Ortalama ve Ders Planı, Müfredat, Ortak Eğitim, İkinci Yabancı Dil, Ödeme |
-| Ana Sayfa | Bugünkü dersler ve sınavlar, yaklaşan sınavlar, posta, Piazza, son kullanılan 6 sayfa; üstte Ortam'da bekleyen anket ve duyurular, UZAKYDB ek içerik, yaklaşan son tarihler |
+| Ana Sayfa | Bugünkü dersler ve sınavlar, yaklaşan sınavlar, posta, Piazza, son kullanılan 6 sayfa; üstte Ortam'da bekleyen anket ve duyurular ("Ankete git"), UZAKYDB ek içerik, yaklaşan son tarihler |
 | Dönem Bilgilerim | Derslerim (Ortam, Uzak, Piazza tek sayfada), Ders Programım |
 | Sınav Takvimi | Ara Sınav, Final ya da Bütünleme; her sınav tek satırda |
 | Webmail | Okundu senkronizasyonu, yazma, yanıtlama, yıldızlar, tarihe göre sıralı klasörler, satırda Sil, Çöp'te Geri getir; otomatik silme (okunanlar seçilen sürede Çöp'e, varsayılan kapalı; uygulamanın bildirim e-postaları varsayılan 24 saatte Gelen ve Gönderilmiş'ten Çöp'e; açık e-postanın altında "Otomatik silinmesin") |
@@ -96,6 +96,10 @@ Okulun siteleri ve mevzuat.gov.tr
 - **Otomatik program:** Çakışmayan en iyi 5 kombinasyon üretilir. Etikette önce boşluk süresi, sonra gün sayısı yazar.
 - **Sıfırlama:** "Şube seçimlerini sıfırla" dersleri korur. "Planı temizle" seti saklar, "Son ders setini geri yükle" o anki setle yer değiştirir.
 - **Saklama:** Plan tarayıcıda `program-taslak` anahtarındadır (`courses`, `picks`, `off`, `active`, `last`).
+
+**Ortam'daki anket ve duyurular:** "Ankete git" / "Ortam'da aç" (ve Not Görüntüleme'deki anket uyarısı) `POST /api/open-page?site=ortam&path=…` çağırır: sayfa görünür pencerede uygulamanın oturum çerezleriyle açılır (`session.openPage` → `browser.openPage`; Android'de `LoginActivity` `stay` modu). Oturum düşmüşse giriş formu kayıtlı bilgilerle doldurulup gönderilir. Kullanıcı sekmeyi/pencereyi kapatınca istek döner, `ortam-duyuru` ve `notlar` önbelleği silinir ve uyarılar yeniden alınır (anket doldurulduysa kalkar). Anket uygulamada doldurulmaz.
+
+**Uygulama penceresi (Windows):** `server.mjs` `openBrowser()` varsayılan tarayıcıyı kayıt defterinden bulur; Chromium tabanlıysa (Chrome, Edge, Brave, Vivaldi) `--app=http://localhost:3000/` ile, değilse Edge ile açar. Adres çubuğu ve sekme yoktur, görev çubuğunda `public/simge.png` simgesiyle ayrı görünür. `ORTAM_PENCERE=tarayici` normal sekmeye döndürür. Siyah sunucu penceresi ayrıca durur (tam masaüstü uygulaması değildir).
 
 **Hesap ve giriş:** Hesap'tan giriş yapınca sonuçlar Hesap'ta görünür ve hemen 3 saniyelik sayaç başlar, sonra Ana Sayfa açılır ("Hesap'ta kal" sayacı durdurur). Ortam penceresi aynı anda açılır ve arka planda tamamlanır; bu sırada başka sayfaya geçildiyse sayfa yeniden çizilmez. Ortam doğrudan girişi desteklemez (görünmez reCAPTCHA); bilgiler bir sitede kabul edilince görünür pencere kendiliğinden açılır, Oturumlar tablosunda da giriş düğmesi vardır.
 
