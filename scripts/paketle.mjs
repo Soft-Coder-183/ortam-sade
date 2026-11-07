@@ -33,8 +33,13 @@ for (const f of ['server', 'public', 'data', 'package.json', 'LICENSE', 'README.
 // Bağımlılıklar: tarayıcıda kullanılmayan pdf.js parçaları ve pdf.js'in Node'da çizim için istediği isteğe bağlı
 // @napi-rs/canvas pakete alınmaz (sunucu pdf.js'i yalnızca tarayıcıya dosya olarak verir).
 const PDFJS_KEEP = /^(legacy[\\/]build|cmaps|standard_fonts|wasm|iccs|package\.json|LICENSE)/;
+// Yalnızca geliştirmede kullanılan paketler (Android derlemesi için esbuild vb.) Windows paketine girmez
+const lock = JSON.parse(fs.readFileSync(path.join(ROOT, 'package-lock.json'), 'utf8'));
+const DEV = new Set(Object.entries(lock.packages).filter(([k, v]) => k && v.dev).map(([k]) => k.replace(/^node_modules\//, '')));
 copy('node_modules', 'node_modules', src => {
   const rel = path.relative(path.join(ROOT, 'node_modules'), src);
+  const top = rel.split(/[\\/]/), name = top[0].startsWith('@') ? top.slice(0, 2).join('/') : top[0];
+  if (DEV.has(name)) return false;
   if (/^@napi-rs([\\/]|$)/.test(rel) || /^\.(bin|package-lock\.json)/.test(rel)) return false;
   const pdf = rel.match(/^pdfjs-dist[\\/](.+)$/);
   if (pdf && !PDFJS_KEEP.test(pdf[1]) && !/^legacy$/.test(pdf[1])) return false;

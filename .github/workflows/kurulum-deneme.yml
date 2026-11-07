@@ -1,0 +1,56 @@
+# Windows kurulum dosyasını sürüm yayımlamadan deneme amaçlı üretir (elle tetiklenir). Çıktı iş akışının yapıtı olarak indirilir.
+name: Kurulum denemesi
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  kurulum:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.14.0'
+
+      - name: Bağımlılıklar
+        run: npm ci
+
+      - name: Paket
+        run: npm run paketle
+
+      - name: Kurulum dosyası (Inno Setup)
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress
+          $iscc = (Get-ChildItem 'C:\Program Files*\Inno Setup*\ISCC.exe' | Select-Object -First 1).FullName
+          $v = node -p "require('./package.json').version"
+          & $iscc "/DSurum=$v" kurulum\OrtamSade.iss
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - name: Sessiz kurulum ve kaldırma denemesi
+        shell: pwsh
+        run: |
+          $exe = (Get-ChildItem dist\OrtamSade-*-kurulum.exe).FullName
+          $dir = "$env:RUNNER_TEMP\OrtamSadeDeneme"
+          Start-Process $exe -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/DIR=$dir", '/TASKS=masaustu' -Wait
+          foreach ($f in 'Ortam Sade.cmd', 'runtime\node.exe', 'server\server.mjs', 'public\app.js', 'simge.ico', 'unins000.exe') {
+            if (-not (Test-Path "$dir\$f")) { throw "Kurulumda eksik: $f" }
+          }
+          $lnk = Get-ChildItem "$env:APPDATA\Microsoft\Windows\Start Menu\Programs" -Recurse -Filter 'Ortam Sade.lnk' | Select-Object -First 1
+          if (-not $lnk) { throw 'Başlat menüsü kısayolu yok' }
+          if (-not (Test-Path "$env:USERPROFILE\Desktop\Ortam Sade.lnk")) { throw 'Masaüstü kısayolu yok' }
+          Start-Process "$dir\unins000.exe" -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait
+          Start-Sleep -Seconds 3
+          if (Test-Path "$dir\server") { throw 'Kaldırma uygulama dosyalarını silmedi' }
+          "Kurulum ve kaldırma denemesi geçti" | Out-File -Append $env:GITHUB_STEP_SUMMARY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kurulum
+          path: dist/OrtamSade-*-kurulum.exe
+          retention-days: 7
