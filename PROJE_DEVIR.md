@@ -77,7 +77,7 @@ Okulun siteleri ve mevzuat.gov.tr
 | Ana Sayfa | Bugünkü dersler ve sınavlar, yaklaşan sınavlar, posta, Piazza, son kullanılan 6 sayfa; üstte Ortam'da bekleyen anket ve duyurular, UZAKYDB ek içerik, yaklaşan son tarihler |
 | Dönem Bilgilerim | Derslerim (Ortam, Uzak, Piazza tek sayfada), Ders Programım |
 | Sınav Takvimi | Ara Sınav, Final ya da Bütünleme; her sınav tek satırda |
-| Webmail | Okundu senkronizasyonu, yazma, yanıtlama, yıldızlar, satırda Sil, Çöp'te Geri getir, isteğe bağlı otomatik silme (okunanlar 12 saat sonra Çöp'e; açık e-postanın altında "Otomatik silinmesin") |
+| Webmail | Okundu senkronizasyonu, yazma, yanıtlama, yıldızlar, tarihe göre sıralı klasörler, satırda Sil, Çöp'te Geri getir, isteğe bağlı otomatik silme (okunanlar 12 saat sonra Çöp'e; açık e-postanın altında "Otomatik silinmesin") |
 | Piazza, UBS, UZAKYDB | Kendi sade arayüzleri; PDF'ler uygulama içinde açılır |
 | Ekstra | Açılan Dersler ve haftalık plan, Akademik Takvim, Akademik Kadro (uygulamanın içinde), Yabancı Diller, Mevzuat, Öğrenci İşleri Duyuruları, ÇAP/YAP - Başvurular |
 | Hakkında ve SSS | Hakkımızda, Okulun Siteleri, SSS, Sorumluluk Reddi |

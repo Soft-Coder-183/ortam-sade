@@ -63,7 +63,8 @@ function rows(exec, mbox) {
 }
 
 export async function inbox(mbox = 'INBOX', pageNo = 1) {
-  const j = await remote(`_task=mail&_action=list&_mbox=${encodeURIComponent(mbox)}&_page=${Number(pageNo) || 1}`);
+  // Sıra belirtilmezse Roundcube klasöre giriş sırasını verir: Çöp'te e-postalar silinme sırasına göre dizilir. Her klasör e-postanın tarihine göre, yeniden eskiye.
+  const j = await remote(`_task=mail&_action=list&_mbox=${encodeURIComponent(mbox)}&_page=${Number(pageNo) || 1}&_sort=date_DESC`);
   const exec = j.exec || '';
   const messages = rows(exec, mbox);
   const unread = Number((exec.match(/set_unread_count\("INBOX",\s*(\d+)/) || [])[1] ?? messages.filter(m => !m.seen).length);
