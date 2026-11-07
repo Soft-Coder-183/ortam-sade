@@ -22,3 +22,6 @@ mobile/android/local.properties
 mobile/android/imza/
 *.keystore
 *.jks
+
+# Kullanıcının kişisel notları (asla yayımlanmaz)
+Claude_okumas*.txt
