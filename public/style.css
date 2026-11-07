@@ -793,11 +793,14 @@ a.seb { display: inline-block; padding: 6px 12px; border-radius: 8px; border: 1p
 .sdot.src-uzak { background: var(--uzak); }
 .sdot.src-piazza { background: var(--pz); }
 .sdot.src-takvim { background: var(--accent); }
-/* Derslerim: Uzak etiketi en yakın sınavdaki gibi yavaşça dönen ETÜ mavi–kırmızı–sarı çerçeveyle, Piazza mavi */
+/* Derslerim: Uzak etiketi, menüdeki Ortam işaretinin üç rengiyle (mavi, kırmızı, turuncu) sert geçişli, yavaşça dönen çerçeve. Piazza mavi. */
 .pill.src-uzak { border: 1.5px solid transparent; color: var(--ink);
   background: linear-gradient(var(--card), var(--card)) padding-box,
-    conic-gradient(from var(--exam-ang), var(--accent), var(--red), var(--yellow), var(--accent)) border-box;
+    conic-gradient(from var(--exam-ang), #1b449c 0 120deg, #b21f28 120deg 240deg, #f08921 240deg 360deg) border-box;
   animation: exam-spin 8s linear infinite; }
+/* Kayıtlı eski görünüm (1.7.0 öncesi): yumuşak geçişli mavi–kırmızı–sarı çerçeve. Geri almak için etikete "yumusak" sınıfı eklenir. */
+.pill.src-uzak.yumusak { background: linear-gradient(var(--card), var(--card)) padding-box,
+    conic-gradient(from var(--exam-ang), var(--accent), var(--red), var(--yellow), var(--accent)) border-box; }
 .pill.src-piazza { background: color-mix(in srgb, var(--pz) 13%, var(--card)); color: var(--pz); border: 1.5px solid color-mix(in srgb, var(--pz) 35%, transparent); }
 @media (prefers-reduced-motion: reduce) { .pill.src-uzak { animation: none; } }
 
@@ -1025,6 +1028,14 @@ body.locked > :not(#lock) { visibility: hidden; }
   #drawer a { display: flex; align-items: center; gap: 14px; min-height: 48px; padding: 0 14px; border-radius: 10px; color: var(--ink); font-weight: 600; text-decoration: none; }
   #drawer a.on { background: var(--accent-soft); color: var(--accent); }
   #drawer .ic { width: 21px; height: 21px; }
+  #drawer .dr-grp { display: flex; align-items: center; gap: 14px; width: 100%; min-height: 48px; padding: 0 14px; border: 0; border-radius: 10px;
+    background: none; color: var(--ink); font: inherit; font-weight: 600; text-align: left; cursor: pointer; }
+  #drawer .dr-grp .chev { margin-left: auto; color: var(--muted); transition: transform .15s; }
+  #drawer .dr-sec.open .chev { transform: rotate(90deg); }
+  #drawer .dr-sec.on > .dr-grp { color: var(--accent); }
+  #drawer .dr-subs { display: none; flex-direction: column; padding: 0 0 6px 35px; }
+  #drawer .dr-sec.open .dr-subs { display: flex; }
+  #drawer .dr-subs a { min-height: 40px; font-weight: 500; font-size: .95rem; }
 }
 
 /* Webmail ayarları: süre seçimi */

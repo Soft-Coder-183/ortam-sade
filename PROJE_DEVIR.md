@@ -97,7 +97,7 @@ Okulun siteleri ve mevzuat.gov.tr
 - **Sıfırlama:** "Şube seçimlerini sıfırla" dersleri korur. "Planı temizle" seti saklar, "Son ders setini geri yükle" o anki setle yer değiştirir.
 - **Saklama:** Plan tarayıcıda `program-taslak` anahtarındadır (`courses`, `picks`, `off`, `active`, `last`).
 
-**Hesap ve giriş:** Hesap'tan giriş yapınca sayfada kalınır. Ortam doğrudan girişi desteklemez (görünmez reCAPTCHA); bilgiler bir sitede kabul edilince görünür pencere kendiliğinden açılır, Oturumlar tablosunda da giriş düğmesi vardır.
+**Hesap ve giriş:** Hesap'tan giriş yapınca sonuçlar 3 saniye Hesap'ta görünür, sonra Derslerim açılır (Ortam penceresi açıldıysa o bittikten sonra). Ortam doğrudan girişi desteklemez (görünmez reCAPTCHA); bilgiler bir sitede kabul edilince görünür pencere kendiliğinden açılır, Oturumlar tablosunda da giriş düğmesi vardır.
 
 - **Giriş düğmeleri:** Herhangi bir ekrandaki "Giriş yap", kayıtlı bilgi yoksa ya da şifre reddedildiyse `#/hesap/<site>` adresine gider. Orada bant çıkar; e-posta alanına ya da o sitenin özel şifre alanına odaklanılır.
 - **Pencereden giriş:** Kullanıcı giriş penceresinde (Ortam, ya da doğrulama isteyen UBS) bilgilerini kendisi yazarsa, `browser.mjs` ve `LoginActivity` yazılanları döndürür (`typed`). Kayıtlı bilgi yoksa `api.mjs`'teki `adoptTyped` bunlarla bütün sitelere girer ve bilgileri kaydeder. Aynı e-postayla farklı şifre yazıldıysa yalnızca o sitenin özel şifresi olur.
@@ -126,7 +126,7 @@ Uygulama yalnızca siyah pencere açıkken çalışır. Bilgisayar açılınca k
 - O aralıkta siteye gerçek istek gittiyse oturum kontrolü atlanır (`usedAt`). Kullanıcı Hesap'tan açık tutmayı ve kendiliğinden yeniden girmeyi kapatabilir.
 - Bildirimler Windows bildirimi ve isteğe bağlı özet e-posta olarak gider. E-posta kullanıcının kendi adresinedir ve konusu `[Ortam Sade · Bildirim]` ile başlar.
 - Gönderilemeyen e-postalar giden kutusunda en fazla 2 gün bekler ve yeniden denenir.
-- Renkler: Uzak kırmızımsı turuncu, Piazza mavi. Menüde sade nokta, derslerin üzerinde sayılı rozet görünür.
+- Renkler: Uzak kırmızımsı turuncu, Piazza mavi. Derslerim'deki Uzak etiketi Ortam işaretinin üç rengiyle (mavi, kırmızı, turuncu) sert geçişli dönen çerçevedir; eski yumuşak geçişli görünüm `.pill.src-uzak.yumusak` olarak saklıdır. Menüde sade nokta, derslerin üzerinde sayılı rozet görünür.
 - Hatırlatmalar: Akademik Takvim satırları 3 gün kala, başladığı gün ve son gün gelir. Sınavlar Ortam'daki sınav takviminden, sınavdan önceki 24 saat içinde bir kez gelir.
 
 ## Android (ETÜ Cep)
@@ -134,7 +134,7 @@ Uygulama yalnızca siyah pencere açıkken çalışır. Bilgisayar açılınca k
 `server/` kodunun aynısı WebView içinde çalışır, telefonda yerel sunucu yoktur. `scripts/mobil.mjs` esbuild ile `mobile/core.mjs` paketini (`core.js`) üretir ve `public/` ile birlikte APK'ya koyar.
 
 - **Yönlendirme:** `mobile/core.mjs` `fetch`'i üçe ayırır: `/api/*` doğrudan `handleApi`, okul siteleri `Native.http`, uygulama dosyaları WebView.
-- **Gezinme:** Telefonda alt çubukta Ana Sayfa, Dönem, Sınav, Posta, Piazza ve "Menü" vardır. `side: true` olan bölümler (Profil, UBS, UZAKYDB, Ekstra, Hakkında, Hesap) Menü'nün açtığı yan çekmecededir. Bu düzen web arayüzünün telefon görünümünde de aynıdır.
+- **Gezinme:** Telefonda alt çubukta Ana Sayfa, Dönem, Sınav, Posta, Piazza ve "Menü" vardır. `side: true` olan bölümler (Profil, UBS, UZAKYDB, Ekstra, Hakkında, Hesap) Menü'nün açtığı yan çekmecededir. Alt sayfası olan bölüm çekmecede masaüstündeki gibi açılır, sayfaya alt sayfa seçilince gidilir. Bu düzen web arayüzünün telefon görünümünde de aynıdır.
 - **Karşılıklar:** `browser`, `pdf`, `vault`, `credentials`, `update` dosyaları derlemede `mobile/shim/` sürümleriyle değişir. `node:fs`, `crypto`, `path`, `zlib` da orada.
 - **Köprü:** `Native.kt` dosya, şifreleme, ağ, bildirim, giriş penceresi, indirme ve APK kurulumunu sağlar. `Native` varlığı arayüzde `window.Native` ile anlaşılır.
 - **İçerik güvenliği:** `Native` dosyalara eriştiği için telefonda sıkı CSP vardır (`scripts/mobil.mjs`): satır içi betik ve olay özniteliği çalışmaz. `public/` içine `onclick=` gibi satır içi kod ekleme.

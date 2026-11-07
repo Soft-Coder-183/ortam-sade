@@ -2111,6 +2111,8 @@ async function fillWmSettings() {
   const s = r?.ok ? await r.json() : null;
   if (!s) { box.innerHTML = '<p class="muted">Webmail ayarları alınamadı (Webmail oturumu kapalı olabilir).</p>'; return; }
   const when = t => (t ? whenTR(t) : '—');
+  s.choices ??= [12, 24, 72, 168];                     // eski sürüm sunucusu bu alanları göndermez
+  s.notif ??= { enabled: false, afterHours: 24 };
   box.innerHTML = `<div class="wm-opt"><label class="check"><input type="checkbox" data-wm-auto${s.enabled ? ' checked' : ''}> Okunan e-postaları sil:</label>
       ${hoursSelect('data-wm-hours', s.afterHours, s.choices)}<span class="muted small">sonra</span></div>
     <p class="muted small" style="margin:4px 0 12px">Gelen kutusundaki okunmuş e-postalar okunduktan seçilen süre sonra <b>Çöp kutusuna taşınır</b> (kalıcı silinmez, Çöp'ten geri alınabilir).
@@ -2230,11 +2232,12 @@ async function submitAccount(f) {
   // Hesap'ta kalınır: Oturumlar tablosunda her sitenin durumu ve sonucu görünür.
   await render();
   document.getElementById('acct-sessions')?.scrollIntoView({ block: 'center' });
-  // Ortam yalnızca tarayıcı penceresiyle girilir: bilgiler bir sitede kabul edildiyse pencere kendiliğinden açılır
-  if (Object.values(j.results || {}).some(x => x.ok)) {
-    const b = document.querySelector('#acct-sessions [data-login="ortam"]');
-    if (b) doLogin(b);
-  }
+  // Ortam yalnızca tarayıcı penceresiyle girilir: bilgiler bir sitede kabul edildiyse pencere kendiliğinden açılır.
+  // Sonuçlar 3 saniye Hesap'ta görünür, sonra Derslerim açılır (kullanıcı bu arada başka sayfaya geçtiyse geçilmez).
+  if (!Object.values(j.results || {}).some(x => x.ok)) return;
+  const b = document.querySelector('#acct-sessions [data-login="ortam"]');
+  if (b) await doLogin(b);
+  setTimeout(() => { if (/^#\/hesap/.test(location.hash)) location.hash = '#/donem/derslerim'; }, 3000);
 }
 
 // ---------- Hakkında: Hakkımızda, Sık Sorulan Sorular, Sorumluluk Reddi ----------
@@ -2751,12 +2754,17 @@ function renderNav({ group, sub }) {
   }).join('') + srvStateHtml() +
     // Telefon: alt çubuğa sığmayan bölümler yan çekmecede
     `<button type="button" class="grp menu-btn${group.side ? ' on' : ''}" data-drawer>${icon('menu')}<span class="short">Menü</span></button>
-    <div id="drawer-bg" data-drawer-close></div><div id="drawer" role="dialog" aria-label="Menü">${NAV.filter(n => n.side).map(n =>
-      `<a href="#/${n.id}${n.items ? '/' + n.items[0][0] : ''}" class="${n === group ? 'on' : ''}">${icon(n.icon)}<span>${esc(n.label)}</span></a>`).join('')}</div>`;
+    <div id="drawer-bg" data-drawer-close></div><div id="drawer" role="dialog" aria-label="Menü">${NAV.filter(n => n.side).map(n => n.items
+      // Alt sayfası olan bölüm masaüstündeki gibi açılır; alt sayfaya basınca gidilir
+      ? `<div class="dr-sec${n === group ? ' on open' : ''}"><button type="button" class="dr-grp" data-dr-toggle aria-expanded="${n === group}">${icon(n.icon)}<span>${esc(n.label)}</span><span class="chev">›</span></button>
+        <div class="dr-subs">${n.items.map(([id, label]) => `<a href="#/${n.id}/${id}" class="${n === group && id === sub ? 'on' : ''}">${esc(label)}</a>`).join('')}</div></div>`
+      : `<a href="#/${n.id}" class="${n === group ? 'on' : ''}">${icon(n.icon)}<span>${esc(n.label)}</span></a>`).join('')}</div>`;
 }
 const closeDrawer = () => document.body.classList.remove('drawer-open');
 document.addEventListener('click', e => {
   if (e.target.closest('[data-drawer]')) return document.body.classList.toggle('drawer-open');
+  const t = e.target.closest('[data-dr-toggle]');
+  if (t) { const open = t.parentElement.classList.toggle('open'); t.setAttribute('aria-expanded', String(open)); return; }
   if (e.target.closest('[data-drawer-close], #drawer a')) closeDrawer();
 });
 window.addEventListener('hashchange', closeDrawer);
