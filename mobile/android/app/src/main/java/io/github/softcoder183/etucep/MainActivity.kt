@@ -7,6 +7,8 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.view.ViewGroup
+import android.util.Log
+import android.webkit.ConsoleMessage
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebView
@@ -41,6 +43,12 @@ class MainActivity : Activity() {
         val native = Native(this)
         WebHost.configure(web, native) { native.openUrl(it) }
         web.webChromeClient = object : WebChromeClient() {
+            // Uyarı ve hatalar telefonun sistem günlüğüne yazılır (adb logcat -s EtuCep ile okunur; şifre ya da içerik yazılmaz)
+            override fun onConsoleMessage(m: ConsoleMessage): Boolean {
+                if (m.messageLevel() == ConsoleMessage.MessageLevel.ERROR || m.messageLevel() == ConsoleMessage.MessageLevel.WARNING)
+                    Log.w("EtuCep", m.message().take(500) + " (" + m.sourceId().substringAfterLast('/') + ":" + m.lineNumber() + ")")
+                return true
+            }
             override fun onShowFileChooser(view: WebView, callback: ValueCallback<Array<Uri>>, params: FileChooserParams): Boolean {
                 chooser?.onReceiveValue(null)
                 chooser = callback

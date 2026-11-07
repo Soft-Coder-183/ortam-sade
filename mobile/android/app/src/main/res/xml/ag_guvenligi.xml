@@ -1,12 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- uzak.etu.edu.tr ara sertifikayı göndermiyor. Yalnızca bu alan adı için okulun sertifika zincirindeki ara sertifika eklenir;
-     sertifika denetimi kapatılmaz, diğer bütün adresler sistemin güvenilen sertifikalarını kullanır. Düz HTTP kapalıdır. -->
+<!-- uzak.etu.edu.tr ara sertifikayı göndermiyor; diğer okul siteleri zinciri SSL.com'un 2022 köküyle gönderiyor ve bu kök bazı
+     Android sürümlerinin güvenilenler listesinde yok. Bu yüzden yalnızca okulun alan adları (etu.edu.tr ve alt alan adları) için
+     okulun sertifika zincirindeki ara sertifika (SSL.com TLS Issuing RSA CA R1) de güvenilir sayılır. Sertifika denetimi kapatılmaz;
+     diğer bütün adresler yalnızca sistemin güvenilen sertifikalarını kullanır. Düz HTTP kapalıdır. -->
 <network-security-config>
     <base-config cleartextTrafficPermitted="false">
         <trust-anchors><certificates src="system" /></trust-anchors>
     </base-config>
     <domain-config>
-        <domain includeSubdomains="false">uzak.etu.edu.tr</domain>
+        <domain includeSubdomains="true">etu.edu.tr</domain>
         <trust-anchors>
             <certificates src="system" />
             <certificates src="@raw/uzak_ara" />

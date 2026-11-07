@@ -66,7 +66,8 @@ async function checkPiazza() {
     const fresh = max === undefined ? [] : f.posts.filter(p => p.nr > max).map(p => ({ p }));
     for (const p of fresh) out.push({
       source: 'piazza', course: key, courseName: `${n.code}`, title: `${n.code} · Piazza`,
-      text: p.p.subject + (p.p.role ? ` (${p.p.role})` : ''), link: `#/donem/derslerim/${encodeURIComponent(key)}/piazza`,
+      text: p.p.subject + (p.p.role ? ` (${p.p.role})` : ''), link: `#/donem/derslerim/${encodeURIComponent(key)}/piazza/${encodeURIComponent(p.p.id)}`,
+      url: `https://piazza.com/class/${n.id}/post/${p.p.nr}`,
     });
   }
   return out;
@@ -82,7 +83,7 @@ async function checkUzak() {
     const key = courseKey(c.name) || courseKey(c.short) || code;
     for (const x of diff(`uzak:${c.id}`, items)) out.push({
       source: 'uzak', course: key, courseName: code.replace(/\.\d+$/, ''), title: `${code.replace(/\.\d+$/, '')} · Uzak`,
-      text: `${x.i.name} eklendi`, link: `#/donem/derslerim/${encodeURIComponent(key)}/uzak`,
+      text: `${x.i.name} eklendi`, link: `#/donem/derslerim/${encodeURIComponent(key)}/uzak/${x.i.cmid}`,
     });
   }
   return out;
@@ -175,7 +176,7 @@ async function mail(items) {
   const c = await webmail.compose({ mode: 'new' });
   // Konu ve metin, e-postanın okuldan değil Ortam Sade'den geldiğini açıkça söyler.
   const app = `http://localhost:${process.env.PORT || 3000}/`;
-  const lines = items.map(n => `• ${n.title}: ${n.text}${platform.appLink ? `\n  Aç: ${app}${n.link || ''}` : ''}`).join('\n');
+  const lines = items.map(n => `• ${n.title}: ${n.text}${platform.appLink ? `\n  Aç: ${app}${n.link || ''}` : n.url ? `\n  Aç: ${n.url}` : ''}`).join('\n');
   const rule = '-'.repeat(40);
   await webmail.send({ id: c.id, from: c.from.find(f => f.selected)?.id ?? c.from[0]?.id, to,
     subject: `[${platform.brand} · Bildirim] ${items.length === 1 ? `${items[0].title}: ${items[0].text}` : `${items.length} yeni içerik`}`.slice(0, 180),

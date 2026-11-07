@@ -97,18 +97,18 @@ Okulun siteleri ve mevzuat.gov.tr
 - **Sıfırlama:** "Şube seçimlerini sıfırla" dersleri korur. "Planı temizle" seti saklar, "Son ders setini geri yükle" o anki setle yer değiştirir.
 - **Saklama:** Plan tarayıcıda `program-taslak` anahtarındadır (`courses`, `picks`, `off`, `active`, `last`).
 
-**Hesap ve giriş:** Hesap'tan giriş yapınca sonuçlar 3 saniye Hesap'ta görünür, sonra Derslerim açılır (Ortam penceresi açıldıysa o bittikten sonra). Ortam doğrudan girişi desteklemez (görünmez reCAPTCHA); bilgiler bir sitede kabul edilince görünür pencere kendiliğinden açılır, Oturumlar tablosunda da giriş düğmesi vardır.
+**Hesap ve giriş:** Hesap'tan giriş yapınca sonuçlar Hesap'ta görünür ve hemen 3 saniyelik sayaç başlar, sonra Ana Sayfa açılır ("Hesap'ta kal" sayacı durdurur). Ortam penceresi aynı anda açılır ve arka planda tamamlanır; bu sırada başka sayfaya geçildiyse sayfa yeniden çizilmez. Ortam doğrudan girişi desteklemez (görünmez reCAPTCHA); bilgiler bir sitede kabul edilince görünür pencere kendiliğinden açılır, Oturumlar tablosunda da giriş düğmesi vardır.
 
 - **Giriş düğmeleri:** Herhangi bir ekrandaki "Giriş yap", kayıtlı bilgi yoksa ya da şifre reddedildiyse `#/hesap/<site>` adresine gider. Orada bant çıkar; e-posta alanına ya da o sitenin özel şifre alanına odaklanılır.
 - **Pencereden giriş:** Kullanıcı giriş penceresinde (Ortam, ya da doğrulama isteyen UBS) bilgilerini kendisi yazarsa, `browser.mjs` ve `LoginActivity` yazılanları döndürür (`typed`). Kayıtlı bilgi yoksa `api.mjs`'teki `adoptTyped` bunlarla bütün sitelere girer ve bilgileri kaydeder. Aynı e-postayla farklı şifre yazıldıysa yalnızca o sitenin özel şifresi olur.
 
-**Rezervasyon:** Okulun sistemi giriş istemez. Boş ve dolu saatler her açılışta alınır. Gönderimde öğrenci numarası, şifre (boşsa kayıtlı Ortam şifresi sunucuda eklenir, arayüze gelmez) ve katılımcı numaraları gider. Okulun sistemi `form-check` yanıtında `captcha|` derse güvenlik kodu görseli gösterilir, kodu kullanıcı yazar. Sonra önizleme gelir, kesinleştirme iki tıklama ister. Önizleme ve sonuç sayfaları gerçek bir rezervasyonla henüz denenmedi; okulun HTML'i metin satırlarına çevrilerek gösterilir.
+**Rezervasyon:** Okulun sistemi giriş istemez. Boş ve dolu saatler her açılışta alınır. Gönderimde öğrenci numarası, şifre ve katılımcı numaraları gider. Kayıtlı Ortam şifresi varsa şifre alanı dolu görünür: içindeki değer şifrenin kendisi değil, sabit bir yer tutucudur (`REZ_KAYITLI`); değiştirilmezse sunucu kayıtlı şifreyi ekler, şifre arayüze gelmez. Okulun sistemi `form-check` yanıtında `captcha|` derse güvenlik kodu görseli gösterilir, kodu kullanıcı yazar. Sonra önizleme gelir, kesinleştirme iki tıklama ister. Önizleme ve sonuç sayfalarından yalnızca `.container.rezervasyon` bölümü alınır (yan menü, sayfa yolu, adım çubuğu, düğmeler atılır) ve başlık / etiket-değer / metin satırlarına çevrilir (`lines()`); seçili kutular "✓ seçili" olur, seçilmemiş saat satırları atlanır. Kesinleştirme adımı gerçek bir rezervasyonla henüz denenmedi.
 
 **Bilinen veri sorunu:** mevzuat.gov.tr'deki Lisans Yönetmeliği metni 2011 hâlidir ve "bütünleme yok" der. Kullanıcı bütünlemenin yapıldığını doğruladı; hızlı yanıt bunu açıkça söyler.
 
 ## Arka plan işleri ve bildirimler
 
-Uygulama yalnızca siyah pencere açıkken çalışır. Bilgisayar açılınca kendiliğinden başlamaz.
+Uygulama yalnızca siyah pencere açıkken çalışır. Kurulum dosyasıyla kurulduysa bilgisayar açılınca küçültülmüş pencerede kendiliğinden başlar (kurulumdaki seçenek varsayılan olarak işaretli); zip sürümü kendiliğinden başlamaz.
 
 | İş | Sıklık |
 |---|---|
@@ -126,7 +126,8 @@ Uygulama yalnızca siyah pencere açıkken çalışır. Bilgisayar açılınca k
 - O aralıkta siteye gerçek istek gittiyse oturum kontrolü atlanır (`usedAt`). Kullanıcı Hesap'tan açık tutmayı ve kendiliğinden yeniden girmeyi kapatabilir.
 - Bildirimler Windows bildirimi ve isteğe bağlı özet e-posta olarak gider. E-posta kullanıcının kendi adresinedir ve konusu `[Ortam Sade · Bildirim]` ile başlar.
 - Gönderilemeyen e-postalar giden kutusunda en fazla 2 gün bekler ve yeniden denenir.
-- Renkler: Uzak kırmızımsı turuncu, Piazza mavi. Derslerim'deki Uzak etiketi Ortam işaretinin üç rengiyle (mavi, kırmızı, turuncu) sert geçişli dönen çerçevedir; eski yumuşak geçişli görünüm `.pill.src-uzak.yumusak` olarak saklıdır. Menüde sade nokta, derslerin üzerinde sayılı rozet görünür.
+- Renkler: Uzak kırmızımsı turuncu, Piazza mavi. Derslerim'deki Uzak etiketi Ortam işaretinin üç rengiyle (mavi, kırmızı, turuncu) sert geçişli dönen çerçevedir; eski yumuşak geçişli görünüm `.pill.src-uzak.yumusak` olarak saklıdır. Menüde sade nokta, derslerin üzerinde sayılı rozet görünür. Rozete (ve "Piazza · N yeni" etiketine) basınca o dersin en yeni bildirimi açılır.
+- Bildirim bağlantıları içeriğin kendisini açar: Piazza `#/donem/derslerim/<ders>/piazza/<gönderi kimliği>` (gönderi yanıtlarıyla açık gelir), Uzak `.../uzak/<cmid>` (etkinlik vurgulanır; `focusCourseItem`). E-postadaki "Aç:" bağlantısı Windows'ta bu sayfaya, uygulama bağlantısı olmayan telefonda Piazza'daki gönderiye (`piazza.com/class/<nid>/post/<nr>`) gider.
 - Hatırlatmalar: Akademik Takvim satırları 3 gün kala, başladığı gün ve son gün gelir. Sınavlar Ortam'daki sınav takviminden, sınavdan önceki 24 saat içinde bir kez gelir.
 
 ## Android (ETÜ Cep)
@@ -141,7 +142,9 @@ Uygulama yalnızca siyah pencere açıkken çalışır. Bilgisayar açılınca k
 - **Şifreleme:** AES-256-GCM veri anahtarı Android Keystore ile sarılır (`Vault.kt`). Yedekleme kapalıdır.
 - **Giriş:** Doğrudan girişler Windows'la aynıdır. Ortam ve doğrulama isteyen durumlar `LoginActivity`'deki gerçek site sayfasında yapılır, doğrulamayı kullanıcı yanıtlar.
 - **Bildirim:** `Background.kt` görünmez WebView'de `arka-plan.html` açar ve `notify.runDue()` çalıştırır. WorkManager 15 dakikada bir, ayrıca Doze'da da uyanan 30 dakikalık alarm vardır. Uzak aralığı Android'de 30 dakikadır. Gerçek zamanı Android belirler; pil kısıtlaması kapatılırsa gecikme azalır.
-- **Ağ:** `uzak.etu.edu.tr` ara sertifika göndermediği için yalnızca o alan adına ara sertifika eklenir (`res/xml/ag_guvenligi.xml`, `res/raw/uzak_ara.pem`). Sertifikanın süresi dolunca dosya yenilenmelidir.
+- **Ağ:** Okulun alan adları (`etu.edu.tr` ve alt alan adları) için okulun ara sertifikası (SSL.com TLS Issuing RSA CA R1) da güvenilir sayılır (`res/xml/ag_guvenligi.xml`, `res/raw/uzak_ara.pem`): Uzak ara sertifikayı göndermiyor, diğer siteler de bazı Android sürümlerinde bulunmayan SSL.com 2022 köküne dayanıyor. Sertifikanın süresi dolunca dosya yenilenmelidir.
+- **Hata günlüğü:** WebView'deki uyarı/hatalar ve başarısız ağ işlemleri telefonun sistem günlüğüne `EtuCep` etiketiyle yazılır: `adb logcat -s EtuCep`. Şifre ya da içerik yazılmaz.
+- **Telefonda gezinme:** Yan çekmecedeki bölümlerin (Profil, Ekstra, Hakkında…) alt sayfaları çekmecede açılır; bu bölümlerde sayfanın üstünde ayrıca sekme çubuğu gösterilmez (`.tabs.subnav.side`). Alt çubuktaki bölümlerin (Dönem vb.) sekmeleri durur.
 - **Güncelleme:** `mobile/shim/update.mjs` GitHub'daki `.apk` dosyasını bulur. Yalnızca kullanıcı "Güncelle"ye basınca indirilir, SHA-256 doğrulanır ve Android kurulum ekranı açılır.
 - **İmza:** Anahtar `mobile/android/imza/` içindedir ve gitignore'dadır. GitHub'da `ETUCEP_KEY_B64` ve `ETUCEP_KEY_PASSWORD` gizli değişkenleridir. Anahtar kaybolursa kurulu uygulamalar güncellenemez.
 - **Derleme:** `npm run mobil`, sonra `mobile/android` içinde `sh ./gradlew :app:assembleRelease`. Java olarak Android Studio'nun `jbr` klasörü kullanılır (`JAVA_HOME`). Yerelde `local.properties` içinde `sdk.dir` gerekir.
@@ -167,7 +170,7 @@ Sürüm paketi GitHub Actions'ta üretilir. Yerelde üretilen zip asla yüklenme
 4. `git tag -a vX.Y.Z -m "Ortam Sade X.Y.Z"` ve `git push origin vX.Y.Z`.
 5. `.github/workflows/surum.yml` Windows üzerinde kurulum dosyası, zip ve APK üretir, ikisine imzalı kaynak kanıtı ekler ve sürümü yayımlar. Sürüm notuna doğrulama komutu kendiliğinden eklenir.
 
-**Kurulum dosyası:** `kurulum/OrtamSade.iss` (Inno Setup) `dist/OrtamSade` klasöründen `OrtamSade-X.Y.Z-kurulum.exe` üretir. Kurulum yönetici izni istemez, `%LOCALAPPDATA%\Programs\Ortam Sade` klasörüne kurar. Başlat menüsüne kısayol koyar; isteğe bağlı olarak masaüstü kısayolu ve açılışta başlatma (`Ortam Sade.cmd arka`: küçük pencere, tarayıcı açılmaz) ekler. Kaldırırken `.cache` ve `.profile` yalnızca kullanıcı onaylarsa silinir. Uygulamanın kendi güncellemesi kurulum klasöründe de çalışır. Simge `kurulum/simge.ico`'dur. Paket yalnızca üretimde kullanılan bağımlılıkları içerir (package-lock'ta `dev` olanlar girmez).
+**Kurulum dosyası:** `kurulum/OrtamSade.iss` (Inno Setup) `dist/OrtamSade` klasöründen `OrtamSade-X.Y.Z-kurulum.exe` üretir. Kurulum yönetici izni istemez, `%LOCALAPPDATA%\Programs\Ortam Sade` klasörüne kurar. Başlat menüsüne kısayol koyar; isteğe bağlı olarak masaüstü kısayolu ve açılışta başlatma (`Ortam Sade.cmd arka`: küçük pencere, tarayıcı açılmaz; varsayılan olarak işaretli) ekler. Kaldırırken `.cache` ve `.profile` yalnızca kullanıcı onaylarsa silinir. Uygulamanın kendi güncellemesi kurulum klasöründe de çalışır. Simge `kurulum/simge.ico`'dur. Paket yalnızca üretimde kullanılan bağımlılıkları içerir (package-lock'ta `dev` olanlar girmez). Yerelde derlemek için: `npm run paketle`, sonra PowerShell'de `& "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe" /Q "/DSurum=X.Y.Z" kurulum\OrtamSade.iss` (Git Bash `/Q` gibi seçenekleri yola çevirdiği için PowerShell kullan).
 
 `npm run paketle` yalnızca yerel deneme içindir. Paket `dist/OrtamSade-X.Y.Z-win-x64.zip` adıyla çıkar ve `runtime/node.exe` içerir. Yeni bir kök klasör pakete girecekse `scripts/paketle.mjs` listesine eklenmelidir.
 

@@ -352,13 +352,13 @@ function sourcesBanner(d) {
     : `${SOURCE_NAMES[site]} verisi alınamadı: ${esc(d.errors[site] || '')}`}</div>`).join('');
 }
 
-async function viewDerslerim(r) {
-  if (r.param) return viewCourse(r);
+async function viewDerslerim(r, ctx) {
+  if (r.param) return viewCourse(r, ctx);
   const d = await api('derslerim');
   return header('Derslerim', `${d.courses.length} ders · Ortam, Uzak ve Piazza bir arada`) + sourcesBanner(d) + `<div class="list">${d.courses.map(c =>
     `<a class="card course-row" href="#/donem/derslerim/${encodeURIComponent(c.key)}">
       <span class="cr-name"><span class="code">${esc(c.code)}</span><span>${esc(c.name)}</span></span>
-      <span class="badges">${srcDots(notif.byCourseSrc?.[c.key])}${c.uzak ? '<span class="pill src-uzak">Uzak</span>' : ''}${c.piazza ? `<span class="pill src-piazza">Piazza${c.piazza.fresh ? ` · ${c.piazza.fresh} yeni` : ''}</span>` : ''}
+      <span class="badges">${srcDots(notif.byCourseSrc?.[c.key], false, c.key)}${c.uzak ? '<span class="pill src-uzak">Uzak</span>' : ''}${c.piazza ? `<span class="pill src-piazza"${c.piazza.fresh ? ` data-ngo="${esc(c.key)}" data-src="piazza" role="link" title="Yeni gönderilere git"` : ''}>Piazza${c.piazza.fresh ? ` · ${c.piazza.fresh} yeni` : ''}</span>` : ''}
         ${icon('chevron-right', 'go')}</span>
     </a>`).join('')}</div>`;
 }
@@ -366,8 +366,8 @@ async function viewDerslerim(r) {
 // Sekmeler: Tümü (Piazza'nın son gönderileri ve kaynakları, Uzak içeriği, en altta Derse Bakış — tek sayfada), Piazza, Uzak,
 // Derse Bakış (Ortam'daki ders bilgisi). Ders açılınca Tümü gelir. Her bölüm kendi kaynağından gelir; biri açılamazsa diğerleri görünür.
 const COURSE_TABS = [['tumu', 'Tümü'], ['piazza', 'Piazza'], ['uzak', 'Uzak'], ['bakis', 'Derse Bakış']];
-async function viewCourse(r) {
-  const [key, tabId] = r.param.split('/');
+async function viewCourse(r, ctx) {
+  const [key, tabId, item] = r.param.split('/');
   const back = '<p><a href="#/donem/derslerim">← Derslerim</a></p>';
   const d = await api('derslerim');
   const c = d.courses.find(x => x.key === key);
@@ -391,10 +391,24 @@ async function viewCourse(r) {
     body = parts.map(p => `<section class="course-part"><div class="course-part-h"><h2>${p.title}</h2><a class="muted" href="${p.link}">Yalnızca ${p.title} →</a></div>${p.html}</section>`).join('')
       || '<div class="card msg">Bu ders için gösterilecek içerik yok.</div>';
   } else body = tab === 'bakis' ? await overview() : tab === 'uzak' ? await courseUzak(c) : await coursePiazza(c);
+  if (item && ctx) ctx.after = () => setTimeout(() => focusCourseItem(tab, c, decodeURIComponent(item)), 0);
   const news = notif.items.filter(n => !n.read && n.course === c.key);
   if (news.length) post('/api/notifications/read', { course: c.key }).then(r => r.json()).then(j => { notif = j; renderNav(route()); }).catch(() => {});
   const newsBox = news.length ? `<div class="card news"><b>Yeni</b><ul>${news.map(n => `<li><span class="sdot src-${esc(n.source)}"></span><a href="${esc(n.link)}">${esc(n.source === 'piazza' ? 'Piazza' : 'Uzak')}</a> · ${esc(n.text)} <span class="muted small">${whenTR(n.t)}</span></li>`).join('')}</ul></div>` : '';
   return back + header(`${c.code} · ${c.name}`) + newsBox + bar + body;
+}
+
+// #/donem/derslerim/<ders>/piazza/<gönderi> ve .../uzak/<etkinlik>: bildirimden gelinince o gönderi açılır (yanıtlarıyla) ya da
+// etkinlik vurgulanır. Gönderi Tümü'nün son gönderileri arasında değilse Piazza sekmesinde bulunur.
+function focusCourseItem(tab, c, item) {
+  const el = tab === 'piazza'
+    ? [...$view.querySelectorAll('details[data-lazy]')].find(d => d.dataset.lazy === `ppost:${c.piazza?.id}:${item}`)
+    : [...$view.querySelectorAll('.mi')].find(x => x.dataset.lazy?.endsWith('view.php?id=' + item)
+      || x.querySelector(`[data-ulink="${CSS.escape(item)}"]`) || x.querySelector('[data-file]')?.dataset.file.endsWith('cm=' + item));
+  if (!el) return;
+  if (el.tagName === 'DETAILS') el.open = true;
+  el.scrollIntoView({ block: 'start' });
+  el.classList.add('mv-flash');
 }
 
 // Uzak: haftalar/konular. Dosyalar görüntüleyicide açılır ya da iner; diğer etkinliklerin sayfası açılınca yüklenir.
@@ -1403,8 +1417,8 @@ function kadroHits() {
 }
 
 // ---------- Ekstra: Rezervasyon (kütüphane grup çalışma odaları, müzik stüdyosu) ----------
-// Boş ve dolu saatler okulun rezervasyon sisteminden alınır. Rezervasyonda öğrenci numarası, şifre (boş bırakılırsa kayıtlı Ortam
-// şifresi sunucuda kullanılır, arayüze gelmez) ve katılımcıların numaraları gönderilir. Okulun sistemi güvenlik kodu isterse kod
+// Boş ve dolu saatler okulun rezervasyon sisteminden alınır. Rezervasyonda öğrenci numarası, şifre (kayıtlı Ortam şifresi varsa alan
+// dolu görünür; şifrenin kendisi arayüze gelmez, sunucuda kullanılır) ve katılımcıların numaraları gönderilir. Okulun sistemi güvenlik kodu isterse kod
 // görseli gösterilir, kodu kullanıcı yazar. Önizlemeden sonra kesinleştirme iki tıklama ister.
 const rez = { kind: 'kutuphane', date: null, slot: null, people: null, no: null, step: '', armed: false };
 const isoDay = t => new Date(t - new Date(t).getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
@@ -1439,7 +1453,7 @@ async function viewRezervasyon() {
     <form class="card rz-form" id="rez-form" autocomplete="off">
       <b>Rezervasyon bilgileri</b>
       <label>Öğrenci numaran<input name="no" inputmode="numeric" value="${esc(no)}" placeholder="ör. 211101001"></label>
-      <label>Şifre<input name="pw" type="password" placeholder="Boş bırakırsan kayıtlı Ortam şifren kullanılır"></label>
+      <label>Şifre (Ortam şifren)<input name="pw" type="password" autocomplete="off"${d.savedPassword ? ` value="${REZ_KAYITLI}" data-rez-saved` : ' placeholder="Ortam şifren"'}></label>
       <div class="rz-people"><span>Katılımcıların öğrenci numaraları <span class="muted small">(en çok ${max})</span></span>
         ${rez.people.map((p, i) => `<div class="rz-person"><input data-rez-person="${i}" inputmode="numeric" value="${esc(p)}" placeholder="Öğrenci no">
           ${rez.people.length > 1 ? `<button type="button" class="x" data-rez-del="${i}" aria-label="Katılımcıyı kaldır">×</button>` : ''}</div>`).join('')}
@@ -1450,8 +1464,10 @@ async function viewRezervasyon() {
         <a href="${esc(d.url)}" target="_blank" rel="noopener">Okulun sayfası</a></p></form></div>` +
     (d.rules.length ? `<details class="card rz-rules" data-keep="rz-rules"><summary>${esc(d.rulesTitle || 'Kurallar')}</summary><ul>${d.rules.map(x => `<li>${esc(x)}</li>`).join('')}</ul></details>` : '');
 }
+const REZ_KAYITLI = '\u2022'.repeat(10);   // kayıtlı şifre varsa alandaki yer tutucu değer (şifrenin kendisi değil)
 const rezStep = html => { rez.step = html; const el = document.getElementById('rez-step'); if (el) el.innerHTML = html; };
-const rezLines = list => `<ul class="rz-lines">${list.map(x => `<li>${esc(x)}</li>`).join('')}</ul>`;
+const rezLines = list => `<div class="rz-lines">${list.map(x => (typeof x === 'string' ? { t: x } : x)).map(x => (x.h ? `<b class="rz-h">${esc(x.h)}</b>`
+  : x.k != null ? `<div class="rz-kv"><span>${esc(x.k)}</span><b>${esc(x.v)}</b></div>` : `<p>${esc(x.t)}</p>`)).join('')}</div>`;
 async function rezCaptcha(message) {
   rezStep(`<div class="rz-step"><p class="small">${esc(message || 'Okulun sistemi güvenlik kodu istiyor.')}</p>
     <div class="rz-code"><img id="rez-kod" alt="Güvenlik kodu" title="Yenilemek için dokun" data-rez-kod><input name="code" placeholder="Görseldeki kod" autocomplete="off"></div></div>`);
@@ -1468,7 +1484,7 @@ async function rezGo(btn) {
   rez.people = people.length ? people : [''];
   btn.disabled = true;
   btn.textContent = 'Okulun sistemi denetliyor…';
-  const r = await post('/api/rezervasyon/check', { kind: rez.kind, date: rez.date, slot: rez.slot, studentNo: rez.no, password: f.pw.value,
+  const r = await post('/api/rezervasyon/check', { kind: rez.kind, date: rez.date, slot: rez.slot, studentNo: rez.no, password: f.pw.value === REZ_KAYITLI ? '' : f.pw.value,
     people: people.filter(Boolean), code: f.code?.value || '' }).catch(() => null);
   const j = r ? await r.json().catch(() => ({})) : { error: 'Uygulamaya ulaşılamadı' };
   btn.disabled = false;
@@ -1494,6 +1510,8 @@ async function rezConfirm(btn) {
   rez.slot = null;
   setTimeout(() => render(true), 1500);
 }
+// Kayıtlı şifrenin yer tutucusu: alana girilince tamamı seçilir, yazılan yeni şifre onun yerine geçer
+$view.addEventListener('focusin', e => { if (e.target.matches('[data-rez-saved]') && e.target.value === REZ_KAYITLI) e.target.select(); });
 $view.addEventListener('click', e => {
   const k = e.target.closest('[data-rez-kind]');
   if (k) { rez.kind = k.dataset.rezKind; rez.slot = null; rez.step = ''; return render(); }
@@ -2035,13 +2053,23 @@ let lastLogin = null;            // son giriş denemesinin site sonuçları (ekr
 let notif = { items: [], unread: 0, byCourse: {}, bySource: {}, byCourseSrc: {}, settings: { toast: true, mail: true, takvim: true }, last: {} };
 // Kaynağa göre renkli bildirim noktaları (Uzak: kırmızımsı turuncu, Piazza: mavi); ikisi de varsa iki nokta
 const SRC_LABEL = { uzak: 'Uzak', piazza: 'Piazza' };
-// plain: menüde sayısız renkli nokta; derslerin üzerinde sayılı rozet
-const srcDots = (counts, plain = false) => {
+// plain: menüde sayısız renkli nokta; derslerin üzerinde sayılı rozet (course verilirse tıklanınca o dersin en yeni bildirimine gider)
+const srcDots = (counts, plain = false, course = null) => {
   const html = ['uzak', 'piazza'].filter(s => counts?.[s]).map(s => plain
     ? `<span class="ndot src-${s}" title="${counts[s]} yeni ${SRC_LABEL[s]} bildirimi"></span>`
-    : `<span class="nbadge src-${s}" title="${counts[s]} yeni ${SRC_LABEL[s]} bildirimi">${counts[s]}</span>`).join('');
+    : `<span class="nbadge src-${s}"${course ? ` data-ngo="${esc(course)}" data-src="${s}" role="link"` : ''} title="${counts[s]} yeni ${SRC_LABEL[s]} bildirimi${course ? ': açmak için dokun' : ''}">${counts[s]}</span>`).join('');
   return html ? `<span class="ndots${plain ? ' plain' : ''}">${html}</span>` : '';
 };
+// Derslerim'deki rozet: satırın kendisi dersi açar, rozet ise doğrudan en yeni bildirimin gönderisine/etkinliğine gider
+$view.addEventListener('click', e => {
+  const b = e.target.closest('[data-ngo]');
+  if (!b) return;
+  e.preventDefault();
+  e.stopPropagation();
+  const { ngo: course, src } = b.dataset;
+  const n = notif.items.filter(x => !x.read && x.course === course && x.source === src).sort((a, b2) => (b2.t ?? 0) - (a.t ?? 0))[0];
+  location.hash = n?.link || `#/donem/derslerim/${encodeURIComponent(course)}/${src}`;
+}, true);
 async function loadNotif() {
   try {
     const r = await fetch('/api/notifications');
@@ -2232,13 +2260,29 @@ async function submitAccount(f) {
   // Hesap'ta kalınır: Oturumlar tablosunda her sitenin durumu ve sonucu görünür.
   await render();
   document.getElementById('acct-sessions')?.scrollIntoView({ block: 'center' });
-  // Ortam yalnızca tarayıcı penceresiyle girilir: bilgiler bir sitede kabul edildiyse pencere kendiliğinden açılır.
-  // Sonuçlar 3 saniye Hesap'ta görünür, sonra Derslerim açılır (kullanıcı bu arada başka sayfaya geçtiyse geçilmez).
   if (!Object.values(j.results || {}).some(x => x.ok)) return;
+  // Sonuçlar görünür görünmez 3 saniyelik sayaç başlar, sonra Ana Sayfa açılır (kullanıcı bu arada başka sayfaya geçtiyse geçilmez).
+  // Ortam yalnızca tarayıcı penceresiyle girilir: pencere aynı anda kendiliğinden açılır, giriş arka planda tamamlanır.
+  homeCountdown(3);
   const b = document.querySelector('#acct-sessions [data-login="ortam"]');
-  if (b) await doLogin(b);
-  setTimeout(() => { if (/^#\/hesap/.test(location.hash)) location.hash = '#/donem/derslerim'; }, 3000);
+  if (b) doLogin(b, { stay: true });
 }
+function homeCountdown(n) {
+  const box = document.getElementById('acct-sessions');
+  if (!box || !/^#\/hesap/.test(location.hash)) return;
+  let el = document.getElementById('acct-go');
+  if (!el) box.insertAdjacentHTML('beforeend', '<p class="muted small" id="acct-go"></p>'), el = document.getElementById('acct-go');
+  if (n <= 0) { location.hash = '#/anasayfa'; return; }
+  el.innerHTML = `${n} saniye sonra Ana Sayfa açılıyor… <a href="#/hesap" data-acct-stay>Hesap'ta kal</a>`;
+  homeTimer = setTimeout(() => homeCountdown(n - 1), 1000);
+}
+let homeTimer = null;
+$view.addEventListener('click', e => {
+  if (!e.target.closest('[data-acct-stay]')) return;
+  e.preventDefault();
+  clearTimeout(homeTimer);
+  document.getElementById('acct-go')?.remove();
+});
 
 // ---------- Hakkında: Hakkımızda, Sık Sorulan Sorular, Sorumluluk Reddi ----------
 const aboutCard = (title, html) => `<section class="card about"><h3>${esc(title)}</h3>${html}</section>`;
@@ -2797,7 +2841,7 @@ document.addEventListener('click', e => {
 try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => applyTheme()); } catch {}
 applyTheme();
 
-const subnav = ({ group, sub }) => group.items ? `<div class="tabs subnav">${group.items.map(([id, label]) =>
+const subnav = ({ group, sub }) => group.items ? `<div class="tabs subnav${group.side ? ' side' : ''}">${group.items.map(([id, label]) =>
   `<a href="#/${group.id}/${id}" class="${id === sub ? 'on' : ''}">${esc(label)}</a>`).join('')}</div>` : '';
 
 let seq = 0;
@@ -2839,10 +2883,13 @@ const loginButton = (label, site) => `<button class="login" data-login="${esc(si
 // Kayıtlı bilgiyle doğrudan girilebilen sitelerde sunucu arka planda girer; diğerlerinde (Ortam, UBS) okulun
 // giriş sayfasını ayrı bir pencerede açar. Giriş bitince ekran yenilenir.
 const DIRECT_LOGIN = new Set(['webmail', 'uzakydb', 'uzak', 'piazza', 'ubs']);
-async function doLogin(btn) {
+// stay: Hesap'tan sonra açılan Ortam penceresi; o sırada başka sayfaya geçildiyse sayfa yeniden çizilmez
+async function doLogin(btn, { stay = false } = {}) {
   btn.disabled = true;
   btn.textContent = DIRECT_LOGIN.has(btn.dataset.login) ? 'Giriş yapılıyor…' : 'Giriş penceresi açıldı; bilgiler dolduruluyor…';
+  const from = location.hash;
   const r = await post('/api/login?site=' + encodeURIComponent(btn.dataset.login));
+  if (stay && location.hash !== from) { if (r.ok) renderNav(route()); return; }
   if (r.ok) return render();
   const j = await r.json().catch(() => ({}));
   if (j.account || j.rejected) { location.hash = '#/hesap/' + btn.dataset.login; return; }

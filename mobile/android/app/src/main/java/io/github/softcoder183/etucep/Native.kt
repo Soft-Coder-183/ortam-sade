@@ -47,7 +47,10 @@ class Native(private val context: Context, private val onBackgroundDone: () -> U
     private fun done(id: Int, json: JSONObject) = main.post {
         web.evaluateJavascript("__done($id," + JSONObject.quote(json.toString()) + ")", null)
     }
-    private fun fail(id: Int, e: Throwable) = done(id, JSONObject().put("error", e.message ?: "İşlem yapılamadı"))
+    private fun fail(id: Int, e: Throwable): Unit {
+        android.util.Log.w("EtuCep", "işlem $id: ${e.javaClass.simpleName}: ${e.message}")
+        done(id, JSONObject().put("error", e.message ?: "İşlem yapılamadı"))
+    }
 
     // ---------- dosyalar ----------
     @JavascriptInterface fun fsRead(path: String): String? = runCatching {

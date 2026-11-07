@@ -50,8 +50,8 @@ Sürüm numarasını kendi dosyanınkiyle değiştir. Komut başarılı olursa d
 ## İndir ve çalıştır (Windows 10/11)
 
 **Kolay yol:** [Releases](https://github.com/Soft-Coder-183/ortam-sade/releases/latest) sayfasından `OrtamSade-…-kurulum.exe` dosyasını indirip çalıştır.
-Yönetici izni istemez, kendi kullanıcı klasörüne kurulur. Başlat menüsüne (istersen masaüstüne) kısayol koyar ve istersen bilgisayar
-açılınca arka planda başlar (bildirimler için). Kaldırırken kişisel verilerin (kayıtlı şifre, oturumlar, ayarlar) silinip silinmeyeceğini sorar.
+Yönetici izni istemez, kendi kullanıcı klasörüne kurulur. Başlat menüsüne (istersen masaüstüne) kısayol koyar ve bilgisayar
+açılınca arka planda başlar (bildirimler için; kurulumda bu seçenek işaretli gelir, istersen kaldırırsın). Kaldırırken kişisel verilerin (kayıtlı şifre, oturumlar, ayarlar) silinip silinmeyeceğini sorar.
 Windows "bilinmeyen yayımcı" uyarısı verirse: *Ek bilgi → Yine de çalıştır* (kurulum dosyası imzasız; aşağıdaki komutla doğrulayabilirsin).
 
 **Kurulumsuz:** Zip'i indirip açarak da kullanabilirsin:
@@ -63,7 +63,7 @@ Windows "bilinmeyen yayımcı" uyarısı verirse: *Ek bilgi → Yine de çalış
 4. **Hesap** ekranında okul e-postanı ve şifreni gir. Şifren sitelerde farklıysa "Siteye özel şifreler" bölümünü kullan.
 
 - Açılan siyah pencere açık kaldıkça uygulama çalışır; kapatınca (ya da Hesap > Güvenlik ve Oturumlar > "Uygulamayı kapat") durur.
-  Bilgisayar açılınca kendiliğinden başlamaz. Menünün altındaki gösterge uygulamanın açık olup olmadığını her zaman gösterir;
+  Zip sürümü bilgisayar açılınca kendiliğinden başlamaz (kurulum dosyasıyla kurulan sürüm varsayılan olarak başlar). Menünün altındaki gösterge uygulamanın açık olup olmadığını her zaman gösterir;
   kapanırsa sayfanın üstünde uyarı çıkar.
 - Windows "bilinmeyen yayımcı" uyarısı verirse: *Ek bilgi → Yine de çalıştır*. (Dosya imzasız bir betik; içeriğini bu depoda görebilirsin.)
 - Gerekenler: Google Chrome **veya** Microsoft Edge (Ortam girişi ve PDF oluşturma için). Node.js kurmana gerek yok, pakette var.

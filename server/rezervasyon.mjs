@@ -65,6 +65,7 @@ export async function grid(kind, date) {
     rulesTitle: txt(info.find('strong').first().text()),
     rules: info.find('li').map((_, li) => txt($(li).text())).get().filter(Boolean),
     maxPeople: Number.isFinite(max) ? max + 1 : null,
+    savedPassword: !!credentials.passwordFor(credentials.get(), 'ortam'),
     url: `${BASE}/tr/rezervasyon/${kind}/${date}`,
   };
 }
@@ -75,15 +76,36 @@ export async function captcha() {
   return { body: Buffer.from(await r.arrayBuffer()), type: r.headers.get('content-type') || 'image/png', name: 'kod.png' };
 }
 
-// Sayfadaki ana içerik metin satırları olarak (okulun HTML'i olduğu gibi gösterilmez)
+// Önizleme ve sonuç sayfasının yalnızca rezervasyon bölümü, düzenli satırlar olarak (okulun HTML'i olduğu gibi gösterilmez):
+// { h } başlık, { k, v } etiket-değer, { t } metin. Yan menü, sayfa yolu, adım çubuğu, sekmeler ve düğmeler alınmaz.
+const rootOf = $ => [$('.container.rezervasyon'), $('.page-content'), $('main'), $('body')].find(x => x.length).first();
 function lines($, root) {
-  const out = [];
-  root.find('h1,h2,h3,h4,p,li,tr,dt,dd,.alert,strong').each((_, el) => {
-    if ($(el).parents('form,script,style,nav,footer,header').length || $(el).find('p,li,tr').length) return;
-    const t = txt($(el).text());
-    if (t && !out.includes(t)) out.push(t);
+  const out = [], seen = new Set();
+  const add = x => { const key = JSON.stringify(x); if (!seen.has(key)) { seen.add(key); out.push(x); } };
+  root.find('input[type=checkbox][checked],input[type=radio][checked]').replaceWith('<span>✓ seçili</span>');   // önizlemede seçilen saat/oda
+  root.find('script,style,nav,aside,.breadcrumb,.stepsBar,.tabs__title,.sideMenu,button,.btn,input,select,textarea,.rezervasyon-captcha').remove();
+  root.find('h1,h2,h3,h4,h5,table,dl,p,li,.alert').each((_, el) => {
+    const $el = $(el);
+    if ($el.parents('table,dl').length || (!$el.is('table,dl') && $el.find('h1,h2,h3,h4,h5,table,dl,p,li').length)) return;
+    if ($el.is('h1,h2,h3,h4,h5')) { const t = txt($el.text()); if (t) add({ h: t }); return; }
+    if ($el.is('dl')) { $el.find('dt').each((_, dt) => add({ k: txt($(dt).text()), v: txt($(dt).next('dd').text()) })); return; }
+    if ($el.is('table')) {
+      const trs = $el.find('tr').get();
+      const head = $(trs[0]).find('th').length > 1 && !$(trs[0]).find('td').length ? $(trs.shift()).find('th').map((_, c) => txt($(c).text())).get() : null;
+      for (const tr of trs) {
+        const cells = $(tr).find('th,td').map((_, c) => txt($(c).text())).get();
+        if (!cells.some(Boolean) || (head && !cells.slice(1).some(Boolean))) continue;   // seçilmemiş saat satırları
+        if (head) add({ t: cells.map((c, i) => (head[i] && c ? `${head[i]}: ${c}` : c)).filter(Boolean).join(' · ') });
+        else if (cells.length === 2) add({ k: cells[0], v: cells[1] });
+        else add({ t: cells.filter(Boolean).join(' · ') });
+      }
+      return;
+    }
+    const t = txt($el.text());
+    const kv = t.match(/^([^:]{1,40}[^\d\s:]):\s+(.+)$/);
+    if (kv) add({ k: kv[1], v: kv[2] }); else if (t) add({ t });
   });
-  return out.slice(0, 40);
+  return out.filter(x => x.h !== 'Yeni Rezervasyon').slice(0, 40);
 }
 
 // Form denetimi; uygunsa önizleme. Sonuç: { stage: 'captcha' | 'error' | 'preview', message?, lines?, canConfirm? }
@@ -113,11 +135,11 @@ export async function check({ kind, date, slot, studentNo, password, people = []
   }
   const r = await req(p.action.replace(BASE, ''), { method: 'POST', body: body.toString(), headers: form });
   const $ = cheerio.load(await r.text());
-  const root = $('main').length ? $('main') : $('body');
+  const root = rootOf($);
   const confirm = root.find('form').filter((_, f) => !/\/ara\b/.test($(f).attr('action') || '')).first();
   preview = confirm.length ? { action: new URL(confirm.attr('action') || '', BASE + p.action).pathname,
     fields: confirm.find('input[name]').map((_, i) => [[$(i).attr('name'), $(i).attr('value') ?? '']]).get() } : null;
-  return { stage: 'preview', lines: lines($, root), canConfirm: !!preview };
+  return { stage: 'preview', lines: lines($, root.clone()), canConfirm: !!preview };
 }
 
 // Önizlemedeki onay formu gönderilir (yalnızca kullanıcı onaylayınca)
@@ -128,5 +150,5 @@ export async function confirm() {
   const r = await req(action, { method: 'POST', body: new URLSearchParams(fields).toString(),
     headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' } });
   const $ = cheerio.load(await r.text());
-  return { stage: 'done', ok: r.ok, lines: lines($, $('main').length ? $('main') : $('body')) };
+  return { stage: 'done', ok: r.ok, lines: lines($, rootOf($)) };
 }

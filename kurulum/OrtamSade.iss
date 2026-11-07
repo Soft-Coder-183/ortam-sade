@@ -38,7 +38,7 @@ Name: "tr"; MessagesFile: "compiler:Languages\Turkish.isl"
 
 [Tasks]
 Name: "masaustu"; Description: "Masaüstüne kısayol koy"; GroupDescription: "Kısayollar:"
-Name: "acilis"; Description: "Bilgisayar açılınca arka planda başlat (bildirimler için; pencere küçültülmüş açılır, tarayıcı açılmaz)"; GroupDescription: "Başlatma:"; Flags: unchecked
+Name: "acilis"; Description: "Bilgisayar açılınca arka planda başlat (bildirimler için; pencere küçültülmüş açılır, tarayıcı açılmaz)"; GroupDescription: "Başlatma:"
 
 [Files]
 Source: "..\dist\OrtamSade\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
