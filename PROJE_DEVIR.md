@@ -165,7 +165,9 @@ Sürüm paketi GitHub Actions'ta üretilir. Yerelde üretilen zip asla yüklenme
 2. `notlar/vX.Y.Z.md` dosyasını yaz.
 3. Commit'le ve `main`'e gönder.
 4. `git tag -a vX.Y.Z -m "Ortam Sade X.Y.Z"` ve `git push origin vX.Y.Z`.
-5. `.github/workflows/surum.yml` Windows üzerinde zip ve APK üretir, ikisine imzalı kaynak kanıtı ekler ve sürümü yayımlar. Sürüm notuna doğrulama komutu kendiliğinden eklenir.
+5. `.github/workflows/surum.yml` Windows üzerinde kurulum dosyası, zip ve APK üretir, ikisine imzalı kaynak kanıtı ekler ve sürümü yayımlar. Sürüm notuna doğrulama komutu kendiliğinden eklenir.
+
+**Kurulum dosyası:** `kurulum/OrtamSade.iss` (Inno Setup) `dist/OrtamSade` klasöründen `OrtamSade-X.Y.Z-kurulum.exe` üretir. Kurulum yönetici izni istemez, `%LOCALAPPDATA%\Programs\Ortam Sade` klasörüne kurar. Başlat menüsüne kısayol koyar; isteğe bağlı olarak masaüstü kısayolu ve açılışta başlatma (`Ortam Sade.cmd arka`: küçük pencere, tarayıcı açılmaz) ekler. Kaldırırken `.cache` ve `.profile` yalnızca kullanıcı onaylarsa silinir. Uygulamanın kendi güncellemesi kurulum klasöründe de çalışır. Simge `kurulum/simge.ico`'dur. Paket yalnızca üretimde kullanılan bağımlılıkları içerir (package-lock'ta `dev` olanlar girmez).
 
 `npm run paketle` yalnızca yerel deneme içindir. Paket `dist/OrtamSade-X.Y.Z-win-x64.zip` adıyla çıkar ve `runtime/node.exe` içerir. Yeni bir kök klasör pakete girecekse `scripts/paketle.mjs` listesine eklenmelidir.
 

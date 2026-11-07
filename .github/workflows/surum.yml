@@ -41,6 +41,15 @@ jobs:
       - name: Paket
         run: npm run paketle
 
+      - name: Windows kurulumu (Inno Setup)
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress
+          $iscc = (Get-ChildItem 'C:\Program Files*\Inno Setup*\ISCC.exe' | Select-Object -First 1).FullName
+          $v = node -p "require('./package.json').version"
+          & $iscc "/DSurum=$v" kurulum\OrtamSade.iss
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
       - name: Java (Android derlemesi)
         uses: actions/setup-java@v4
         with:
@@ -67,6 +76,7 @@ jobs:
         with:
           subject-path: |
             dist/OrtamSade-*-win-x64.zip
+            dist/OrtamSade-*-kurulum.exe
             dist/EtuCep-*.apk
 
       - name: Sürümü yayımla
@@ -76,10 +86,13 @@ jobs:
         run: |
           zip=$(ls dist/OrtamSade-*-win-x64.zip)
           apk=$(ls dist/EtuCep-*.apk)
+          exe=$(ls dist/OrtamSade-*-kurulum.exe)
           # Her sürümün notuna doğrulama komutu eklenir
           { cat "notlar/$GITHUB_REF_NAME.md"
             printf '\n## Doğrulama\n\nBu paket GitHub Actions'"'"'ta bu depodaki koddan üretildi. Kendin doğrulamak için:\n\n'
-            printf '```\ngh attestation verify %s --repo %s\ngh attestation verify %s --repo %s\n```\n' "$(basename "$zip")" "$GITHUB_REPOSITORY" "$(basename "$apk")" "$GITHUB_REPOSITORY"
+            printf '```\n'
+            for f in "$exe" "$zip" "$apk"; do printf 'gh attestation verify %s --repo %s\n' "$(basename "$f")" "$GITHUB_REPOSITORY"; done
+            printf '```\n'
           } > surum-notu.md
-          gh release create "$GITHUB_REF_NAME" "$zip" "$apk" --title "Ortam Sade ${GITHUB_REF_NAME#v}" --notes-file surum-notu.md --verify-tag
-          sha256sum "$zip" "$apk" >> "$GITHUB_STEP_SUMMARY"
+          gh release create "$GITHUB_REF_NAME" "$exe" "$zip" "$apk" --title "Ortam Sade ${GITHUB_REF_NAME#v}" --notes-file surum-notu.md --verify-tag
+          sha256sum "$exe" "$zip" "$apk" >> "$GITHUB_STEP_SUMMARY"

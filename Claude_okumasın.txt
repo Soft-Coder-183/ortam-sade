@@ -1,0 +1,5 @@
+ Rezervasyonda ortam şifresini direkt dodursun, "boş
+  bırakırsan ortam şifren kullanılır" yazmasına gerek yok.
+  Rezervasyon önizlemesi çalışıyor ama formatı düzgün değil.
+  Derslerimde bildirim işareti tıklanabilir olsun, tıklanınca
+  direkt bildirime/piazzaya gitsin. Devam et.

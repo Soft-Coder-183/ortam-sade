@@ -49,6 +49,13 @@ Sürüm numarasını kendi dosyanınkiyle değiştir. Komut başarılı olursa d
 
 ## İndir ve çalıştır (Windows 10/11)
 
+**Kolay yol:** [Releases](https://github.com/Soft-Coder-183/ortam-sade/releases/latest) sayfasından `OrtamSade-…-kurulum.exe` dosyasını indirip çalıştır.
+Yönetici izni istemez, kendi kullanıcı klasörüne kurulur. Başlat menüsüne (istersen masaüstüne) kısayol koyar ve istersen bilgisayar
+açılınca arka planda başlar (bildirimler için). Kaldırırken kişisel verilerin (kayıtlı şifre, oturumlar, ayarlar) silinip silinmeyeceğini sorar.
+Windows "bilinmeyen yayımcı" uyarısı verirse: *Ek bilgi → Yine de çalıştır* (kurulum dosyası imzasız; aşağıdaki komutla doğrulayabilirsin).
+
+**Kurulumsuz:** Zip'i indirip açarak da kullanabilirsin:
+
 1. [Releases](https://github.com/Soft-Coder-183/ortam-sade/releases/latest) sayfasından `OrtamSade-…-win-x64.zip` dosyasını indir.
    Paketin bu koddan üretildiğini [doğrulayabilirsin](#güvenilirlik).
 2. Zip'i bir klasöre **çıkar** (zip'in içinden çalıştırma).
