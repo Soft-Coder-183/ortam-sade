@@ -310,15 +310,23 @@ export async function attachment(uid, mbox = 'INBOX', part) {
 }
 
 // ---------- Okunan e-postaları otomatik silme ----------
-// Ayar açıkken (varsayılan KAPALI) Gelen kutusundaki okunmuş e-postalar, okunduktan 12 saat sonra Çöp kutusuna TAŞINIR
+// Ayar açıkken (varsayılan KAPALI) Gelen kutusundaki okunmuş e-postalar, okunduktan sonra seçilen sürede (12 saat, 24 saat, 3 gün, 1 hafta) Çöp kutusuna TAŞINIR
+// Uygulamanın kendi bildirim e-postaları ([Ortam Sade · Bildirim] / [ETÜ Cep · Bildirim]) ayrı bir ayarla (varsayılan AÇIK, 24 saat)
+// okunsun okunmasın Gelen kutusundan ve Gönderilmiş klasöründen Çöp'e taşınır. Süre, e-postanın listede ilk görüldüğü andan sayılır.
 // (kalıcı silme yok; Çöp'ten geri alınabilir). Yıldızlı e-postalar ve kullanıcının "otomatik silme" kutucuğunu kaldırdığı
 // e-postalar hiç taşınmaz. Okunma anı: uygulamada okunanlarda tam an; başka yerde (okulun Webmail'i, telefon) okunanlarda
 // listede ilk kez okunmuş görüldüğü an — böylece ayar açıldığında eski e-postalar hemen değil, 12 saat sonra gider.
 const AUTO_FILE = '.cache/webmail-auto.json';
-export const AUTO_AFTER = 12 * 3600_000;
+export const AUTO_CHOICES = [12, 24, 72, 168];       // saat: 12 saat, 24 saat, 3 gün, 1 hafta
 const AUTO_EVERY = 60 * 60_000;                     // saatte bir kontrol
-let auto = { enabled: false, readAt: {}, exempt: {}, lastRun: null, nextRun: null, lastMoved: 0, totalMoved: 0, lastError: null };
-try { auto = { ...auto, ...JSON.parse(fs.readFileSync(AUTO_FILE, 'utf8')) }; } catch {}
+const NOTIF_SUBJECT = /^\[(Ortam Sade|ETÜ Cep) · Bildirim\]/;
+let auto = { enabled: false, afterHours: 12, notif: { enabled: true, afterHours: 24 }, readAt: {}, seenAt: {}, exempt: {},
+  lastRun: null, nextRun: null, lastMoved: 0, totalMoved: 0, lastError: null };
+try { const f = JSON.parse(fs.readFileSync(AUTO_FILE, 'utf8')); auto = { ...auto, ...f, notif: { ...auto.notif, ...f.notif }, seenAt: f.seenAt ?? {} }; } catch {}
+const hoursOf = h => (AUTO_CHOICES.includes(h) ? h : 12) * 3600_000;
+const isNotif = m => NOTIF_SUBJECT.test(m.subject || '');
+// Gönderilen bildirim e-postalarının kopyası
+const sentFolder = () => folders.find(f => /^(INBOX[./])?(Sent|Sent Items|Sent Messages)$/i.test(f.id) || /^(Gönderilmiş|Gönderilenler|Sent)/i.test(f.name))?.id ?? null;
 const saveAuto = () => fs.promises.writeFile(AUTO_FILE, JSON.stringify(auto)).catch(() => {});
 const akey = (mbox, uid) => `${mbox}:${uid}`;
 
@@ -331,10 +339,11 @@ function noteRead(uids, mbox, read) {
   saveAuto();
 }
 
-// Listede görülen durumla okunma anlarını eşitler (başka yerde okunan/okunmamış yapılanlar).
+// Listede görülen durumla okunma anlarını eşitler (başka yerde okunan/okunmamış yapılanlar); bildirim e-postalarının ilk görüldüğü an.
 function syncSeen(mbox, messages) {
-  if (mbox !== 'INBOX') return;
   let changed = false;
+  for (const m of messages) if (isNotif(m) && !auto.seenAt[akey(mbox, m.uid)]) { auto.seenAt[akey(mbox, m.uid)] = Date.now(); changed = true; }
+  if (mbox !== 'INBOX') { if (changed) saveAuto(); return; }
   for (const m of messages) {
     const k = akey(mbox, m.uid);
     if (m.seen && !auto.readAt[k]) { auto.readAt[k] = Date.now(); changed = true; }
@@ -343,31 +352,36 @@ function syncSeen(mbox, messages) {
   if (changed) saveAuto();
 }
 
-// Saf seçim (test edilebilir): taşınacaklar = okunmuş, yıldızsız, muaf değil, okunalı en az 12 saat olmuş.
-export function selectDue(messages, { readAt, exempt }, now = Date.now(), mbox = 'INBOX') {
+// Saf seçim (test edilebilir): yıldızsız, muaf değil ve
+//  - bildirim e-postası: ilk görülmesinin üstünden bildirim süresi geçmiş (okunmuş olması gerekmez), ya da
+//  - Gelen kutusunda okunmuş: okunalı seçilen süre geçmiş.
+export function selectDue(messages, s, now = Date.now(), mbox = 'INBOX') {
   return messages.filter(m => {
     const k = akey(mbox, m.uid);
-    return m.seen && !m.flagged && !exempt[k] && readAt[k] && now - readAt[k] >= AUTO_AFTER;
+    if (m.flagged || s.exempt[k]) return false;
+    if (isNotif(m) && s.notif?.enabled) return !!s.seenAt?.[k] && now - s.seenAt[k] >= hoursOf(s.notif.afterHours);
+    return mbox === 'INBOX' && s.enabled && m.seen && !!s.readAt[k] && now - s.readAt[k] >= hoursOf(s.afterHours);
   }).map(m => m.uid);
 }
 
 // Listeye eklenen bilgi: her okunmuş e-posta için kutucuk durumu ve ne zaman taşınacağı.
 function autoView(mbox, messages) {
   syncSeen(mbox, messages);
-  if (mbox !== 'INBOX' || !auto.enabled) return { enabled: false };
+  if (mbox !== 'INBOX' || !(auto.enabled || auto.notif.enabled)) return { enabled: false };
   const items = {};
-  for (const m of messages) if (m.seen) {
-    const k = akey(mbox, m.uid);
-    items[m.uid] = { exempt: !!auto.exempt[k] || m.flagged, starred: m.flagged, dueAt: auto.readAt[k] ? auto.readAt[k] + AUTO_AFTER : null };
+  for (const m of messages) {
+    const k = akey(mbox, m.uid), notif = isNotif(m) && auto.notif.enabled;
+    if (notif) items[m.uid] = { exempt: !!auto.exempt[k] || m.flagged, starred: m.flagged, notif: true, dueAt: auto.seenAt[k] ? auto.seenAt[k] + hoursOf(auto.notif.afterHours) : null };
+    else if (auto.enabled && m.seen) items[m.uid] = { exempt: !!auto.exempt[k] || m.flagged, starred: m.flagged, dueAt: auto.readAt[k] ? auto.readAt[k] + hoursOf(auto.afterHours) : null };
   }
-  return { enabled: true, items };
+  return { enabled: auto.enabled, notif: auto.notif.enabled, afterHours: auto.afterHours, items };
 }
 
-// Gelen kutusunun tamamı (sayfa sayfa; en çok 10 sayfa).
-async function allInbox() {
+// Bir klasörün tamamı (sayfa sayfa; en çok 10 sayfa).
+async function allInbox(mbox = 'INBOX') {
   const out = [];
   for (let p = 1; p <= 10; p++) {
-    const r = await inbox('INBOX', p);
+    const r = await inbox(mbox, p);
     out.push(...r.messages);
     if (r.messages.length < 100) break;
   }
@@ -376,17 +390,27 @@ async function allInbox() {
 
 // dryRun: hiçbir şey taşımadan hangi e-postaların taşınacağını söyler.
 export async function runAuto({ dryRun = false } = {}) {
-  const messages = await allInbox();
-  const due = selectDue(messages, auto);
-  const info = due.map(uid => { const m = messages.find(x => x.uid === uid); return { uid, subject: m.subject, from: m.from, readAt: auto.readAt[akey('INBOX', uid)] }; });
-  if (dryRun || !auto.enabled) return { dryRun: true, enabled: auto.enabled, wouldMove: info, checked: messages.length };
-  if (due.length) await move(due, 'INBOX', TRASH);
-  for (const uid of due) { delete auto.readAt[akey('INBOX', uid)]; delete auto.exempt[akey('INBOX', uid)]; }
+  const on = auto.enabled || auto.notif.enabled;
+  if (!folders.length) await freshToken();
+  const boxes = ['INBOX', ...(auto.notif.enabled && sentFolder() ? [sentFolder()] : [])];
+  const info = [];
+  let checked = 0;
+  for (const mbox of boxes) {
+    const messages = await allInbox(mbox);
+    checked += messages.length;
+    const due = selectDue(messages, auto, Date.now(), mbox);
+    info.push(...due.map(uid => { const m = messages.find(x => x.uid === uid); return { uid, mbox, subject: m.subject, from: m.from, notif: isNotif(m) }; }));
+    if (dryRun || !on || !due.length) continue;
+    await move(due, mbox, TRASH);
+    for (const uid of due) { const k = akey(mbox, uid); delete auto.readAt[k]; delete auto.exempt[k]; delete auto.seenAt[k]; }
+  }
+  for (const [k, t] of Object.entries(auto.seenAt)) if (Date.now() - t > 60 * 86_400_000) delete auto.seenAt[k];
+  if (dryRun || !on) return { dryRun: true, enabled: on, wouldMove: info, checked };
   auto.lastRun = Date.now();
-  auto.lastMoved = due.length;
-  auto.totalMoved += due.length;
+  auto.lastMoved = info.length;
+  auto.totalMoved += info.length;
   await saveAuto();
-  return { dryRun: false, moved: info, checked: messages.length };
+  return { dryRun: false, moved: info, checked };
 }
 
 let autoTimer = null;
@@ -394,7 +418,7 @@ export function startAuto() {
   clearInterval(autoTimer);
   const tick = async () => {
     auto.nextRun = Date.now() + AUTO_EVERY;
-    if (!auto.enabled) return saveAuto();
+    if (!auto.enabled && !auto.notif.enabled) return saveAuto();
     try { await runAuto(); auto.lastError = null; } catch (e) { auto.lastError = e.message; await saveAuto(); }
   };
   setTimeout(tick, 2 * 60_000);                     // açılıştan 2 dk sonra, sonra saatte bir
@@ -403,11 +427,15 @@ export function startAuto() {
 }
 
 export function autoStatus() {
-  return { enabled: auto.enabled, afterHours: AUTO_AFTER / 3600_000, lastRun: auto.lastRun, nextRun: auto.enabled ? auto.nextRun : null,
+  return { enabled: auto.enabled, afterHours: auto.afterHours, choices: AUTO_CHOICES, notif: auto.notif, lastRun: auto.lastRun,
+    nextRun: auto.enabled || auto.notif.enabled ? auto.nextRun : null,
     lastMoved: auto.lastMoved, totalMoved: auto.totalMoved, lastError: auto.lastError, tracked: Object.keys(auto.readAt).length };
 }
-export async function setAuto({ enabled }) {
+export async function setAuto({ enabled, afterHours, notifEnabled, notifHours }) {
   if (typeof enabled === 'boolean') auto.enabled = enabled;
+  if (AUTO_CHOICES.includes(afterHours)) auto.afterHours = afterHours;
+  if (typeof notifEnabled === 'boolean') auto.notif.enabled = notifEnabled;
+  if (AUTO_CHOICES.includes(notifHours)) auto.notif.afterHours = notifHours;
   await saveAuto();
   return autoStatus();
 }

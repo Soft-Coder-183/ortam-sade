@@ -12,6 +12,6 @@ export async function visibleLogin(s, fill = null) {
   if (globalThis.__ARKA_PLAN) throw new Error('Arka planda giriş penceresi açılmaz');
   const r = await globalThis.__call(id => N().openLogin(id, JSON.stringify({ url: s.base + s.home, base: s.base, name: s.name,
     passwordField: s.passwordField, userField: s.userField ?? null, submit: s.submit ?? null, captchaField: s.captchaField ?? null, fill })));
-  return r.cookies;
+  return { cookies: r.cookies, typed: r.typed ?? null };
 }
 export const clearCookies = async host => N().clearWebCookies(host);

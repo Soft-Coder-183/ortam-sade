@@ -49,6 +49,7 @@ Okulun siteleri ve mevzuat.gov.tr
 | `server/webmail.mjs` | Roundcube üzerinden e-posta, yıldızlar, otomatik silme |
 | `server/courses.mjs` | Ortam, Uzak ve Piazza derslerini birleştirir (`courseKey`) |
 | `server/plan.mjs` | Ortalama ve ders planı verisi (transkript + müfredat) |
+| `server/rezervasyon.mjs` | Kütüphane grup çalışma odası ve müzik stüdyosu rezervasyonu (www.etu.edu.tr/tr/rezervasyon) |
 | `server/etu.mjs` | Okulun herkese açık sitesi (akademik takvim, kadro) |
 | `server/program.mjs` | Açılan Dersler ekranının ders ve şube verisi (`/api/program`) |
 | `server/mevzuat.mjs`, `server/mevzuat-yanitlar.mjs` | Mevzuat dizini, belge ayrıştırma, arama, duyurular, hızlı yanıtlar |
@@ -77,9 +78,9 @@ Okulun siteleri ve mevzuat.gov.tr
 | Ana Sayfa | Bugünkü dersler ve sınavlar, yaklaşan sınavlar, posta, Piazza, son kullanılan 6 sayfa; üstte Ortam'da bekleyen anket ve duyurular, UZAKYDB ek içerik, yaklaşan son tarihler |
 | Dönem Bilgilerim | Derslerim (Ortam, Uzak, Piazza tek sayfada), Ders Programım |
 | Sınav Takvimi | Ara Sınav, Final ya da Bütünleme; her sınav tek satırda |
-| Webmail | Okundu senkronizasyonu, yazma, yanıtlama, yıldızlar, tarihe göre sıralı klasörler, satırda Sil, Çöp'te Geri getir, isteğe bağlı otomatik silme (okunanlar 12 saat sonra Çöp'e; açık e-postanın altında "Otomatik silinmesin") |
+| Webmail | Okundu senkronizasyonu, yazma, yanıtlama, yıldızlar, tarihe göre sıralı klasörler, satırda Sil, Çöp'te Geri getir; otomatik silme (okunanlar seçilen sürede Çöp'e, varsayılan kapalı; uygulamanın bildirim e-postaları varsayılan 24 saatte Gelen ve Gönderilmiş'ten Çöp'e; açık e-postanın altında "Otomatik silinmesin") |
 | Piazza, UBS, UZAKYDB | Kendi sade arayüzleri; PDF'ler uygulama içinde açılır |
-| Ekstra | Açılan Dersler ve haftalık plan, Akademik Takvim, Akademik Kadro (uygulamanın içinde), Yabancı Diller, Mevzuat, Öğrenci İşleri Duyuruları, ÇAP/YAP - Başvurular |
+| Ekstra | Açılan Dersler ve haftalık plan, Rezervasyon, Akademik Takvim, Akademik Kadro (uygulamanın içinde), Yabancı Diller, Mevzuat, Öğrenci İşleri Duyuruları, ÇAP/YAP - Başvurular |
 | Hakkında ve SSS | Hakkımızda, Okulun Siteleri, SSS, Sorumluluk Reddi |
 | Hesap | Tek giriş, siteye özel şifreler, Güvenlik ve Oturumlar, Bildirimler, Webmail ayarları, görünüm (aydınlık/karanlık) |
 
@@ -97,6 +98,11 @@ Okulun siteleri ve mevzuat.gov.tr
 - **Saklama:** Plan tarayıcıda `program-taslak` anahtarındadır (`courses`, `picks`, `off`, `active`, `last`).
 
 **Hesap ve giriş:** Hesap'tan giriş yapınca sayfada kalınır. Ortam doğrudan girişi desteklemez (görünmez reCAPTCHA); bilgiler bir sitede kabul edilince görünür pencere kendiliğinden açılır, Oturumlar tablosunda da giriş düğmesi vardır.
+
+- **Giriş düğmeleri:** Herhangi bir ekrandaki "Giriş yap", kayıtlı bilgi yoksa ya da şifre reddedildiyse `#/hesap/<site>` adresine gider. Orada bant çıkar; e-posta alanına ya da o sitenin özel şifre alanına odaklanılır.
+- **Pencereden giriş:** Kullanıcı giriş penceresinde (Ortam, ya da doğrulama isteyen UBS) bilgilerini kendisi yazarsa, `browser.mjs` ve `LoginActivity` yazılanları döndürür (`typed`). Kayıtlı bilgi yoksa `api.mjs`'teki `adoptTyped` bunlarla bütün sitelere girer ve bilgileri kaydeder. Aynı e-postayla farklı şifre yazıldıysa yalnızca o sitenin özel şifresi olur.
+
+**Rezervasyon:** Okulun sistemi giriş istemez. Boş ve dolu saatler her açılışta alınır. Gönderimde öğrenci numarası, şifre (boşsa kayıtlı Ortam şifresi sunucuda eklenir, arayüze gelmez) ve katılımcı numaraları gider. Okulun sistemi `form-check` yanıtında `captcha|` derse güvenlik kodu görseli gösterilir, kodu kullanıcı yazar. Sonra önizleme gelir, kesinleştirme iki tıklama ister. Önizleme ve sonuç sayfaları gerçek bir rezervasyonla henüz denenmedi; okulun HTML'i metin satırlarına çevrilerek gösterilir.
 
 **Bilinen veri sorunu:** mevzuat.gov.tr'deki Lisans Yönetmeliği metni 2011 hâlidir ve "bütünleme yok" der. Kullanıcı bütünlemenin yapıldığını doğruladı; hızlı yanıt bunu açıkça söyler.
 
@@ -128,6 +134,7 @@ Uygulama yalnızca siyah pencere açıkken çalışır. Bilgisayar açılınca k
 `server/` kodunun aynısı WebView içinde çalışır, telefonda yerel sunucu yoktur. `scripts/mobil.mjs` esbuild ile `mobile/core.mjs` paketini (`core.js`) üretir ve `public/` ile birlikte APK'ya koyar.
 
 - **Yönlendirme:** `mobile/core.mjs` `fetch`'i üçe ayırır: `/api/*` doğrudan `handleApi`, okul siteleri `Native.http`, uygulama dosyaları WebView.
+- **Gezinme:** Telefonda alt çubukta Ana Sayfa, Dönem, Sınav, Posta, Piazza ve "Menü" vardır. `side: true` olan bölümler (Profil, UBS, UZAKYDB, Ekstra, Hakkında, Hesap) Menü'nün açtığı yan çekmecededir. Bu düzen web arayüzünün telefon görünümünde de aynıdır.
 - **Karşılıklar:** `browser`, `pdf`, `vault`, `credentials`, `update` dosyaları derlemede `mobile/shim/` sürümleriyle değişir. `node:fs`, `crypto`, `path`, `zlib` da orada.
 - **Köprü:** `Native.kt` dosya, şifreleme, ağ, bildirim, giriş penceresi, indirme ve APK kurulumunu sağlar. `Native` varlığı arayüzde `window.Native` ile anlaşılır.
 - **İçerik güvenliği:** `Native` dosyalara eriştiği için telefonda sıkı CSP vardır (`scripts/mobil.mjs`): satır içi betik ve olay özniteliği çalışmaz. `public/` içine `onclick=` gibi satır içi kod ekleme.

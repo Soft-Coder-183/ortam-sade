@@ -21,6 +21,7 @@ import * as webmail from './webmail.mjs';
 import * as update from './update.mjs';
 import * as mevzuat from './mevzuat.mjs';
 import * as program from './program.mjs';
+import * as rez from './rezervasyon.mjs';
 
 const CACHE_DIR = '.cache/api';
 const CACHE_VER = 13;            // ayrıştırıcıların çıktısı değişince artır: eski kayıtlar açılışta silinir
@@ -45,6 +46,7 @@ const files = {
     return moodle(q.get('site')).file({ cm: q.get('cm'), path: q.get('path') });
   },
   'piazza': q => piazza.file({ nid: q.get('nid'), rid: q.get('rid'), path: q.get('path') }),
+  'rez-kod': () => rez.captcha(),                           // rezervasyon güvenlik kodu görseli (kodu kullanıcı yazar)
 };
 
 // uç adı -> [site, fonksiyon]
@@ -170,7 +172,22 @@ async function accountStatus() {
   return { email: credentials.get()?.email ?? null, remembered: await credentials.remembered(), sessions, custom: Object.keys(credentials.get()?.sites ?? {}), ...autologin.status() };
 }
 
-export const hooks = { shutdown: () => {} };     // "Uygulamayı kapat": Windows'ta süreci bitirir
+export const hooks = { shutdown: () => {} };
+
+// Giriş penceresinde kullanıcı bilgilerini kendisi yazdıysa: kayıtlı bilgi yoksa bunlarla diğer bütün sitelere de girilir
+// (Hesap'taki tek girişle aynı); başka şifre yazdıysa yalnızca o siteye özel şifre olarak saklanır.
+async function adoptTyped(site, r) {
+  const typed = r?.typed;
+  const email = String(typed?.user || '').trim().toLowerCase();
+  if (!typed?.password || !/^[^@\s]+@etu\.edu\.tr$/i.test(email)) return;
+  const saved = credentials.get();
+  if (saved?.email === email) {
+    if (credentials.passwordFor(saved, site) === typed.password) return;
+    return credentials.save({ ...saved, sites: { ...saved.sites, [site]: typed.password } }, await credentials.remembered());
+  }
+  const all = await autologin.loginAll({ email, password: typed.password, sites: {} }, true).catch(() => null);
+  for (const [s, x] of Object.entries(all?.results ?? {})) if (x.ok) needLogin.delete(s);
+}     // "Uygulamayı kapat": Windows'ta süreci bitirir
 
 // req: { method, url: URL, cookie, readBody(enFazla) -> Buffer }. Dönen değer: { code, body, type, headers }.
 export async function handleApi(req) {
@@ -303,6 +320,15 @@ export async function handleApi(req) {
   // Mevzuat (herkese açık kaynaklar, giriş gerekmez): modül belgeleri kendi önbelleğinde tutar (.cache/mevzuat)
   // Dönem ders programı: uygulamayla gelen veri dosyası (Açılan Dersler ve haftalık plan)
   if (name === 'program' && req.method === 'GET') return send(200, program.get());
+  // Kütüphane ve müzik stüdyosu rezervasyonu: boş saatler her açılışta okulun sitesinden alınır, gönderim yalnızca kullanıcının tıklamasıyla
+  if (name === 'rezervasyon' && req.method === 'GET') {
+    try { return send(200, await rez.grid(url.searchParams.get('kind'), url.searchParams.get('date'))); }
+    catch (e) { return send(502, { error: e.message }); }
+  }
+  if ((name === 'rezervasyon/check' || name === 'rezervasyon/confirm') && req.method === 'POST') {
+    try { return send(200, name.endsWith('check') ? await rez.check(await readJson(req)) : await rez.confirm()); }
+    catch (e) { return send(400, { error: e.message }); }
+  }
   const MEVZUAT = { mevzuat: () => mevzuat.listing(), 'mevzuat-doc': q => mevzuat.doc(q.get('id')), 'mevzuat-ara': q => mevzuat.search(q.get('q') || ''),
     'mevzuat-yanitlar': () => mevzuat.answers(), 'mevzuat-duyurular': () => mevzuat.news(), 'mevzuat-duyuru': q => mevzuat.newsItem(q.get('path')) };
   if (MEVZUAT[name] && req.method === 'GET') {
@@ -353,9 +379,9 @@ export async function handleApi(req) {
       if (autologin.supports(site)) {
         const r = await autologin.loginSite(site, c);
         // Site doğrulama kodu isterse kod çözülmez: okulun giriş sayfası pencerede açılır, bilgiler doldurulur, kodu kullanıcı girer.
-        if (r.captcha) await login(site, fill);
+        if (r.captcha) await adoptTyped(site, await login(site, fill));
         else if (!r.ok) return send(r.rejected ? 403 : 502, { error: r.rejected ? 'Şifre kabul edilmedi. Hesap sayfasından bilgilerinizi güncelleyin.' : r.error, rejected: !!r.rejected });
-      } else await login(site, fill);
+      } else await adoptTyped(site, await login(site, fill));
       needLogin.delete(site);
       return send(200, { ok: true });
     } catch (e) { return send(500, { error: 'Giriş tamamlanmadı: ' + e.message.split('\n')[0] }); }

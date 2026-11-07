@@ -90,7 +90,8 @@ async function autofill(page, s, { user, password }) {
 }
 
 // Sitenin giriş sayfasını görünür pencerede açar (fill varsa bilgileri doldurur); gerisini kullanıcı tamamlar.
-// Sayfada şifre alanı kalmayınca (iki kontrol üst üste) çerezleri döndürür ve sekmeyi kapatır.
+// Sayfada şifre alanı kalmayınca (iki kontrol üst üste) çerezleri döndürür ve sekmeyi kapatır. Kullanıcının forma yazdığı
+// e-posta ve şifre de döner (typed): uygulama bunlarla diğer sitelere de girebilsin diye; hiçbir yere yazılmaz.
 export async function visibleLogin(s, fill = null) {
   const ctx = await acquireVisible();
   const page = await ctx.newPage();
@@ -99,14 +100,18 @@ export async function visibleLogin(s, fill = null) {
     await page.bringToFront();
     if (fill && s.userField && !(await pageLoggedIn(page, s))) await autofill(page, s, fill).catch(() => {});
     const until = Date.now() + LOGIN_TIMEOUT;
-    let streak = 0;
+    let streak = 0, typed = null;
     while (streak < 2) {
       if (page.isClosed()) throw new Error('Giriş penceresi kapatıldı');
       if (Date.now() > until) throw new Error('Giriş için süre doldu');
       streak = (await pageLoggedIn(page, s)) ? streak + 1 : 0;
+      if (!streak && s.userField) {
+        const v = await page.evaluate(([u, p]) => ({ user: document.querySelector(u)?.value, password: document.querySelector(p)?.value }), [s.userField, s.passwordField]).catch(() => null);
+        if (v?.user && v?.password) typed = v;
+      }
       await new Promise(r => setTimeout(r, 1000));
     }
-    return await ctx.cookies(s.base);
+    return { cookies: await ctx.cookies(s.base), typed };
   } finally {
     await page.close().catch(() => {});
     await releaseVisible(ctx);

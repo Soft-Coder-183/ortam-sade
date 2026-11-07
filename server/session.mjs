@@ -137,10 +137,10 @@ function seed(site) {
 // Sitenin giriş sayfası görünür pencerede açılır (fill varsa bilgiler doldurulur); gerisini kullanıcı tamamlar.
 export function login(site, fill = null) {
   const st = state[site];
-  st.loggingIn ??= browser.visibleLogin(SITES[site], fill).then(cookies => {
+  st.loggingIn ??= browser.visibleLogin(SITES[site], fill).then(({ cookies, typed }) => {
     takeCookies(site, cookies);
     st.failedAt = 0;
-    return { ok: true };
+    return { ok: true, typed };
   }).finally(() => { st.loggingIn = null; });
   return st.loggingIn;
 }

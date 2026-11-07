@@ -78,7 +78,7 @@ class Native(private val context: Context, private val onBackgroundDone: () -> U
 
     // ---------- giriş ----------
     @JavascriptInterface fun openLogin(id: Int, json: String) {
-        LoginBroker.pending = { r -> r.onSuccess { done(id, JSONObject().put("cookies", it)) }.onFailure { fail(id, it) } }
+        LoginBroker.pending = { r -> r.onSuccess { done(id, JSONObject().put("cookies", it.first).put("typed", it.second ?: JSONObject.NULL)) }.onFailure { fail(id, it) } }
         context.startActivity(Intent(context, LoginActivity::class.java).putExtra("ayar", json).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
     @JavascriptInterface fun webCookies(base: String): String = LoginBroker.cookies(base).toString()

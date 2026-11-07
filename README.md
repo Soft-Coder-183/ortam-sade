@@ -15,7 +15,7 @@ toplayan, **senin bilgisayarında çalışan** açık kaynaklı bir öğrenci pr
 - **Sınav Takvimi:** hangi sınav dönemindeysen (Ara Sınav / Final / Bütünleme); her sınav tek satırda: tarih ve gün, ders,
   saat, yer ve kalan süre.
 - **Ortalama ve Ders Planı:** GNO, kredi durumu, dönemlik kredi sınırı, hedef not ve yükseltme hesabı (yönetmeliğe göre).
-- **Webmail:** okundu/okunmadı senkronizasyonu, yazma/yanıtlama/silme, yıldızlar, isteğe bağlı otomatik silme (Çöp'e taşır).
+- **Webmail:** okundu/okunmadı senkronizasyonu, yazma/yanıtlama/silme, yıldızlar, isteğe bağlı otomatik silme (12 saat, 24 saat, 3 gün ya da 1 hafta sonra Çöp'e taşır; uygulamanın bildirim e-postaları varsayılan 24 saatte).
 - **UBS, UZAKYDB, Piazza** kendi sade arayüzleriyle; PDF'ler uygulamanın içinde açılır.
 - **Bildirimler:** Piazza ve Uzak'a yeni içerik gelince Windows bildirimi ve isteğe bağlı özet e-posta; menüde ve derslerin
   üzerinde kaynağın renginde nokta (Uzak turuncu, Piazza mavi). Akademik Takvimdeki önemli tarihler (ders kaydı, ekle-sil,
@@ -27,7 +27,7 @@ toplayan, **senin bilgisayarında çalışan** açık kaynaklı bir öğrenci pr
   mazeret, not itirazı, MES, dönem izni…) dayandıkları maddeyle kısa yanıt olarak verilir. Uygulama, alıntılanan maddenin hâlâ
   aynı olduğunu her açılışta denetler. Dayandığı yönetmelik sonradan değişmiş yönergeler ve duyurulardaki eski sürüm bağlantıları
   işaretlenir. Öğrenci İşleri duyuruları da burada.
-- **Ekstra:** Açılan Dersler, Akademik Takvim, Akademik Kadro, Yabancı Diller, Mevzuat; ÇAP/YAP ve hareketlilik başvuruları.
+- **Ekstra:** Açılan Dersler, Rezervasyon (kütüphane grup çalışma odası ve müzik stüdyosu), Akademik Takvim, Akademik Kadro, Yabancı Diller, Mevzuat; ÇAP/YAP ve hareketlilik başvuruları.
 - **Haftalık ders planı (Açılan Dersler):** bu dönem açılan dersleri ya da ders hocalarını ara, plana ekle; dersler tek bir haftalık
   takvimde görünür. Şubeyi seçince takvimde yeşil olur, seçili şubelerin çakışan saatleri takvimde ve yan panelde gösterilir,
   "Çakışmayan programları bul" en çok 5 şube kombinasyonu üretir. Ders verisi uygulamayla gelir (`data/ders-programi.json`);

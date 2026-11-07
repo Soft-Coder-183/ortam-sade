@@ -119,6 +119,7 @@ if (globalThis.__ARKA_PLAN) {
   globalThis.__resume = () => { reloadJars(); notify.reload().then(() => globalThis.dispatchEvent(new Event('app-resume'))); };
   // Geri tuşu: açık PDF'i kapatır ya da bir önceki sayfaya döner; Ana Sayfa'daysa uygulama arka plana iner
   globalThis.__back = () => {
+    if (document.body.classList.contains('drawer-open')) { document.body.classList.remove('drawer-open'); return true; }
     if (history.state?.pdfv || !/^#?\/?(anasayfa)?$/.test(location.hash)) { history.back(); return true; }
     return false;
   };

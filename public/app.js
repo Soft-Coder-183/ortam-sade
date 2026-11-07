@@ -1,8 +1,8 @@
 // Arayüz (maske): her ekran yalnızca kendi /api/* ucunu, o da okulun tek sayfasını çağırır.
-// bottom: masaüstünde menünün en altında. rare: telefonun alt çubuğunda yok (Ana Sayfa kısayollarında);
-// extra: telefonda sağ üstteki ⚙ düğmesinde.
+// bottom: masaüstünde menünün en altında. rare: Ana Sayfa kısayollarında da var.
+// side: telefonda alt çubukta değil, "Menü" düğmesinin açtığı yan çekmecede.
 const NAV = [
-  { id: 'profil', label: 'Profil', short: 'Profil', icon: 'user', items: [
+  { id: 'profil', label: 'Profil', short: 'Profil', icon: 'user', side: true, items: [
     ['bilgilerim', 'Bilgilerim'], ['notlar', 'Not Görüntüleme'], ['ortalama', 'Ortalama ve Ders Planı'], ['mufredat', 'Müfredat Görüntüleme'],
     ['ortak', 'Ortak Eğitim Bilgilerim'], ['yabanci-dil', 'İkinci Yabancı Dil Bilgilerim'], ['odeme', 'Ödeme Bilgilerim']] },
   { id: 'anasayfa', label: 'Ana Sayfa', short: 'Anasayfa', icon: 'home' },
@@ -10,15 +10,15 @@ const NAV = [
   { id: 'sinav', label: 'Sınav Takvimi', short: 'Sınav', icon: 'clipboard' },
   { id: 'webmail', label: 'Webmail', short: 'Posta', icon: 'mail' },
   { id: 'piazza', label: 'Piazza', short: 'Piazza', icon: 'message' },
-  { id: 'ubs', label: 'UBS', short: 'UBS', icon: 'landmark' },
-  { id: 'uzakydb', label: 'UZAKYDB', short: 'YDB', icon: 'globe' },
+  { id: 'ubs', label: 'UBS', short: 'UBS', icon: 'landmark', side: true },
+  { id: 'uzakydb', label: 'UZAKYDB', short: 'YDB', icon: 'globe', side: true },
   // Ekstra: telefonda alt çubukta yok (Ana Sayfa kısayollarında)
-  { id: 'ekstra', label: 'Ekstra', short: 'Ekstra', icon: 'star', rare: true, items: [
-    ['acilan', 'Açılan Dersler'], ['takvim', 'Akademik Takvim'], ['kadro', 'Akademik Kadro'], ['yabanci-diller', 'Yabancı Diller'],
+  { id: 'ekstra', label: 'Ekstra', short: 'Ekstra', icon: 'star', rare: true, side: true, items: [
+    ['acilan', 'Açılan Dersler'], ['rezervasyon', 'Rezervasyon'], ['takvim', 'Akademik Takvim'], ['kadro', 'Akademik Kadro'], ['yabanci-diller', 'Yabancı Diller'],
     ['mevzuat', 'Mevzuat'], ['duyurular', 'Öğrenci İşleri Duyuruları'], ['cap', 'ÇAP/YAP - Başvurular']] },
-  { id: 'hakkinda', label: 'Hakkında ve SSS', short: 'Hakkında', icon: 'help', bottom: true, rare: true, items: [
+  { id: 'hakkinda', label: 'Hakkında ve SSS', short: 'Hakkında', icon: 'help', bottom: true, rare: true, side: true, items: [
     ['hakkimizda', 'Hakkımızda'], ['siteler', 'Okulun Siteleri'], ['sss', 'Sık Sorulan Sorular'], ['sorumluluk', 'Sorumluluk Reddi']] },
-  { id: 'hesap', label: 'Hesap', short: 'Hesap', icon: 'settings', bottom: true, extra: true },
+  { id: 'hesap', label: 'Hesap', short: 'Hesap', icon: 'settings', bottom: true, side: true },
 ];
 
 const $nav = document.getElementById('nav');
@@ -38,6 +38,7 @@ const ICONS = {
   mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3.5 6.5 8.5 6.5 8.5-6.5"/>',
   message: '<path d="M20 15a2 2 0 0 1-2 2H8l-4 4V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2z"/><path d="M8 8.5h8M8 12h5"/>',
   arrows: '<path d="M7 4 3 8l4 4M3 8h14M17 12l4 4-4 4M21 16H7"/>',
+  menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
   settings: '<path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/>',
   contrast: '<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/>',
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/>',
@@ -1401,6 +1402,126 @@ function kadroHits() {
     <a class="btn" href="${esc(kadroHref(p))}">${icon('user')}Profil</a></div>`).join('')}</div>`;
 }
 
+// ---------- Ekstra: Rezervasyon (kütüphane grup çalışma odaları, müzik stüdyosu) ----------
+// Boş ve dolu saatler okulun rezervasyon sisteminden alınır. Rezervasyonda öğrenci numarası, şifre (boş bırakılırsa kayıtlı Ortam
+// şifresi sunucuda kullanılır, arayüze gelmez) ve katılımcıların numaraları gönderilir. Okulun sistemi güvenlik kodu isterse kod
+// görseli gösterilir, kodu kullanıcı yazar. Önizlemeden sonra kesinleştirme iki tıklama ister.
+const rez = { kind: 'kutuphane', date: null, slot: null, people: null, no: null, step: '', armed: false };
+const isoDay = t => new Date(t - new Date(t).getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
+const store = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+const stored = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
+async function studentNo() {
+  if (rez.no != null) return rez.no;
+  rez.no = stored('rez-no', '');
+  if (!rez.no) try { rez.no = (await api('bilgilerim')).info.find(([k]) => /numara|öğrenci no/i.test(k))?.[1]?.replace(/\D/g, '') || ''; } catch {}
+  return rez.no;
+}
+async function viewRezervasyon() {
+  const today = isoDay(Date.now());
+  if (!rez.date || rez.date < today) rez.date = today;
+  const d = await api(`rezervasyon?kind=${encodeURIComponent(rez.kind)}&date=${rez.date}`);
+  rez.people ??= stored('rez-katilimci', ['']);
+  const no = await studentNo();
+  if (!d.rows.some(x => x.cells.some(c => c?.slot === rez.slot && c.free))) rez.slot = null;
+  const days = [];
+  for (let t = Date.parse(today + 'T12:00'); isoDay(t) <= d.maxDate && days.length < 31; t += 86_400_000) days.push(isoDay(t));
+  const dayLabel = x => new Date(x + 'T12:00').toLocaleDateString('tr-TR', { weekday: 'short', day: 'numeric', month: 'short' });
+  const cell = c => (!c ? '<td></td>' : c.free
+    ? `<td><button type="button" class="rz-slot${c.slot === rez.slot ? ' on' : ''}" data-rez-slot="${esc(c.slot)}" aria-pressed="${c.slot === rez.slot}">Boş</button></td>`
+    : '<td><span class="rz-busy">Dolu</span></td>');
+  const max = d.maxPeople || 8;
+  return header('Rezervasyon', 'Kütüphane grup çalışma odaları ve müzik stüdyosu · okulun rezervasyon sistemi') +
+    `<div class="tabs">${Object.entries(d.kinds).map(([k, label]) => `<button type="button" data-rez-kind="${k}" class="${k === rez.kind ? 'on' : ''}">${esc(label)}</button>`).join('')}</div>
+    <div class="rz-days">${days.map(x => `<button type="button" data-rez-date="${x}" class="${x === rez.date ? 'on' : ''}">${esc(dayLabel(x))}</button>`).join('')}</div>
+    <div class="rz-wrap"><div class="card rz-grid"><table><thead><tr><th>Saat</th>${d.rooms.map(r => `<th>${esc(r)}</th>`).join('')}</tr></thead>
+      <tbody>${d.rows.map(row => `<tr><th>${esc(row.time)}</th>${row.cells.map(cell).join('')}</tr>`).join('')}</tbody></table>
+      ${d.notes.map(n => `<p class="muted small">${esc(n)}</p>`).join('')}</div>
+    <form class="card rz-form" id="rez-form" autocomplete="off">
+      <b>Rezervasyon bilgileri</b>
+      <label>Öğrenci numaran<input name="no" inputmode="numeric" value="${esc(no)}" placeholder="ör. 211101001"></label>
+      <label>Şifre<input name="pw" type="password" placeholder="Boş bırakırsan kayıtlı Ortam şifren kullanılır"></label>
+      <div class="rz-people"><span>Katılımcıların öğrenci numaraları <span class="muted small">(en çok ${max})</span></span>
+        ${rez.people.map((p, i) => `<div class="rz-person"><input data-rez-person="${i}" inputmode="numeric" value="${esc(p)}" placeholder="Öğrenci no">
+          ${rez.people.length > 1 ? `<button type="button" class="x" data-rez-del="${i}" aria-label="Katılımcıyı kaldır">×</button>` : ''}</div>`).join('')}
+        ${rez.people.length < max ? '<button type="button" class="btn ghost" data-rez-add>+ Katılımcı ekle</button>' : ''}</div>
+      <div id="rez-step">${rez.step}</div>
+      <button type="button" class="btn primary" data-rez-go${rez.slot ? '' : ' disabled'}>${rez.slot ? 'Rezerve et' : 'Önce boş bir saat seç'}</button>
+      <p class="muted small" style="margin:0">Rezervasyon okulun sistemine senin adınla yapılır. <a href="https://www.etu.edu.tr/tr/rezervasyon/takip" target="_blank" rel="noopener">Rezervasyon takibi</a> ·
+        <a href="${esc(d.url)}" target="_blank" rel="noopener">Okulun sayfası</a></p></form></div>` +
+    (d.rules.length ? `<details class="card rz-rules" data-keep="rz-rules"><summary>${esc(d.rulesTitle || 'Kurallar')}</summary><ul>${d.rules.map(x => `<li>${esc(x)}</li>`).join('')}</ul></details>` : '');
+}
+const rezStep = html => { rez.step = html; const el = document.getElementById('rez-step'); if (el) el.innerHTML = html; };
+const rezLines = list => `<ul class="rz-lines">${list.map(x => `<li>${esc(x)}</li>`).join('')}</ul>`;
+async function rezCaptcha(message) {
+  rezStep(`<div class="rz-step"><p class="small">${esc(message || 'Okulun sistemi güvenlik kodu istiyor.')}</p>
+    <div class="rz-code"><img id="rez-kod" alt="Güvenlik kodu" title="Yenilemek için dokun" data-rez-kod><input name="code" placeholder="Görseldeki kod" autocomplete="off"></div></div>`);
+  const r = await fetch('/api/file/rez-kod?r=' + Date.now()).catch(() => null);
+  const img = document.getElementById('rez-kod');
+  if (r?.ok && img) img.src = URL.createObjectURL(await r.blob());
+}
+async function rezGo(btn) {
+  const f = document.getElementById('rez-form');
+  const people = [...f.querySelectorAll('[data-rez-person]')].map(i => i.value.trim());
+  rez.no = f.no.value.trim();
+  store('rez-no', rez.no);
+  store('rez-katilimci', people);
+  rez.people = people.length ? people : [''];
+  btn.disabled = true;
+  btn.textContent = 'Okulun sistemi denetliyor…';
+  const r = await post('/api/rezervasyon/check', { kind: rez.kind, date: rez.date, slot: rez.slot, studentNo: rez.no, password: f.pw.value,
+    people: people.filter(Boolean), code: f.code?.value || '' }).catch(() => null);
+  const j = r ? await r.json().catch(() => ({})) : { error: 'Uygulamaya ulaşılamadı' };
+  btn.disabled = false;
+  btn.textContent = 'Rezerve et';
+  if (!r?.ok) return rezStep(`<p class="rz-step bad">${esc(j.error || 'Rezervasyon yapılamadı')}</p>`);
+  if (j.stage === 'captcha') { btn.textContent = 'Kodla gönder'; return rezCaptcha(j.message); }
+  if (j.stage === 'error') return rezStep(`<p class="rz-step bad">${esc(j.message)}</p>`);
+  rezStep(`<div class="rz-step"><b>Önizleme</b>${rezLines(j.lines)}${j.canConfirm
+    ? '<button type="button" class="btn primary" data-rez-confirm>Onayla ve rezerve et</button>'
+    : '<p class="small">Okulun sayfasında onay adımı bulunamadı; rezervasyonun durumunu takip sayfasından kontrol et.</p>'}</div>`);
+}
+async function rezConfirm(btn) {
+  if (!btn.dataset.armed) {
+    btn.dataset.armed = '1';
+    btn.textContent = 'Okula gönderilecek. Onaylıyor musun?';
+    btn.classList.add('armed');
+    return;
+  }
+  btn.disabled = true;
+  const r = await post('/api/rezervasyon/confirm', {}).catch(() => null);
+  const j = r ? await r.json().catch(() => ({})) : {};
+  rezStep(`<div class="rz-step"><b>${r?.ok && j.ok ? 'Okulun yanıtı' : 'Rezervasyon tamamlanamadı'}</b>${rezLines(j.lines || [j.error || 'Bilinmeyen hata'])}</div>`);
+  rez.slot = null;
+  setTimeout(() => render(true), 1500);
+}
+$view.addEventListener('click', e => {
+  const k = e.target.closest('[data-rez-kind]');
+  if (k) { rez.kind = k.dataset.rezKind; rez.slot = null; rez.step = ''; return render(); }
+  const d = e.target.closest('[data-rez-date]');
+  if (d) { rez.date = d.dataset.rezDate; rez.slot = null; rez.step = ''; return render(); }
+  const s = e.target.closest('[data-rez-slot]');
+  if (s) {
+    rez.slot = rez.slot === s.dataset.rezSlot ? null : s.dataset.rezSlot;
+    rez.step = '';
+    document.querySelectorAll('[data-rez-slot]').forEach(b => { b.classList.toggle('on', b.dataset.rezSlot === rez.slot); b.setAttribute('aria-pressed', String(b.dataset.rezSlot === rez.slot)); });
+    const go = document.querySelector('[data-rez-go]');
+    if (go) { go.disabled = !rez.slot; go.textContent = rez.slot ? 'Rezerve et' : 'Önce boş bir saat seç'; }
+    return rezStep('');
+  }
+  const f = document.getElementById('rez-form');
+  if (f && e.target.closest('[data-rez-add], [data-rez-del]')) {
+    rez.people = [...f.querySelectorAll('[data-rez-person]')].map(i => i.value);
+    const del = e.target.closest('[data-rez-del]');
+    if (del) rez.people.splice(+del.dataset.rezDel, 1); else rez.people.push('');
+    return render(true);
+  }
+  if (e.target.closest('[data-rez-kod]')) return rezCaptcha();
+  const go = e.target.closest('[data-rez-go]');
+  if (go) return rezGo(go);
+  const c = e.target.closest('[data-rez-confirm]');
+  if (c) return rezConfirm(c);
+});
+
 const YABANCI_DILLER = 'https://www.etu.edu.tr/tr/bolum/yabanci-diller-bolumu';
 async function viewYabanciDiller() {
   return header('Yabancı Diller', 'TOBB ETÜ Yabancı Diller Bölümü') +
@@ -1592,7 +1713,7 @@ async function viewWebmail(r) {
   const sub = starredView ? `${m.messages.length} yıldızlı e-posta` : `${m.unread} okunmamış${total ? ` · ${total} ileti` : ''}`;
   return `<div class="row"><div>${header('Webmail', sub)}</div><span class="wm-head-actions"><a class="btn ghost" href="#/hesap" title="Webmail ayarları" data-goto-wmset>${icon('settings')}<span class="full">Ayarlar</span></a>
     <a class="btn primary newmail" href="#/webmail/yeni">${icon('pencil')}Yeni posta</a></span></div>` +
-    folders + (auto ? `<p class="muted small ad-info">Otomatik silme açık: okunan e-postalar 12 saat sonra Çöp'e taşınır.</p>` : '') +
+    folders + (m.auto?.enabled ? `<p class="muted small ad-info">Otomatik silme açık: okunan e-postalar ${hoursText(m.auto.afterHours)} sonra Çöp'e taşınır.</p>` : '') +
     `<div class="list">${m.messages.map(x =>
     `<details class="card mail ${x.seen ? '' : 'unread'} ${x.flagged ? 'starred' : ''}" data-mail="${esc(x.uid)}">
       <summary><button class="dot" data-mact="${x.seen ? 'unread' : 'read'}" data-uid="${esc(x.uid)}" title="${x.seen ? 'Okunmadı yap' : 'Okundu yap'}"></button>
@@ -1618,7 +1739,7 @@ const mailFoot = e => {
   if (mboxOf(e.uid) === TRASH) parts.push(`<button class="btn" data-mact="restore" data-uid="${esc(e.uid)}">${icon('reply')}Geri getir</button>`);
   if (a?.starred) parts.push('<span class="ad-tog on fixed" title="Yıldızlı e-postalar otomatik silinmez">Otomatik silinmesin</span>');
   else if (a) parts.push(`<button type="button" class="ad-tog${a.exempt ? ' on' : ''}" data-autodel="${esc(e.uid)}" aria-pressed="${a.exempt}"
-    title="${a.exempt ? 'Korunuyor: otomatik silinmez. Kaldırmak için bas.' : `Okunduktan 12 saat sonra Çöp'e taşınır${a.dueAt ? ` (${hoursLeft(a.dueAt)})` : ''}. Korumak için bas.`}">Otomatik silinmesin</button>`);
+    title="${a.exempt ? 'Korunuyor: otomatik silinmez. Kaldırmak için bas.' : `Çöp'e taşınacak${a.dueAt ? ` (${hoursLeft(a.dueAt)})` : ''}. Korumak için bas.`}">Otomatik silinmesin</button>`);
   return parts.length ? `<div class="mfoot">${parts.join('')}</div>` : '';
 };
 
@@ -1971,7 +2092,12 @@ $view.addEventListener('click', async e => {
 });
 
 // ---------- Webmail ayarları (fork D) ----------
-// Hesap'ta "Webmail" bölümü: okunan e-postaları 12 saat sonra Çöp'e taşıma (varsayılan kapalı), son/sonraki tur, deneme.
+// Hesap'ta "Webmail" bölümü: okunan e-postaları seçilen süre sonra Çöp'e taşıma (varsayılan kapalı), bildirim e-postaları
+// (varsayılan açık, 24 saat), son/sonraki tur, deneme.
+const HOURS_TEXT = { 12: '12 saat', 24: '24 saat', 72: '3 gün', 168: '1 hafta' };
+const hoursText = h => HOURS_TEXT[h] || `${h} saat`;
+const hoursSelect = (attr, value, choices) => `<select ${attr} aria-label="Süre">${choices.map(h =>
+  `<option value="${h}"${h === value ? ' selected' : ''}>${hoursText(h)}</option>`).join('')}</select>`;
 // Durum çizimden sonra sunucudan doldurulur. Webmail başlığındaki "Ayarlar" bu bölüme getirir.
 let wmScroll = false;
 function webmailSettingsSection() {
@@ -1985,11 +2111,15 @@ async function fillWmSettings() {
   const s = r?.ok ? await r.json() : null;
   if (!s) { box.innerHTML = '<p class="muted">Webmail ayarları alınamadı (Webmail oturumu kapalı olabilir).</p>'; return; }
   const when = t => (t ? whenTR(t) : '—');
-  box.innerHTML = `<label class="check"><input type="checkbox" data-wm-auto${s.enabled ? ' checked' : ''}> Okunan e-postaları ${s.afterHours} saat sonra sil</label>
-    <p class="muted small" style="margin:4px 0 8px">Gelen kutusundaki okunmuş e-postalar okunduktan ${s.afterHours} saat sonra <b>Çöp kutusuna taşınır</b> (kalıcı silinmez, Çöp'ten geri alınabilir).
-      Yıldızlı e-postalar hiç taşınmaz; açıkken okunmuş bir e-postayı açıp alttaki "Otomatik silinmesin" düğmesine basarak tek tek de koruyabilirsiniz.
-      Kontrol saatte bir, uygulama açıkken yapılır.</p>
-    ${s.enabled ? `<p class="small">Son tur: ${when(s.lastRun)}${s.lastRun ? ` · ${s.lastMoved} e-posta taşındı` : ''} · Sonraki tur: ${when(s.nextRun)} · Toplam taşınan: ${s.totalMoved}</p>` : ''}
+  box.innerHTML = `<div class="wm-opt"><label class="check"><input type="checkbox" data-wm-auto${s.enabled ? ' checked' : ''}> Okunan e-postaları sil:</label>
+      ${hoursSelect('data-wm-hours', s.afterHours, s.choices)}<span class="muted small">sonra</span></div>
+    <p class="muted small" style="margin:4px 0 12px">Gelen kutusundaki okunmuş e-postalar okunduktan seçilen süre sonra <b>Çöp kutusuna taşınır</b> (kalıcı silinmez, Çöp'ten geri alınabilir).
+      Yıldızlı e-postalar hiç taşınmaz; okunmuş bir e-postayı açıp alttaki "Otomatik silinmesin" düğmesine basarak tek tek de koruyabilirsiniz. Varsayılan kapalıdır.</p>
+    <div class="wm-opt"><label class="check"><input type="checkbox" data-wm-notif${s.notif.enabled ? ' checked' : ''}> Ortam Sade bildirim e-postalarını sil:</label>
+      ${hoursSelect('data-wm-notif-hours', s.notif.afterHours, s.choices)}<span class="muted small">sonra</span></div>
+    <p class="muted small" style="margin:4px 0 8px">Uygulamanın sana gönderdiği "[Ortam Sade · Bildirim]" e-postaları okunmasa da gelişinden seçilen süre sonra
+      Gelen kutusundan ve Gönderilmiş klasöründen Çöp'e taşınır. Kontrol saatte bir, uygulama açıkken yapılır.</p>
+    ${s.enabled || s.notif.enabled ? `<p class="small">Son tur: ${when(s.lastRun)}${s.lastRun ? ` · ${s.lastMoved} e-posta taşındı` : ''} · Sonraki tur: ${when(s.nextRun)} · Toplam taşınan: ${s.totalMoved}</p>` : ''}
     ${s.lastError ? `<p class="small bad">Son hata: ${esc(s.lastError)}</p>` : ''}
     <div class="row" style="justify-content:flex-start;gap:8px"><button type="button" class="btn ghost" data-wm-dry>Şimdi taşınacakları göster</button></div>
     <div class="wm-dry"></div>`;
@@ -1997,14 +2127,20 @@ async function fillWmSettings() {
 }
 $view.addEventListener('change', async e => {
   const t = e.target;
-  if (t.matches('[data-wm-auto]')) {
-    const r = await post('/api/webmail/auto-settings', { enabled: t.checked });
-    toast(r.ok ? (t.checked ? 'Otomatik silme açıldı' : 'Otomatik silme kapatıldı') : 'Ayar kaydedilemedi');
-    fillWmSettings();
+  const wm = { 'data-wm-auto': [v => ({ enabled: v.checked }), v => (v.checked ? 'Otomatik silme açıldı' : 'Otomatik silme kapatıldı')],
+    'data-wm-hours': [v => ({ afterHours: +v.value }), () => 'Süre kaydedildi'],
+    'data-wm-notif': [v => ({ notifEnabled: v.checked }), v => (v.checked ? 'Bildirim e-postaları silinecek' : 'Bildirim e-postaları silinmeyecek')],
+    'data-wm-notif-hours': [v => ({ notifHours: +v.value }), () => 'Süre kaydedildi'] };
+  const k = Object.keys(wm).find(x => t.hasAttribute?.(x));
+  if (k) {
+    const r = await post('/api/webmail/auto-settings', wm[k][0](t));
+    toast(r.ok ? wm[k][1](t) : 'Ayar kaydedilemedi');
+    return fillWmSettings();
   }
+
 });
 $view.addEventListener('click', async e => {
-  // Açık e-postanın altındaki "Otomatik silinmesin" düğmesi: basılı (mavi) = korunur, soluk = 12 saat sonra Çöp'e.
+  // Açık e-postanın altındaki "Otomatik silinmesin" düğmesi: basılı (mavi) = korunur, soluk = süresi dolunca Çöp'e.
   if (e.target.closest('.ad-tog.fixed')) { e.preventDefault(); return; }
   const tog = e.target.closest('button.ad-tog[data-autodel]');
   if (tog) {
@@ -2033,15 +2169,28 @@ $view.addEventListener('click', async e => {
 }, true);
 // ---------- Webmail ayarları sonu ----------
 
-async function viewHesap() {
+async function viewHesap(r, ctx) {
   const [a, st] = await Promise.all([api('account'), api('status')]);
+  // #/hesap/<site>: bir sitenin "Giriş yap" düğmesinden gelindi. Kayıtlı bilgi yoksa e-posta ve şifreye, şifre kabul edilmediyse
+  // o sitenin özel şifre alanına gidilir.
+  const want = SITE_NAMES[r.param] ? r.param : null;
+  const banner = want ? `<div class="banner">${esc(SITE_NAMES[want])} için giriş: ${a.email
+    ? `kayıtlı şifren kabul edilmedi. Bu sitedeki şifren farklıysa aşağıdaki "${esc(SITE_NAMES[want])}" alanına yaz ve Giriş yap'a bas.`
+    : 'okul e-postanı ve şifreni yaz; uygulama bütün sitelere girer.'}</div>` : '';
+  if (want) ctx.after = () => {
+    const f = document.getElementById('acct');
+    if (a.email) f.querySelector('details.site-pw').open = true;
+    const el = a.email ? f.querySelector(`input[name="site-${want}"]`) : f.querySelector('input[name=email]');
+    el?.scrollIntoView({ block: 'center' });
+    el?.focus({ preventScroll: true });
+  };
   const resultText = site => {
     const x = lastLogin?.results?.[site];
     if (!x) return '';
     return x.ok ? '<span class="pill ok">giriş yapıldı</span>' : x.rejected ? '<span class="pill bad">şifre kabul edilmedi</span>' : `<span class="pill warn">${esc(x.error)}</span>`;
   };
   const rows = Object.keys(a.sessions).map(site => ({ site, alive: a.sessions[site], direct: a.direct.includes(site), blocked: a.blocked.includes(site) }));
-  return header('Hesap', 'Tek giriş: e-posta ve şifreyi bir kez girin, uygulama sitelere kendisi girsin') +
+  return header('Hesap', 'Tek giriş: e-posta ve şifreyi bir kez girin, uygulama sitelere kendisi girsin') + banner +
     `<div class="card"><form id="acct" class="acct">
       <label>E-posta<input name="email" type="email" autocomplete="username" placeholder="isim@etu.edu.tr" value="${esc(a.email || '')}" required></label>
       <label>Şifre<input name="password" type="password" autocomplete="current-password" ${a.email ? 'placeholder="Boş bırakırsanız kayıtlı şifre kullanılır"' : 'required'}></label>
@@ -2119,7 +2268,7 @@ const SSS = [
   ['Okulun sunucularını yorar mı?', 'Hayır, normal kullanıma yakındır. Yalnızca açtığın ekran okuldan istenir ve kısa süre önbellekte tutulur. Arka planda oturumu açık tutmak için seyrek kontroller yapılır; siteye zaten bir istek gittiyse o kontrol atlanır. Bildirimler için Piazza yarım saatte, Uzak saatte bir sorulur.'],
   ['Bildirimler nasıl geliyor?', 'Uygulama açıkken Piazza ve Uzak\'taki yeni içerikleri ve Akademik Takvimde yaklaşan önemli tarihleri kontrol eder (Uzak turuncu, Piazza mavi noktayla gösterilir); yenilik varsa Windows bildirimi gösterir ve (açıksa) okul adresine "[Ortam Sade · Bildirim]" konulu bir özet e-posta yollar. Uygulama kapalıyken kontrol yapılmaz. Hesap > Bildirimler\'den kapatabilirsin.'],
   ['İndirdiğim paketin bu koddan üretildiğini nasıl anlarım?', 'Sürüm paketleri elle yüklenmez: GitHub Actions bu depodaki koddan üretir ve imzalı kaynak kanıtı ekler. GitHub CLI kuruluysa indirdiğin dosyanın yanında şu komutu çalıştır: gh attestation verify OrtamSade-1.6.4-win-x64.zip --repo Soft-Coder-183/ortam-sade. Sürüm numarasını kendi dosyanınkiyle değiştir. "Verification succeeded" yazıyorsa dosya bu depodan ve bu iş akışından çıkmıştır.'],
-  ['Otomatik silme e-postalarımı kalıcı olarak siler mi?', 'Hayır. Ayar açıksa okunmuş e-postalar 12 saat sonra Çöp kutusuna taşınır, oradan geri alınabilir. Yıldızlı e-postalar ve "Otomatik silinmesin" düğmesine basılanlar taşınmaz. Ayar varsayılan olarak kapalıdır.'],
+  ['Otomatik silme e-postalarımı kalıcı olarak siler mi?', 'Hayır. Ayar açıksa okunmuş e-postalar seçtiğin süre (12 saat, 24 saat, 3 gün ya da 1 hafta) sonra, uygulamanın bildirim e-postaları da 24 saat sonra Çöp kutusuna taşınır; oradan geri alınabilir. Yıldızlı e-postalar ve "Otomatik silinmesin" düğmesine basılanlar taşınmaz. Ayar varsayılan olarak kapalıdır.'],
   ['Bazı bilgiler neden yok (ör. açılan derslerin şube ve saatleri)?', 'Ortam bu bilgileri yalnızca doğrulamalı (reCAPTCHA) aramayla veriyor. Uygulama doğrulamaları aşmadığı için bu bilgiler için okulun sayfasına bağlantı verilir.'],
   ['Uzak\'ta sınav, ödev yükleme ya da Safe Exam Browser isteyen içerik olursa?', 'İçeriğin kendisi (açıklama, dosyalar, bağlantılar, Safe Exam Browser indirme bağlantısı ve yapılandırma dosyası) uygulamada görünür. Sınava başlama, ödev yükleme, foruma yazma gibi işlemler okulun sitesinde yapılır; sayfanın üstünde "Sitede aç" bağlantısı çıkar.'],
   ['Uygulama nasıl güncellenir?', 'Yeni sürüm çıkınca uygulama sağ altta sorar; "Güncelle"ye basmadan hiçbir şey indirilmez. Basınca sürüm yalnızca GitHub sayfamızdan indirilir, SHA-256 özetiyle doğrulanır, kurulur ve uygulama kendini yeniden başlatır. Şifren, oturumların ve ayarların korunur. Hakkımızda sayfasından elle de denetleyebilirsin.'],
@@ -2561,7 +2710,7 @@ const views = {
   'profil/bilgilerim': viewBilgilerim, 'profil/notlar': viewNotlar, 'profil/ortalama': viewPlan, 'profil/mufredat': viewMufredat,
   'profil/ortak': simpleView('ortak', 'Ortak Eğitim Bilgilerim'), 'profil/yabanci-dil': simpleView('yabanci-dil', 'İkinci Yabancı Dil Bilgilerim'),
   'profil/odeme': simpleView('odeme', 'Ödeme Bilgilerim'), 'ekstra/acilan': viewAcilan, 'ekstra/takvim': viewTakvim,
-  'ekstra/kadro': viewKadro, 'ekstra/yabanci-diller': viewYabanciDiller,
+  'ekstra/kadro': viewKadro, 'ekstra/rezervasyon': viewRezervasyon, 'ekstra/yabanci-diller': viewYabanciDiller,
   'ekstra/cap': viewBasvuru,
   ubs: viewUbs, uzakydb: viewUzakydb, webmail: viewWebmail, piazza: viewPiazza, hesap: viewHesap,
   'ekstra/mevzuat': viewMevzuat, 'ekstra/duyurular': viewMvDuyurular,
@@ -2597,10 +2746,20 @@ function renderNav({ group, sub }) {
     const href = '#/' + n.id + (n.items ? '/' + n.items[0][0] : '');
     const subs = n === group && n.items ? `<div class="subs">${n.items.map(([id, label]) =>
       `<a href="#/${n.id}/${id}" class="${id === sub ? 'on' : ''}">${esc(label)}${n.id === 'donem' && id === 'derslerim' ? srcDots(notif.bySource, true) : ''}</a>`).join('')}</div>` : '';
-    const cls = ['grp', n === firstBottom && 'push', n.extra && 'extra', n.rare && 'rare', n === group && 'on'].filter(Boolean).join(' ');
+    const cls = ['grp', n === firstBottom && 'push', n.side && 'side', n === group && 'on'].filter(Boolean).join(' ');
     return `<a href="${href}" class="${cls}"${n === group ? ' aria-current="page"' : ''}>${icon(n.icon)}<span class="full">${esc(n.label)}</span><span class="short">${esc(n.short)}</span>${n.id === 'donem' ? srcDots(notif.bySource, true) : ''}</a>${subs}`;
-  }).join('') + srvStateHtml();
+  }).join('') + srvStateHtml() +
+    // Telefon: alt çubuğa sığmayan bölümler yan çekmecede
+    `<button type="button" class="grp menu-btn${group.side ? ' on' : ''}" data-drawer>${icon('menu')}<span class="short">Menü</span></button>
+    <div id="drawer-bg" data-drawer-close></div><div id="drawer" role="dialog" aria-label="Menü">${NAV.filter(n => n.side).map(n =>
+      `<a href="#/${n.id}${n.items ? '/' + n.items[0][0] : ''}" class="${n === group ? 'on' : ''}">${icon(n.icon)}<span>${esc(n.label)}</span></a>`).join('')}</div>`;
 }
+const closeDrawer = () => document.body.classList.remove('drawer-open');
+document.addEventListener('click', e => {
+  if (e.target.closest('[data-drawer]')) return document.body.classList.toggle('drawer-open');
+  if (e.target.closest('[data-drawer-close], #drawer a')) closeDrawer();
+});
+window.addEventListener('hashchange', closeDrawer);
 
 // ---------- Tema ----------
 // Görünüm tercihi bu cihazda saklanır: 'auto' (cihazın ayarı), 'light', 'dark'. index.html tercihi ilk çizimden önce
@@ -2678,6 +2837,7 @@ async function doLogin(btn) {
   const r = await post('/api/login?site=' + encodeURIComponent(btn.dataset.login));
   if (r.ok) return render();
   const j = await r.json().catch(() => ({}));
+  if (j.account || j.rejected) { location.hash = '#/hesap/' + btn.dataset.login; return; }
   btn.disabled = false;
   btn.textContent = 'Tekrar dene';
   btn.insertAdjacentHTML('afterend', `<div class="muted">${esc(j.error || 'Giriş tamamlanmadı')}${j.rejected || j.account ? ' <a href="#/hesap">Hesap</a>' : ''}</div>`);

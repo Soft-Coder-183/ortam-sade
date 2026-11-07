@@ -22,7 +22,7 @@ import org.json.JSONObject
 
 /** Giriş penceresinin sonucunu köprüye taşır. */
 object LoginBroker {
-    var pending: ((Result<JSONArray>) -> Unit)? = null
+    var pending: ((Result<Pair<JSONArray, JSONObject?>>) -> Unit)? = null
 
     fun cookies(base: String): JSONArray {
         val out = JSONArray()
@@ -45,6 +45,7 @@ class LoginActivity : Activity() {
     private var filled = false
     private var streak = 0
     private var finished = false
+    private var typed: JSONObject? = null           // kullanıcının forma yazdığı e-posta ve şifre (diğer sitelere de girilebilsin diye)
     private val until = System.currentTimeMillis() + 10 * 60_000
 
     private val poll = object : Runnable {
@@ -52,9 +53,16 @@ class LoginActivity : Activity() {
             if (finished) return
             if (System.currentTimeMillis() > until) return end(Result.failure(Exception("Giriş için süre doldu")))
             val onSite = web.url?.startsWith(cfg.getString("base")) == true
-            val js = "document.readyState==='complete'&&!document.querySelector(" + JSONObject.quote(cfg.getString("passwordField")) + ")"
-            web.evaluateJavascript(js) { streak = if (onSite && it == "true") streak + 1 else 0
-                if (streak >= 2) end(Result.success(LoginBroker.cookies(cfg.getString("base")))) else main.postDelayed(this, 1000) }
+            val pass = JSONObject.quote(cfg.getString("passwordField"))
+            val user = if (cfg.isNull("userField")) "null" else JSONObject.quote(cfg.getString("userField"))
+            val js = "(function(){var p=document.querySelector($pass),u=$user&&document.querySelector($user);" +
+                "return JSON.stringify({done:document.readyState==='complete'&&!p,user:u?u.value:'',password:p?p.value:''})})()"
+            web.evaluateJavascript(js) { raw ->
+                val v = runCatching { JSONObject(JSONObject("{\"v\":$raw}").getString("v")) }.getOrNull()
+                if (v != null && v.optString("user").isNotEmpty() && v.optString("password").isNotEmpty())
+                    typed = JSONObject().put("user", v.getString("user")).put("password", v.getString("password"))
+                streak = if (onSite && v?.optBoolean("done") == true) streak + 1 else 0
+                if (streak >= 2) end(Result.success(LoginBroker.cookies(cfg.getString("base")) to typed)) else main.postDelayed(this, 1000) }
         }
     }
 
@@ -104,7 +112,7 @@ class LoginActivity : Activity() {
             return true;})($args)""") { if (it == "true") filled = true }
     }
 
-    private fun end(r: Result<JSONArray>) {
+    private fun end(r: Result<Pair<JSONArray, JSONObject?>>) {
         if (finished) return
         finished = true
         CookieManager.getInstance().flush()
