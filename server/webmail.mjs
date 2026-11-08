@@ -66,7 +66,8 @@ export async function inbox(mbox = 'INBOX', pageNo = 1) {
   // Sıra belirtilmezse Roundcube klasöre giriş sırasını verir: Çöp'te e-postalar silinme sırasına göre dizilir. Her klasör e-postanın tarihine göre, yeniden eskiye.
   const j = await remote(`_task=mail&_action=list&_mbox=${encodeURIComponent(mbox)}&_page=${Number(pageNo) || 1}&_sort=date_DESC`);
   const exec = j.exec || '';
-  const messages = rows(exec, mbox);
+  let messages = rows(exec, mbox);
+  if (mbox === 'INBOX' && auto.instant.enabled) messages = await dropInstant(messages);
   const unread = Number((exec.match(/set_unread_count\("INBOX",\s*(\d+)/) || [])[1] ?? messages.filter(m => !m.seen).length);
   const rowcount = plain((exec.match(/set_rowcount\("([^"]*)"/) || [])[1]);
   return { mbox, folders, unread, rowcount, messages, auto: autoView(mbox, messages) };
@@ -92,8 +93,12 @@ export function piazzaRoute(href, key = null) {
   let u;
   try { u = new URL(href); } catch { return null; }
   if (!/(^|\.)piazza\.com$/i.test(u.hostname) || PZ_KEEP.test(u.pathname + u.search)) return null;
-  if (key) return { to: `#/donem/derslerim/${encodeURIComponent(key)}/piazza` };
   const m = u.pathname.match(/^\/class(?:\/([a-z0-9]+))?(?:\/post\/(\d+|[a-z0-9]+))?\/?$/i);
+  if (key) {
+    // Gönderi bağlantısı (cid=<kimlik> ya da /post/<numara|kimlik>): uygulamada o gönderi açık gelir
+    const post = u.searchParams.get('cid') || m?.[2];
+    return { to: `#/donem/derslerim/${encodeURIComponent(key)}/piazza${post && /^[a-z0-9]{1,20}$/i.test(post) ? '/' + post : ''}` };
+  }
   if (!m) return null;
   const nid = m[1] || u.searchParams.get('nid');
   if (!nid || !PZ_ID.test(nid)) return null;
@@ -118,7 +123,30 @@ function cleanHtml($, el, pzKey = null) {
     if (r.nid) $(a).attr('data-pz-nid', r.nid);
   });
   el.find('img').remove();
+  if (pzKey) linkResourcesWord($, el, pzKey);
   return el;
+}
+
+// Piazza e-postasında ilk geçen "resources…" ya da "kaynaklar…" sözcüğü (bağlantı olmasa bile) dersin Piazza kaynaklarına bağlanır.
+// Sözcük Piazza'ya giden (uygulamaya çevrilmiş) bir bağlantının içindeyse o bağlantı kaynaklara yönlendirilir.
+const RES_WORD = /(?<![\p{L}])(resources|kaynaklar)\p{L}*/iu;
+function linkResourcesWord($, el, key) {
+  const href = `#/donem/derslerim/${encodeURIComponent(key)}/piazza/kaynaklar`;
+  const walk = node => {
+    for (const n of [...(node.children || [])]) {
+      if (n.type === 'text') {
+        const m = n.data.match(RES_WORD);
+        if (!m) continue;
+        const a = $(n.parent).closest('a');
+        if (a.length) { if (!a.hasClass('inapp')) continue; a.attr('href', href).removeAttr('data-pz-nid'); return true; }
+        $(n).replaceWith(`${escHtml(n.data.slice(0, m.index))}<a href="${href}" class="inapp">${escHtml(m[0])}</a>${escHtml(n.data.slice(m.index + m[0].length))}`);
+        return true;
+      }
+      if (n.type === 'tag' && walk(n)) return true;
+    }
+    return false;
+  };
+  walk(el[0]);
 }
 
 // Tek e-posta: başlıklar ve gövde (gövde sadeleştirilir; script/stil/olay öznitelikleri silinir).
@@ -320,15 +348,21 @@ const AUTO_FILE = '.cache/webmail-auto.json';
 export const AUTO_CHOICES = [12, 24, 72, 168];       // saat: 12 saat, 24 saat, 3 gün, 1 hafta
 const AUTO_EVERY = 60 * 60_000;                     // saatte bir kontrol
 const NOTIF_SUBJECT = /^\[(Ortam Sade|ETÜ Cep) · Bildirim\]/;
+// Anında silinenler (varsayılan AÇIK): gelir gelmez Çöp'e taşınır (kalıcı silinmez). Gelen kutusu her açıldığında ve uygulama
+// açıkken 5 dakikada bir kontrol edilir. Yıldızlananlar ve "Otomatik silinmesin" denenler taşınmaz.
+const INSTANT = [{ id: 'ydb-giris', subject: /^New sign[- ]in to your Department of Foreign Languages account/i,
+  label: 'Yabancı Diller Bölümü "New sign in to your … account" e-postaları' }];
+const INSTANT_EVERY = 5 * 60_000;
+const isInstant = m => INSTANT.some(r => r.subject.test(m.subject || ''));
 // Bildirim e-postaları varsayılan olarak 12 saat sonra silinir. notifVer: varsayılan 24 saatken kaydedilmiş ayar (kullanıcı
 // süreyi kendisi değiştirmediyse) bir kez 12 saate çekilir; kullanıcının sonradan seçtiği süreye dokunulmaz.
 const NOTIF_VER = 2;
-let auto = { enabled: false, afterHours: 12, notif: { enabled: true, afterHours: 12 }, notifVer: NOTIF_VER, readAt: {}, seenAt: {}, exempt: {},
+let auto = { enabled: false, afterHours: 12, notif: { enabled: true, afterHours: 12 }, instant: { enabled: true, moved: 0 }, notifVer: NOTIF_VER, readAt: {}, seenAt: {}, exempt: {},
   lastRun: null, nextRun: null, lastMoved: 0, totalMoved: 0, lastError: null };
 try {
   const f = JSON.parse(fs.readFileSync(AUTO_FILE, 'utf8'));
   if ((f.notifVer ?? 1) < NOTIF_VER && f.notif?.afterHours === 24) f.notif.afterHours = 12;
-  auto = { ...auto, ...f, notif: { ...auto.notif, ...f.notif }, seenAt: f.seenAt ?? {}, notifVer: NOTIF_VER };
+  auto = { ...auto, ...f, notif: { ...auto.notif, ...f.notif }, instant: { ...auto.instant, ...f.instant }, seenAt: f.seenAt ?? {}, notifVer: NOTIF_VER };
 } catch {}
 const hoursOf = h => (AUTO_CHOICES.includes(h) ? h : 12) * 3600_000;
 const isNotif = m => NOTIF_SUBJECT.test(m.subject || '');
@@ -366,6 +400,7 @@ export function selectDue(messages, s, now = Date.now(), mbox = 'INBOX') {
   return messages.filter(m => {
     const k = akey(mbox, m.uid);
     if (m.flagged || s.exempt[k]) return false;
+    if (isInstant(m) && s.instant?.enabled) return true;
     if (isNotif(m) && s.notif?.enabled) return !!s.seenAt?.[k] && now - s.seenAt[k] >= hoursOf(s.notif.afterHours);
     return mbox === 'INBOX' && s.enabled && m.seen && !!s.readAt[k] && now - s.readAt[k] >= hoursOf(s.afterHours);
   }).map(m => m.uid);
@@ -395,9 +430,25 @@ async function allInbox(mbox = 'INBOX') {
   return out;
 }
 
+// Anında silinecekleri Çöp'e taşır; taşınamazsa (ör. bağlantı) listede kalırlar, sonraki kontrolde yeniden denenir.
+async function dropInstant(messages) {
+  const due = messages.filter(m => isInstant(m) && !m.flagged && !auto.exempt[akey('INBOX', m.uid)]).map(m => m.uid);
+  if (!due.length) return messages;
+  try {
+    await move(due, 'INBOX', TRASH);
+    auto.instant.moved += due.length;
+    auto.totalMoved += due.length;
+    saveAuto();
+    return messages.filter(m => !due.includes(m.uid));
+  } catch (e) {
+    console.error('anında silinecek e-postalar taşınamadı:', e.message);
+    return messages;
+  }
+}
+
 // dryRun: hiçbir şey taşımadan hangi e-postaların taşınacağını söyler.
 export async function runAuto({ dryRun = false } = {}) {
-  const on = auto.enabled || auto.notif.enabled;
+  const on = auto.enabled || auto.notif.enabled || auto.instant.enabled;
   if (!folders.length) await freshToken();
   const boxes = ['INBOX', ...(auto.notif.enabled && sentFolder() ? [sentFolder()] : [])];
   const info = [];
@@ -420,9 +471,12 @@ export async function runAuto({ dryRun = false } = {}) {
   return { dryRun: false, moved: info, checked };
 }
 
-let autoTimer = null;
+let autoTimer = null, instantTimer = null;
 export function startAuto() {
   clearInterval(autoTimer);
+  clearInterval(instantTimer);
+  // Anında silinecekler: Gelen kutusunun ilk sayfası 5 dakikada bir (listeleme taşımayı kendisi yapar)
+  instantTimer = setInterval(() => { if (auto.instant.enabled) inbox('INBOX', 1).catch(() => {}); }, INSTANT_EVERY);
   const tick = async () => {
     auto.nextRun = Date.now() + AUTO_EVERY;
     if (!auto.enabled && !auto.notif.enabled) return saveAuto();
@@ -435,11 +489,13 @@ export function startAuto() {
 
 export function autoStatus() {
   return { enabled: auto.enabled, afterHours: auto.afterHours, choices: AUTO_CHOICES, notif: auto.notif, lastRun: auto.lastRun,
+    instant: { enabled: auto.instant.enabled, moved: auto.instant.moved, rules: INSTANT.map(r => r.label) },
     nextRun: auto.enabled || auto.notif.enabled ? auto.nextRun : null,
     lastMoved: auto.lastMoved, totalMoved: auto.totalMoved, lastError: auto.lastError, tracked: Object.keys(auto.readAt).length };
 }
-export async function setAuto({ enabled, afterHours, notifEnabled, notifHours }) {
+export async function setAuto({ enabled, afterHours, notifEnabled, notifHours, instant }) {
   if (typeof enabled === 'boolean') auto.enabled = enabled;
+  if (typeof instant === 'boolean') auto.instant.enabled = instant;
   if (AUTO_CHOICES.includes(afterHours)) auto.afterHours = afterHours;
   if (typeof notifEnabled === 'boolean') auto.notif.enabled = notifEnabled;
   if (AUTO_CHOICES.includes(notifHours)) auto.notif.afterHours = notifHours;

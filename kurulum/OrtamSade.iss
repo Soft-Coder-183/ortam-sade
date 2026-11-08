@@ -73,6 +73,20 @@ Type: filesandordirs; Name: "{app}\node_modules"
 Type: filesandordirs; Name: "{app}\runtime"
 
 [Code]
+// Güncellemeden önce açık uygulama kapatılır. Uygulama X'e basınca tepsiye indiği için Windows'un yeniden başlatma yöneticisi onu
+// kapatamaz: önce uygulamanın kendi "kapat" isteği gönderilir (kayıtlar yazılır, pencere ve sunucu kapanır), kalan olursa sonlandırılır.
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  Code: Integer;
+begin
+  Result := '';
+  Exec(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'),
+    '-NoProfile -NonInteractive -Command "try { Invoke-RestMethod -Method Post -Uri http://127.0.0.1:3000/api/shutdown -ContentType application/json -Body ''{}'' -TimeoutSec 3 | Out-Null; Start-Sleep -Seconds 3 } catch {}"',
+    '', SW_HIDE, ewWaitUntilTerminated, Code);
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/IM OrtamSade.exe /T /F', '', SW_HIDE, ewWaitUntilTerminated, Code);
+  Sleep(800);
+end;
+
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin
   if (CurUninstallStep = usPostUninstall) and (DirExists(ExpandConstant('{app}\.cache')) or DirExists(ExpandConstant('{app}\.profile'))) then

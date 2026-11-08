@@ -365,7 +365,7 @@ async function viewDerslerim(r, ctx) {
 
 // Sekmeler: Tümü (Piazza'nın son gönderileri ve kaynakları, Uzak içeriği, en altta Derse Bakış — tek sayfada), Piazza, Uzak,
 // Derse Bakış (Ortam'daki ders bilgisi). Ders açılınca Tümü gelir. Her bölüm kendi kaynağından gelir; biri açılamazsa diğerleri görünür.
-const COURSE_TABS = [['tumu', 'Tümü'], ['piazza', 'Piazza'], ['uzak', 'Uzak'], ['bakis', 'Derse Bakış']];
+const COURSE_TABS = [['tumu', 'Tümü'], ['uzak', 'Uzak'], ['piazza', 'Piazza'], ['bakis', 'Derse Bakış']];
 async function viewCourse(r, ctx) {
   const [key, tabId, item] = r.param.split('/');
   const back = '<p><a href="#/donem/derslerim">← Derslerim</a></p>';
@@ -384,8 +384,8 @@ async function viewCourse(r, ctx) {
     const part = (title, link, fn) => fn().then(html => ({ title, link, html }),
       e => ({ title, link, html: `<div class="card msg err">${esc(e.message)}${e.login ? `<br>${loginButton(`${e.siteName} için giriş yap`, e.login)}` : ''}</div>` }));
     const parts = await Promise.all([
-      c.piazza && part('Piazza', `${base}/piazza`, () => coursePiazza(c, { recent: 4, resources: 'inline' })),
       c.uzak && part('Uzak', `${base}/uzak`, () => courseUzak(c, { sub: true })),
+      c.piazza && part('Piazza', `${base}/piazza`, () => coursePiazza(c, { recent: 4, resources: 'inline' })),
       c.ortamId && part('Derse Bakış', `${base}/bakis`, overview),
     ].filter(Boolean));
     body = parts.map(p => `<section class="course-part"><div class="course-part-h"><h2>${p.title}</h2><a class="muted" href="${p.link}">Yalnızca ${p.title} →</a></div>${p.html}</section>`).join('')
@@ -400,9 +400,10 @@ async function viewCourse(r, ctx) {
 
 // #/donem/derslerim/<ders>/piazza/<gönderi> ve .../uzak/<etkinlik>: bildirimden gelinince o gönderi açılır (yanıtlarıyla) ya da
 // etkinlik vurgulanır. Gönderi Tümü'nün son gönderileri arasında değilse Piazza sekmesinde bulunur.
-function focusCourseItem(tab, c, item) {
+async function focusCourseItem(tab, c, item) {
+  if (tab === 'piazza' && /^\d+$/.test(item)) item = (await api('piazza-feed?nid=' + c.piazza?.id).catch(() => null))?.posts?.find(p => String(p.nr) === item)?.id ?? item;
   const el = tab === 'piazza'
-    ? [...$view.querySelectorAll('details[data-lazy]')].find(d => d.dataset.lazy === `ppost:${c.piazza?.id}:${item}`)
+    ? [...$view.querySelectorAll('details[data-lazy]')].find(d => d.dataset.lazy === (item === 'kaynaklar' ? `pres:${c.piazza?.id}` : `ppost:${c.piazza?.id}:${item}`))
     : [...$view.querySelectorAll('.mi')].find(x => x.dataset.lazy?.endsWith('view.php?id=' + item)
       || x.querySelector(`[data-ulink="${CSS.escape(item)}"]`) || x.querySelector('[data-file]')?.dataset.file.endsWith('cm=' + item));
   if (!el) return;
@@ -461,9 +462,24 @@ const postView = p => `${p.role ? `<div class="muted small">Yazan: ${rolePill(p.
   a.role ? ' · ' + rolePill(a.role) : ''}${a.created ? ' · ' + whenTR(a.created) : ''}</div><div class="rich">${a.html}</div>${a.replies.map(x => `<div class="prep"><div class="rich">${x.html}</div>${
   x.role || x.created ? `<div class="muted small">${x.role ? rolePill(x.role) + ' · ' : ''}${x.created ? whenTR(x.created) : ''}</div>` : ''}</div>`).join('')}</div>`).join('')}`;
 
-const resView = r => (r.sections.length ? r.sections.map(s => `<h3>${esc(s.title)}</h3><div class="atts">${s.items.map(i => i.type === 'link'
-  ? (/^https?:\/\//i.test(i.url || '') ? `<a class="att" href="${esc(i.url)}" target="_blank" rel="noopener">${icon('link')}${esc(i.name)}</a>` : '')
-  : `<button class="att" data-file="/api/file/piazza?nid=${esc(r.nid)}&amp;rid=${esc(i.id)}" data-title="${esc(i.name)}">${icon(/\.pdf$/i.test(i.name) ? 'file-text' : 'paperclip')}${esc(i.name)}</button>`).join('')}</div>`).join('')
+// Piazza kaynakları: her bölüm bir başlık ve dosya blokları. Ad okunur hale getirilir (alt çizgi boşluk olur, uzantı ayrı etiket),
+// uzun adlar satıra sığar; ad seçilip kopyalanabilir (seçim yapılırken dosya açılmaz). Asıl ad bloğun ipucunda durur.
+const RES_KIND = { pdf: 'pdf', ppt: 'slayt', pptx: 'slayt', key: 'slayt', doc: 'belge', docx: 'belge', odt: 'belge', txt: 'belge', md: 'belge',
+  xls: 'tablo', xlsx: 'tablo', csv: 'tablo', zip: 'arsiv', rar: 'arsiv', '7z': 'arsiv', tar: 'arsiv', gz: 'arsiv',
+  png: 'resim', jpg: 'resim', jpeg: 'resim', gif: 'resim', mp4: 'video', mov: 'video', py: 'kod', c: 'kod', h: 'kod', java: 'kod', ipynb: 'kod', sh: 'kod', s: 'kod' };
+function resItem(r, i) {
+  const m = i.name.match(/^(.*?)\.([a-z0-9]{1,5})$/i);
+  const ext = i.type === 'link' ? 'bağlantı' : (m?.[2] || 'dosya').toLowerCase();
+  const kind = i.type === 'link' ? 'link' : RES_KIND[ext] || 'dosya';
+  const label = (m ? m[1] : i.name).replace(/_+/g, ' ').replace(/\s+/g, ' ').trim() || i.name;
+  const t = Date.parse(i.date || '');
+  const meta = `<span class="res-ext k-${kind}">${esc(ext)}</span>${Number.isFinite(t) ? `<span class="res-date">${new Date(t).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric' })}</span>` : ''}`;
+  const body = `<span class="res-name">${esc(label)}</span><span class="res-meta">${meta}</span>`;
+  if (i.type === 'link') return /^https?:\/\//i.test(i.url || '') ? `<a class="res-item k-${kind}" href="${esc(i.url)}" target="_blank" rel="noopener" title="${esc(i.name)} · ${esc(i.url)}">${icon('link', 'res-ic')}${body}</a>` : '';
+  return `<div class="res-item k-${kind}" role="button" tabindex="0" title="${esc(i.name)}" data-file="/api/file/piazza?nid=${esc(r.nid)}&amp;rid=${esc(i.id)}" data-title="${esc(i.name)}">${icon(kind === 'pdf' || kind === 'belge' ? 'file-text' : kind === 'slayt' ? 'presentation' : kind === 'arsiv' ? 'archive' : kind === 'tablo' ? 'table' : kind === 'resim' ? 'image' : kind === 'video' ? 'video' : 'paperclip', 'res-ic')}${body}</div>`;
+}
+const resView = r => (r.sections.length ? r.sections.map(s => `<section class="res-sec"><h3>${esc(s.title)} <span class="res-count">${s.items.length}</span></h3>
+  <div class="res-grid">${s.items.map(i => resItem(r, i)).join('')}</div></section>`).join('')
   : '<p class="muted">Bu sınıfta kaynak yok.</p>');
 
 // ---------- Açılınca yüklenen bölümler ----------
@@ -471,6 +487,33 @@ const resView = r => (r.sections.length ? r.sections.map(s => `<h3>${esc(s.title
 const panels = {};
 const lazy = (key, summary, cls = 'card', extra = '') => `<details class="${cls} lazy" data-lazy="${esc(key)}"><summary>${summary}</summary>${extra}
   <div class="lz rich">${panels[key] ?? '<p class="muted">Yükleniyor…</p>'}</div></details>`;
+$view.addEventListener('keydown', e => {
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.matches?.('.res-item[data-file]')) { e.preventDefault(); e.target.click(); }
+});
+// Piazza gönderisinde ilk geçen "resources…" ya da "kaynaklar…" sözcüğü dersin Piazza kaynaklarına bağlanır (gönderide bağlantı
+// olmasa bile). Sözcük zaten Piazza'nın kaynak sayfasına bağlantıysa o bağlantı uygulamadaki kaynaklara çevrilir.
+const RES_WORD = /(?<![\p{L}])(resources|kaynaklar)\p{L}*/iu;
+async function linkResources(box, nid) {
+  const key = (await api('derslerim').catch(() => null))?.courses?.find(c => c.piazza?.id === nid)?.key;
+  if (!key) return;
+  const href = `#/donem/derslerim/${encodeURIComponent(key)}/piazza/kaynaklar`;
+  const walk = document.createTreeWalker(box, NodeFilter.SHOW_TEXT);
+  for (let n = walk.nextNode(); n; n = walk.nextNode()) {
+    const m = n.data.match(RES_WORD);
+    if (!m) continue;
+    const a0 = n.parentElement.closest('a');
+    if (a0) {
+      if (!/piazza\.com/i.test(a0.getAttribute('href') || '')) continue;   // başka bir yere giden bağlantıya dokunulmaz
+      a0.setAttribute('href', href); a0.removeAttribute('target'); a0.classList.add('res-link'); return;
+    }
+    const word = n.splitText(m.index);
+    word.splitText(m[0].length);
+    const a = document.createElement('a');
+    a.href = href; a.className = 'res-link'; a.title = 'Dersin Piazza kaynakları';
+    word.replaceWith(a); a.append(word);
+    return;
+  }
+}
 const LOADERS = {
   mpage: async arg => { const i = arg.indexOf(':'); return mpageView(await api(`${arg.slice(0, i)}-page?path=${encodeURIComponent(arg.slice(i + 1))}`)); },
   ppost: async arg => { const [nid, cid] = arg.split(':'); return postView(await api(`piazza-post?nid=${nid}&cid=${cid}`)); },
@@ -490,6 +533,7 @@ async function openLazy(el) {
   try {
     panels[key] = await LOADERS[key.slice(0, i)](key.slice(i + 1));
     box.innerHTML = panels[key];
+    if (key.startsWith('ppost:')) { await linkResources(box, key.split(':')[1]); panels[key] = box.innerHTML; }
   } catch (e) {
     box.innerHTML = `<p class="msg err">${esc(e.message)}</p>${e.login ? loginButton(`${e.siteName} için giriş yap`, e.login) : ''}`;
   }
@@ -2167,6 +2211,10 @@ async function fillWmSettings() {
       ${hoursSelect('data-wm-notif-hours', s.notif.afterHours, s.choices)}<span class="muted small">sonra</span></div>
     <p class="muted small" style="margin:4px 0 8px">Uygulamanın sana gönderdiği "[Ortam Sade · Bildirim]" e-postaları okunmasa da gelişinden seçilen süre sonra
       Gelen kutusundan ve Gönderilmiş klasöründen Çöp'e taşınır. Kontrol saatte bir, uygulama açıkken yapılır.</p>
+    ${s.instant ? `<div class="wm-opt"><label class="check"><input type="checkbox" data-wm-instant${s.instant.enabled ? ' checked' : ''}> Anında sil:</label>
+      <span class="small">${s.instant.rules.map(esc).join(', ')}</span></div>
+    <p class="muted small" style="margin:4px 0 8px">Bu e-postalar gelir gelmez Çöp'e taşınır (Gelen kutusu açılınca ve uygulama açıkken 5 dakikada bir bakılır).
+      Yıldızlananlar taşınmaz.${s.instant.moved ? ` Şimdiye kadar ${s.instant.moved} e-posta taşındı.` : ''}</p>` : ''}
     ${s.enabled || s.notif.enabled ? `<p class="small">Son tur: ${when(s.lastRun)}${s.lastRun ? ` · ${s.lastMoved} e-posta taşındı` : ''} · Sonraki tur: ${when(s.nextRun)} · Toplam taşınan: ${s.totalMoved}</p>` : ''}
     ${s.lastError ? `<p class="small bad">Son hata: ${esc(s.lastError)}</p>` : ''}
     <div class="row" style="justify-content:flex-start;gap:8px"><button type="button" class="btn ghost" data-wm-dry>Şimdi taşınacakları göster</button></div>
@@ -2178,7 +2226,8 @@ $view.addEventListener('change', async e => {
   const wm = { 'data-wm-auto': [v => ({ enabled: v.checked }), v => (v.checked ? 'Otomatik silme açıldı' : 'Otomatik silme kapatıldı')],
     'data-wm-hours': [v => ({ afterHours: +v.value }), () => 'Süre kaydedildi'],
     'data-wm-notif': [v => ({ notifEnabled: v.checked }), v => (v.checked ? 'Bildirim e-postaları silinecek' : 'Bildirim e-postaları silinmeyecek')],
-    'data-wm-notif-hours': [v => ({ notifHours: +v.value }), () => 'Süre kaydedildi'] };
+    'data-wm-notif-hours': [v => ({ notifHours: +v.value }), () => 'Süre kaydedildi'],
+    'data-wm-instant': [v => ({ instant: v.checked }), v => (v.checked ? 'Bu e-postalar gelir gelmez silinecek' : 'Anında silme kapatıldı')] };
   const k = Object.keys(wm).find(x => t.hasAttribute?.(x));
   if (k) {
     const r = await post('/api/webmail/auto-settings', wm[k][0](t));
@@ -2955,6 +3004,7 @@ $view.addEventListener('click', e => {
   if (ratt) return removeDraftFile(ratt.closest('[data-ratt]'));
   // Uzak/Piazza dosyaları ve bağlantıları
   const file = e.target.closest('[data-file]');
+  if (file && file.matches('.res-item') && String(getSelection?.() || '').trim() && file.contains(getSelection().anchorNode)) return;   // ad seçiliyor
   if (file) return showFile(file.dataset.file, file.dataset.title, file.dataset.kind);
   const mfile = e.target.closest('[data-mfile]');
   if (mfile) return showFile(`/api/file/moodle?site=${encodeURIComponent(mfile.dataset.site)}&path=${encodeURIComponent(mfile.dataset.mfile)}`, mfile.textContent.trim());
