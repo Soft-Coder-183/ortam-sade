@@ -311,7 +311,7 @@ export async function attachment(uid, mbox = 'INBOX', part) {
 
 // ---------- Okunan e-postaları otomatik silme ----------
 // Ayar açıkken (varsayılan KAPALI) Gelen kutusundaki okunmuş e-postalar, okunduktan sonra seçilen sürede (12 saat, 24 saat, 3 gün, 1 hafta) Çöp kutusuna TAŞINIR
-// Uygulamanın kendi bildirim e-postaları ([Ortam Sade · Bildirim] / [ETÜ Cep · Bildirim]) ayrı bir ayarla (varsayılan AÇIK, 24 saat)
+// Uygulamanın kendi bildirim e-postaları ([Ortam Sade · Bildirim] / [ETÜ Cep · Bildirim]) ayrı bir ayarla (varsayılan AÇIK, 12 saat)
 // okunsun okunmasın Gelen kutusundan ve Gönderilmiş klasöründen Çöp'e taşınır. Süre, e-postanın listede ilk görüldüğü andan sayılır.
 // (kalıcı silme yok; Çöp'ten geri alınabilir). Yıldızlı e-postalar ve kullanıcının "otomatik silme" kutucuğunu kaldırdığı
 // e-postalar hiç taşınmaz. Okunma anı: uygulamada okunanlarda tam an; başka yerde (okulun Webmail'i, telefon) okunanlarda
@@ -320,9 +320,16 @@ const AUTO_FILE = '.cache/webmail-auto.json';
 export const AUTO_CHOICES = [12, 24, 72, 168];       // saat: 12 saat, 24 saat, 3 gün, 1 hafta
 const AUTO_EVERY = 60 * 60_000;                     // saatte bir kontrol
 const NOTIF_SUBJECT = /^\[(Ortam Sade|ETÜ Cep) · Bildirim\]/;
-let auto = { enabled: false, afterHours: 12, notif: { enabled: true, afterHours: 24 }, readAt: {}, seenAt: {}, exempt: {},
+// Bildirim e-postaları varsayılan olarak 12 saat sonra silinir. notifVer: varsayılan 24 saatken kaydedilmiş ayar (kullanıcı
+// süreyi kendisi değiştirmediyse) bir kez 12 saate çekilir; kullanıcının sonradan seçtiği süreye dokunulmaz.
+const NOTIF_VER = 2;
+let auto = { enabled: false, afterHours: 12, notif: { enabled: true, afterHours: 12 }, notifVer: NOTIF_VER, readAt: {}, seenAt: {}, exempt: {},
   lastRun: null, nextRun: null, lastMoved: 0, totalMoved: 0, lastError: null };
-try { const f = JSON.parse(fs.readFileSync(AUTO_FILE, 'utf8')); auto = { ...auto, ...f, notif: { ...auto.notif, ...f.notif }, seenAt: f.seenAt ?? {} }; } catch {}
+try {
+  const f = JSON.parse(fs.readFileSync(AUTO_FILE, 'utf8'));
+  if ((f.notifVer ?? 1) < NOTIF_VER && f.notif?.afterHours === 24) f.notif.afterHours = 12;
+  auto = { ...auto, ...f, notif: { ...auto.notif, ...f.notif }, seenAt: f.seenAt ?? {}, notifVer: NOTIF_VER };
+} catch {}
 const hoursOf = h => (AUTO_CHOICES.includes(h) ? h : 12) * 3600_000;
 const isNotif = m => NOTIF_SUBJECT.test(m.subject || '');
 // Gönderilen bildirim e-postalarının kopyası

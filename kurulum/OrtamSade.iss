@@ -38,20 +38,31 @@ Name: "tr"; MessagesFile: "compiler:Languages\Turkish.isl"
 
 [Tasks]
 Name: "masaustu"; Description: "Masaüstüne kısayol koy"; GroupDescription: "Kısayollar:"
-Name: "acilis"; Description: "Bilgisayar açılınca arka planda başlat (bildirimler için; pencere küçültülmüş açılır, tarayıcı açılmaz)"; GroupDescription: "Başlatma:"
+Name: "acilis"; Description: "Bilgisayar açılınca arka planda başlat (bildirimler için; pencere açılmaz, sistem tepsisinde durur)"; GroupDescription: "Başlatma:"
 
 [Files]
 Source: "..\dist\OrtamSade\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "simge.ico"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
-Name: "{group}\Ortam Sade"; Filename: "{app}\Ortam Sade.cmd"; WorkingDir: "{app}"; IconFilename: "{app}\simge.ico"
+; Tek pencereli uygulama (OrtamSade.exe): siyah konsol yok, kapatınca sistem tepsisine iner
+Name: "{group}\Ortam Sade"; Filename: "{app}\OrtamSade.exe"; WorkingDir: "{app}"
 Name: "{group}\Ortam Sade'yi kaldır"; Filename: "{uninstallexe}"
-Name: "{userdesktop}\Ortam Sade"; Filename: "{app}\Ortam Sade.cmd"; WorkingDir: "{app}"; IconFilename: "{app}\simge.ico"; Tasks: masaustu
-Name: "{userstartup}\Ortam Sade"; Filename: "{app}\Ortam Sade.cmd"; Parameters: "arka"; WorkingDir: "{app}"; IconFilename: "{app}\simge.ico"; Flags: runminimized; Tasks: acilis
+Name: "{userdesktop}\Ortam Sade"; Filename: "{app}\OrtamSade.exe"; WorkingDir: "{app}"; Tasks: masaustu
+Name: "{userstartup}\Ortam Sade"; Filename: "{app}\OrtamSade.exe"; Parameters: "--arka"; WorkingDir: "{app}"; Tasks: acilis
+
+[Registry]
+; Windows bildirimine tıklanınca uygulama penceresinde ilgili sayfa açılır (ortamsade: bağlantıları; uygulama da kendisi yazar)
+Root: HKCU; Subkey: "Software\Classes\ortamsade"; ValueType: string; ValueName: ""; ValueData: "URL:Ortam Sade"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\ortamsade"; ValueType: string; ValueName: "URL Protocol"; ValueData: ""
+Root: HKCU; Subkey: "Software\Classes\ortamsade\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\OrtamSade.exe"" ""%1"""
 
 [Run]
-Filename: "{app}\Ortam Sade.cmd"; WorkingDir: "{app}"; Description: "Ortam Sade'yi şimdi aç"; Flags: postinstall nowait skipifsilent shellexec
+Filename: "{app}\OrtamSade.exe"; WorkingDir: "{app}"; Description: "Ortam Sade'yi şimdi aç"; Flags: postinstall nowait skipifsilent
+
+[UninstallRun]
+; Kaldırmadan önce açık uygulama (ve sunucusu) kapatılır
+Filename: "{sys}\taskkill.exe"; Parameters: "/IM OrtamSade.exe /T /F"; Flags: runhidden; RunOnceId: "UygulamayiKapat"
 
 [UninstallDelete]
 ; Uygulamanın kendi güncellemesiyle eklenen dosyalar da kaldırılsın (kişisel veriler aşağıda, ayrıca sorulur)

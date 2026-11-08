@@ -27,7 +27,7 @@ Okulun siteleri ve mevzuat.gov.tr
 - **Önbellek:** Yanıtlar önce önbellekten gelir, süresi geçmişse arka planda yenilenir (SWR). Dosyalar `.cache/api/v{CACHE_VER}-*` altında durur. `STALE_MIN` uç başına tazelik süresini belirler.
 - **`CACHE_VER`:** Şu an 13. Bir ayrıştırıcının çıktısı değişince artırılır; eski kayıtlar açılışta silinir.
 - **Port:** Varsayılan 3000, `PORT` ortam değişkeniyle değişir.
-- **Başlatma:** `Ortam Sade.cmd`, `server/start.mjs` başlatıcısını çalıştırır; o da `server/server.mjs` sürecini açar. Sunucu 75 koduyla çıkarsa başlatıcı yeniden açar. İkinci kopya portu dolu bulursa yalnızca tarayıcıyı açıp çıkar.
+- **Başlatma:** `OrtamSade.exe` (masaüstü penceresi, aşağıda) ya da yedek olarak `Ortam Sade.cmd`, `server/start.mjs` başlatıcısını çalıştırır; o da `server/server.mjs` sürecini açar. Sunucu 75 koduyla çıkarsa başlatıcı yeniden açar. İkinci kopya portu dolu bulursa yalnızca tarayıcıyı açıp çıkar.
 
 ## Dosya haritası
 
@@ -68,7 +68,8 @@ Okulun siteleri ve mevzuat.gov.tr
 | `scripts/paketle.mjs` | Windows paketi üretir (`npm run paketle`) |
 | `.github/workflows/surum.yml` | Etiketle tetiklenen sürüm üretimi |
 | `notlar/vX.Y.Z.md` | Sürüm notları |
-| `Ortam Sade.cmd` | Kullanıcının çift tıkladığı başlatıcı (CRLF olmalı) |
+| `masaustu/` | Masaüstü penceresi `OrtamSade.exe` (C#, .NET Framework 4.8, WinForms + WebView2) |
+| `Ortam Sade.cmd` | Yedek başlatıcı: siyah pencere, tarayıcıda açar (CRLF olmalı) |
 
 ## Özellikler
 
@@ -78,7 +79,7 @@ Okulun siteleri ve mevzuat.gov.tr
 | Ana Sayfa | Bugünkü dersler ve sınavlar, yaklaşan sınavlar, posta, Piazza, son kullanılan 6 sayfa; üstte Ortam'da bekleyen anket ve duyurular ("Ankete git"), UZAKYDB ek içerik, yaklaşan son tarihler |
 | Dönem Bilgilerim | Derslerim (Ortam, Uzak, Piazza tek sayfada), Ders Programım |
 | Sınav Takvimi | Ara Sınav, Final ya da Bütünleme; her sınav tek satırda |
-| Webmail | Okundu senkronizasyonu, yazma, yanıtlama, yıldızlar, tarihe göre sıralı klasörler, satırda Sil, Çöp'te Geri getir; otomatik silme (okunanlar seçilen sürede Çöp'e, varsayılan kapalı; uygulamanın bildirim e-postaları varsayılan 24 saatte Gelen ve Gönderilmiş'ten Çöp'e; açık e-postanın altında "Otomatik silinmesin") |
+| Webmail | Okundu senkronizasyonu, yazma, yanıtlama, yıldızlar, tarihe göre sıralı klasörler, satırda Sil, Çöp'te Geri getir; otomatik silme (okunanlar seçilen sürede Çöp'e, varsayılan kapalı; uygulamanın bildirim e-postaları varsayılan 12 saatte Gelen ve Gönderilmiş'ten Çöp'e; açık e-postanın altında "Otomatik silinmesin") |
 | Piazza, UBS, UZAKYDB | Kendi sade arayüzleri; PDF'ler uygulama içinde açılır |
 | Ekstra | Açılan Dersler ve haftalık plan, Rezervasyon, Akademik Takvim, Akademik Kadro (uygulamanın içinde), Yabancı Diller, Mevzuat, Öğrenci İşleri Duyuruları, ÇAP/YAP - Başvurular |
 | Hakkında ve SSS | Hakkımızda, Okulun Siteleri, SSS, Sorumluluk Reddi |
@@ -99,7 +100,17 @@ Okulun siteleri ve mevzuat.gov.tr
 
 **Ortam'daki anket ve duyurular:** "Ankete git" / "Ortam'da aç" (ve Not Görüntüleme'deki anket uyarısı) `POST /api/open-page?site=ortam&path=…` çağırır: sayfa görünür pencerede uygulamanın oturum çerezleriyle açılır (`session.openPage` → `browser.openPage`; Android'de `LoginActivity` `stay` modu). Oturum düşmüşse giriş formu kayıtlı bilgilerle doldurulup gönderilir. Kullanıcı sekmeyi/pencereyi kapatınca istek döner, `ortam-duyuru` ve `notlar` önbelleği silinir ve uyarılar yeniden alınır (anket doldurulduysa kalkar). Anket uygulamada doldurulmaz.
 
-**Uygulama penceresi (Windows):** `server.mjs` `openBrowser()` varsayılan tarayıcıyı kayıt defterinden bulur; Chromium tabanlıysa (Chrome, Edge, Brave, Vivaldi) `--app=http://localhost:3000/` ile, değilse Edge ile açar. Adres çubuğu ve sekme yoktur, görev çubuğunda `public/simge.png` simgesiyle ayrı görünür. `ORTAM_PENCERE=tarayici` normal sekmeye döndürür. Siyah sunucu penceresi ayrıca durur (tam masaüstü uygulaması değildir).
+**Masaüstü uygulaması (`masaustu/`, `OrtamSade.exe`):** Kurulumdaki bütün kısayollar bunu açar.
+- `server\start.mjs`'i görünmez başlatır (`ORTAM_MASAUSTU=1`); çıktısı `.cache\sunucu.log`'a yazılır. Port 3000 zaten açıksa (ör. geliştirme sunucusu) yalnızca ona bağlanır.
+- Arayüz tek pencerede, WebView2'de açılır; WebView2 verisi `.cache\webview2`'de durur. Pencere konumu `.cache\pencere.txt`'de saklanır. Uygulamanın adresi dışındaki bağlantılar varsayılan tarayıcıda açılır.
+- Pencereyi kapatmak (X) tepsiye indirir; ilk seferde balon bilgisi çıkar. Tepsi menüsündeki "Kapat" önce `/api/shutdown` ile düzgün kapatır, olmazsa süreç ağacını sonlandırır. Sunucu kendisi kapanırsa (Hesap > "Uygulamayı kapat") pencere de kapanır.
+- `--arka`: yalnızca tepside başlar (açılış kısayolu). Tek kopya çalışır (mutex); ikinci açılış adlandırılmış boruyla ilk kopyaya "göster" ya da bağlantı gönderir.
+- `ortamsade:` bağlantı türünü HKCU'ya kendisi yazar (kurulum da yazar). Windows bildirimleri `ORTAM_MASAUSTU` varken `ortamsade:#/...` açar, böylece tıklayınca pencerede o sayfa açılır.
+- Beklenmeyen hatalar `.cache\pencere-hata.log`'a yazılır.
+- Derleme: `npm run paketle` içinde `dotnet publish masaustu` çalışır (.NET SDK gerekir; GitHub'ın Windows makinesinde vardır). Pakete yalnızca exe, config, `Microsoft.Web.WebView2.Core.dll`, `...WinForms.dll` ve `WebView2Loader.dll` girer; hepsi kökte durur, çünkü güncelleme kökteki her öğeyi yeniden adlandırarak değiştirir ve çalışan exe/DLL yeniden adlandırılabilir.
+- Not: Başka bir süreçten `CloseMainWindow` (WM_CLOSE) göndermek Windows'ta "Görev Yöneticisi kapatması" sayılır ve uygulamayı tamamen kapatır; X düğmesini denemek için `WM_SYSCOMMAND/SC_CLOSE` gönder.
+
+**Tarayıcıda açma (`Ortam Sade.cmd`, yedek):** `server.mjs` `openBrowser()` varsayılan tarayıcıyı kayıt defterinden bulur; Chromium tabanlıysa (Chrome, Edge, Brave, Vivaldi) `--app=http://localhost:3000/` ile, değilse Edge ile açar. `ORTAM_PENCERE=tarayici` normal sekmeye döndürür.
 
 **Hesap ve giriş:** Hesap'tan giriş yapınca sonuçlar Hesap'ta görünür ve hemen 3 saniyelik sayaç başlar, sonra Ana Sayfa açılır ("Hesap'ta kal" sayacı durdurur). Ortam penceresi aynı anda açılır ve arka planda tamamlanır; bu sırada başka sayfaya geçildiyse sayfa yeniden çizilmez. Ortam doğrudan girişi desteklemez (görünmez reCAPTCHA); bilgiler bir sitede kabul edilince görünür pencere kendiliğinden açılır, Oturumlar tablosunda da giriş düğmesi vardır.
 
@@ -112,7 +123,7 @@ Okulun siteleri ve mevzuat.gov.tr
 
 ## Arka plan işleri ve bildirimler
 
-Uygulama yalnızca siyah pencere açıkken çalışır. Kurulum dosyasıyla kurulduysa bilgisayar açılınca küçültülmüş pencerede kendiliğinden başlar (kurulumdaki seçenek varsayılan olarak işaretli); zip sürümü kendiliğinden başlamaz.
+Uygulama açıkken (penceresi kapalı olsa da tepside) çalışır; tepsideki "Kapat" ya da "Uygulamayı kapat" tamamen durdurur. Kurulum dosyasıyla kurulduysa bilgisayar açılınca tepside kendiliğinden başlar (`OrtamSade.exe --arka`) (kurulumdaki seçenek varsayılan olarak işaretli); zip sürümü kendiliğinden başlamaz.
 
 | İş | Sıklık |
 |---|---|
@@ -130,7 +141,7 @@ Uygulama yalnızca siyah pencere açıkken çalışır. Kurulum dosyasıyla kuru
 - O aralıkta siteye gerçek istek gittiyse oturum kontrolü atlanır (`usedAt`). Kullanıcı Hesap'tan açık tutmayı ve kendiliğinden yeniden girmeyi kapatabilir.
 - Bildirimler Windows bildirimi ve isteğe bağlı özet e-posta olarak gider. E-posta kullanıcının kendi adresinedir ve konusu `[Ortam Sade · Bildirim]` ile başlar.
 - Gönderilemeyen e-postalar giden kutusunda en fazla 2 gün bekler ve yeniden denenir.
-- Renkler: Uzak kırmızımsı turuncu, Piazza mavi. Derslerim'deki Uzak etiketi Ortam işaretinin üç rengiyle (mavi, kırmızı, turuncu) sert geçişli dönen çerçevedir; eski yumuşak geçişli görünüm `.pill.src-uzak.yumusak` olarak saklıdır. Menüde sade nokta, derslerin üzerinde sayılı rozet görünür. Rozete (ve "Piazza · N yeni" etiketine) basınca o dersin en yeni bildirimi açılır.
+- Renkler: Uzak kırmızımsı turuncu, Piazza mavi. Derslerim'deki Uzak etiketi Ortam işaretinin üç rengiyle (mavi, kırmızı, turuncu) sert geçişli, sabit (dönmeyen) çerçevedir; eski yumuşak geçişli dönen görünüm `.pill.src-uzak.yumusak` olarak saklıdır. Menüde sade nokta, derslerin üzerinde sayılı rozet görünür. Rozete (ve "Piazza · N yeni" etiketine) basınca o dersin en yeni bildirimi açılır.
 - Bildirim bağlantıları içeriğin kendisini açar: Piazza `#/donem/derslerim/<ders>/piazza/<gönderi kimliği>` (gönderi yanıtlarıyla açık gelir), Uzak `.../uzak/<cmid>` (etkinlik vurgulanır; `focusCourseItem`). E-postadaki "Aç:" bağlantısı Windows'ta bu sayfaya, uygulama bağlantısı olmayan telefonda Piazza'daki gönderiye (`piazza.com/class/<nid>/post/<nr>`) gider.
 - Hatırlatmalar: Akademik Takvim satırları 3 gün kala, başladığı gün ve son gün gelir. Sınavlar Ortam'daki sınav takviminden, sınavdan önceki 24 saat içinde bir kez gelir.
 
@@ -174,7 +185,7 @@ Sürüm paketi GitHub Actions'ta üretilir. Yerelde üretilen zip asla yüklenme
 4. `git tag -a vX.Y.Z -m "Ortam Sade X.Y.Z"` ve `git push origin vX.Y.Z`.
 5. `.github/workflows/surum.yml` Windows üzerinde kurulum dosyası, zip ve APK üretir, ikisine imzalı kaynak kanıtı ekler ve sürümü yayımlar. Sürüm notuna doğrulama komutu kendiliğinden eklenir.
 
-**Kurulum dosyası:** `kurulum/OrtamSade.iss` (Inno Setup) `dist/OrtamSade` klasöründen `OrtamSade-X.Y.Z-kurulum.exe` üretir. Kurulum yönetici izni istemez, `%LOCALAPPDATA%\Programs\Ortam Sade` klasörüne kurar. Başlat menüsüne kısayol koyar; isteğe bağlı olarak masaüstü kısayolu ve açılışta başlatma (`Ortam Sade.cmd arka`: küçük pencere, tarayıcı açılmaz; varsayılan olarak işaretli) ekler. Kaldırırken `.cache` ve `.profile` yalnızca kullanıcı onaylarsa silinir. Uygulamanın kendi güncellemesi kurulum klasöründe de çalışır. Simge `kurulum/simge.ico`'dur. Paket yalnızca üretimde kullanılan bağımlılıkları içerir (package-lock'ta `dev` olanlar girmez). Yerelde derlemek için: `npm run paketle`, sonra PowerShell'de `& "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe" /Q "/DSurum=X.Y.Z" kurulum\OrtamSade.iss` (Git Bash `/Q` gibi seçenekleri yola çevirdiği için PowerShell kullan).
+**Kurulum dosyası:** `kurulum/OrtamSade.iss` (Inno Setup) `dist/OrtamSade` klasöründen `OrtamSade-X.Y.Z-kurulum.exe` üretir. Kurulum yönetici izni istemez, `%LOCALAPPDATA%\Programs\Ortam Sade` klasörüne kurar. Başlat menüsüne kısayol koyar; isteğe bağlı olarak masaüstü kısayolu ve açılışta başlatma (`OrtamSade.exe --arka`: yalnızca tepsi; varsayılan olarak işaretli) ekler. Kısayollar `OrtamSade.exe`'yi açar; `ortamsade:` bağlantı türü HKCU'ya yazılır ve kaldırınca silinir; kaldırmadan önce açık uygulama `taskkill` ile kapatılır. Kaldırırken `.cache` ve `.profile` yalnızca kullanıcı onaylarsa silinir. Uygulamanın kendi güncellemesi kurulum klasöründe de çalışır. Simge `kurulum/simge.ico`'dur. Paket yalnızca üretimde kullanılan bağımlılıkları içerir (package-lock'ta `dev` olanlar girmez). Yerelde derlemek için: `npm run paketle`, sonra PowerShell'de `& "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe" /Q "/DSurum=X.Y.Z" kurulum\OrtamSade.iss` (Git Bash `/Q` gibi seçenekleri yola çevirdiği için PowerShell kullan).
 
 `npm run paketle` yalnızca yerel deneme içindir. Paket `dist/OrtamSade-X.Y.Z-win-x64.zip` adıyla çıkar ve `runtime/node.exe` içerir. Yeni bir kök klasör pakete girecekse `scripts/paketle.mjs` listesine eklenmelidir.
 

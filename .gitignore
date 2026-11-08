@@ -6,7 +6,9 @@ local.txt
 *.dpapi
 # Geliştirmede kullanılan sayfa döküm araçları (kişisel oturumla çalışır)
 tools/
-# Bağımlılıklar ve paket çıktısı
+# Bağımlılıklar ve paket çıktısı (masaüstü uygulamasının derleme klasörleri dahil)
+masaustu/bin/
+masaustu/obj/
 node_modules/
 dist/
 # Kullanıcının kendi klasörü (başka projeden betik ve veri)

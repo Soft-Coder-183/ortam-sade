@@ -153,7 +153,9 @@ async function checkTakvim() {
 function toast(title, body, link) {
   if (platform.toast) return platform.toast(title, body, link);
   if (process.platform !== 'win32') return;
-  const payload = Buffer.from(JSON.stringify({ title: `Ortam Sade · ${title}`, body, link: `http://localhost:${process.env.PORT || 3000}/${link || ''}` }), 'utf8').toString('base64');
+  // Masaüstü uygulamasıyla (OrtamSade.exe) çalışıyorsa bildirim uygulamanın penceresini açar, değilse tarayıcıyı
+  const target = process.env.ORTAM_MASAUSTU ? `ortamsade:${link || '#/'}` : `http://localhost:${process.env.PORT || 3000}/${link || ''}`;
+  const payload = Buffer.from(JSON.stringify({ title: `Ortam Sade · ${title}`, body, link: target }), 'utf8').toString('base64');
   const script = `
     $d = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String([Console]::In.ReadToEnd().Trim())) | ConvertFrom-Json
     [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null

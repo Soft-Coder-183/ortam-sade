@@ -1,6 +1,7 @@
 // Paylaşılabilir Windows paketi: dist/OrtamSade-<sürüm>-win-x64.zip
-// İçinde Node.js (runtime/node.exe, bu betiği çalıştıran Node'un kopyası), uygulama dosyaları, gerekli bağımlılıklar ve
-// çift tıklanınca açılan "Ortam Sade.cmd" vardır. Kurulum gerekmez; kişisel veri (.cache, .profile) pakete girmez.
+// İçinde Node.js (runtime/node.exe, bu betiği çalıştıran Node'un kopyası), uygulama dosyaları, gerekli bağımlılıklar,
+// tek pencereli masaüstü uygulaması OrtamSade.exe (masaustu/, .NET Framework 4.8 + WebView2; derlemek için .NET SDK gerekir) ve
+// yedek başlatıcı "Ortam Sade.cmd" vardır. Kurulum gerekmez; kişisel veri (.cache, .profile) pakete girmez.
 // Kullanım: npm run paketle   (önce npm install)
 import fs from 'node:fs';
 import path from 'node:path';
@@ -49,6 +50,16 @@ copy('node_modules', 'node_modules', src => {
 
 fs.mkdirSync(path.join(OUT, 'runtime'));
 fs.copyFileSync(process.execPath, path.join(OUT, 'runtime', 'node.exe'));
+
+// Masaüstü penceresi: yalnızca çalışması için gereken dosyalar, uygulama klasörünün köküne (güncelleme her dosyayı tek tek
+// yeniden adlandırarak değiştirir; çalışan exe ve DLL'ler yeniden adlandırılabilir, alt klasördekiler taşınamaz).
+const EXE_OUT = path.join(DIST, 'masaustu-derleme');
+fs.rmSync(EXE_OUT, { recursive: true, force: true });
+execFileSync('dotnet', ['publish', path.join(ROOT, 'masaustu', 'OrtamSade.csproj'), '-c', 'Release', '-o', EXE_OUT, '--nologo', '-v', 'q', `-p:Version=${version}`],
+  { stdio: 'inherit' });
+for (const f of ['OrtamSade.exe', 'OrtamSade.exe.config', 'Microsoft.Web.WebView2.Core.dll', 'Microsoft.Web.WebView2.WinForms.dll', 'WebView2Loader.dll'])
+  fs.copyFileSync(path.join(EXE_OUT, f), path.join(OUT, f));
+fs.rmSync(EXE_OUT, { recursive: true, force: true });
 
 // Windows'un kendi tar'ı zip yazabilir (bsdtar).
 execFileSync(path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'tar.exe'), ['-a', '-cf', ZIP, '-C', DIST, NAME], { stdio: 'inherit' });

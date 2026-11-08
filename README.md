@@ -15,7 +15,7 @@ toplayan, **senin bilgisayarında çalışan** açık kaynaklı bir öğrenci pr
 - **Sınav Takvimi:** hangi sınav dönemindeysen (Ara Sınav / Final / Bütünleme); her sınav tek satırda: tarih ve gün, ders,
   saat, yer ve kalan süre.
 - **Ortalama ve Ders Planı:** GNO, kredi durumu, dönemlik kredi sınırı, hedef not ve yükseltme hesabı (yönetmeliğe göre).
-- **Webmail:** okundu/okunmadı senkronizasyonu, yazma/yanıtlama/silme, yıldızlar, isteğe bağlı otomatik silme (12 saat, 24 saat, 3 gün ya da 1 hafta sonra Çöp'e taşır; uygulamanın bildirim e-postaları varsayılan 24 saatte).
+- **Webmail:** okundu/okunmadı senkronizasyonu, yazma/yanıtlama/silme, yıldızlar, isteğe bağlı otomatik silme (12 saat, 24 saat, 3 gün ya da 1 hafta sonra Çöp'e taşır; uygulamanın bildirim e-postaları varsayılan 12 saatte).
 - **UBS, UZAKYDB, Piazza** kendi sade arayüzleriyle; PDF'ler uygulamanın içinde açılır.
 - **Bildirimler:** Piazza ve Uzak'a yeni içerik gelince Windows bildirimi ve isteğe bağlı özet e-posta; menüde ve derslerin
   üzerinde kaynağın renginde nokta (Uzak turuncu, Piazza mavi). Akademik Takvimdeki önemli tarihler (ders kaydı, ekle-sil,
@@ -59,12 +59,13 @@ Windows "bilinmeyen yayımcı" uyarısı verirse: *Ek bilgi → Yine de çalış
 1. [Releases](https://github.com/Soft-Coder-183/ortam-sade/releases/latest) sayfasından `OrtamSade-…-win-x64.zip` dosyasını indir.
    Paketin bu koddan üretildiğini [doğrulayabilirsin](#güvenilirlik).
 2. Zip'i bir klasöre **çıkar** (zip'in içinden çalıştırma).
-3. **`Ortam Sade.cmd`** dosyasına çift tıkla. Uygulama kendi penceresinde açılır (adres çubuğu yok, görev çubuğunda ayrı simge):
-   varsayılan tarayıcın Chrome, Edge, Brave ya da Vivaldi ise onun uygulama modu, değilse Edge kullanılır. Aynı adres
-   (`http://localhost:3000`) normal tarayıcıda da açılır.
+3. **`OrtamSade.exe`** dosyasına çift tıkla. Uygulama tek pencerede açılır; siyah konsol penceresi yoktur. Görüntüleme için
+   Windows'taki Microsoft Edge WebView2 kullanılır (Windows 11'de ve güncel Windows 10'da hazır gelir). Aynı adres
+   (`http://localhost:3000`) normal tarayıcıda da açılır. `Ortam Sade.cmd` yedek başlatıcıdır (siyah pencereyle, tarayıcıda açar).
 4. **Hesap** ekranında okul e-postanı ve şifreni gir. Şifren sitelerde farklıysa "Siteye özel şifreler" bölümünü kullan.
 
-- Açılan siyah pencere açık kaldıkça uygulama çalışır; kapatınca (ya da Hesap > Güvenlik ve Oturumlar > "Uygulamayı kapat") durur.
+- Pencereyi kapatınca uygulama sistem tepsisine iner ve çalışmaya devam eder (bildirimler gelir). Tamamen kapatmak için tepsideki
+  simgeye sağ tıklayıp "Kapat"a ya da Hesap > Güvenlik ve Oturumlar > "Uygulamayı kapat"a bas.
   Zip sürümü bilgisayar açılınca kendiliğinden başlamaz (kurulum dosyasıyla kurulan sürüm varsayılan olarak başlar). Menünün altındaki gösterge uygulamanın açık olup olmadığını her zaman gösterir;
   kapanırsa sayfanın üstünde uyarı çıkar.
 - Windows "bilinmeyen yayımcı" uyarısı verirse: *Ek bilgi → Yine de çalıştır*. (Dosya imzasız bir betik; içeriğini bu depoda görebilirsin.)

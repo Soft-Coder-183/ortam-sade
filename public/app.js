@@ -2158,7 +2158,7 @@ async function fillWmSettings() {
   if (!s) { box.innerHTML = '<p class="muted">Webmail ayarları alınamadı (Webmail oturumu kapalı olabilir).</p>'; return; }
   const when = t => (t ? whenTR(t) : '—');
   s.choices ??= [12, 24, 72, 168];                     // eski sürüm sunucusu bu alanları göndermez
-  s.notif ??= { enabled: false, afterHours: 24 };
+  s.notif ??= { enabled: false, afterHours: 12 };
   box.innerHTML = `<div class="wm-opt"><label class="check"><input type="checkbox" data-wm-auto${s.enabled ? ' checked' : ''}> Okunan e-postaları sil:</label>
       ${hoursSelect('data-wm-hours', s.afterHours, s.choices)}<span class="muted small">sonra</span></div>
     <p class="muted small" style="margin:4px 0 12px">Gelen kutusundaki okunmuş e-postalar okunduktan seçilen süre sonra <b>Çöp kutusuna taşınır</b> (kalıcı silinmez, Çöp'ten geri alınabilir).
@@ -2333,13 +2333,13 @@ const SSS = [
   ['Okulun sunucularını yorar mı?', 'Hayır, normal kullanıma yakındır. Yalnızca açtığın ekran okuldan istenir ve kısa süre önbellekte tutulur. Arka planda oturumu açık tutmak için seyrek kontroller yapılır; siteye zaten bir istek gittiyse o kontrol atlanır. Bildirimler için Piazza yarım saatte, Uzak saatte bir sorulur.'],
   ['Bildirimler nasıl geliyor?', 'Uygulama açıkken Piazza ve Uzak\'taki yeni içerikleri ve Akademik Takvimde yaklaşan önemli tarihleri kontrol eder (Uzak turuncu, Piazza mavi noktayla gösterilir); yenilik varsa Windows bildirimi gösterir ve (açıksa) okul adresine "[Ortam Sade · Bildirim]" konulu bir özet e-posta yollar. Uygulama kapalıyken kontrol yapılmaz. Hesap > Bildirimler\'den kapatabilirsin.'],
   ['İndirdiğim paketin bu koddan üretildiğini nasıl anlarım?', 'Sürüm paketleri elle yüklenmez: GitHub Actions bu depodaki koddan üretir ve imzalı kaynak kanıtı ekler. GitHub CLI kuruluysa indirdiğin dosyanın yanında şu komutu çalıştır: gh attestation verify OrtamSade-1.6.4-win-x64.zip --repo Soft-Coder-183/ortam-sade. Sürüm numarasını kendi dosyanınkiyle değiştir. "Verification succeeded" yazıyorsa dosya bu depodan ve bu iş akışından çıkmıştır.'],
-  ['Otomatik silme e-postalarımı kalıcı olarak siler mi?', 'Hayır. Ayar açıksa okunmuş e-postalar seçtiğin süre (12 saat, 24 saat, 3 gün ya da 1 hafta) sonra, uygulamanın bildirim e-postaları da 24 saat sonra Çöp kutusuna taşınır; oradan geri alınabilir. Yıldızlı e-postalar ve "Otomatik silinmesin" düğmesine basılanlar taşınmaz. Ayar varsayılan olarak kapalıdır.'],
+  ['Otomatik silme e-postalarımı kalıcı olarak siler mi?', 'Hayır. Ayar açıksa okunmuş e-postalar seçtiğin süre (12 saat, 24 saat, 3 gün ya da 1 hafta) sonra, uygulamanın bildirim e-postaları da (varsayılan) 12 saat sonra Çöp kutusuna taşınır; oradan geri alınabilir. Yıldızlı e-postalar ve "Otomatik silinmesin" düğmesine basılanlar taşınmaz. Ayar varsayılan olarak kapalıdır.'],
   ['Bazı bilgiler neden yok (ör. açılan derslerin şube ve saatleri)?', 'Ortam bu bilgileri yalnızca doğrulamalı (reCAPTCHA) aramayla veriyor. Uygulama doğrulamaları aşmadığı için bu bilgiler için okulun sayfasına bağlantı verilir.'],
   ['Uzak\'ta sınav, ödev yükleme ya da Safe Exam Browser isteyen içerik olursa?', 'İçeriğin kendisi (açıklama, dosyalar, bağlantılar, Safe Exam Browser indirme bağlantısı ve yapılandırma dosyası) uygulamada görünür. Sınava başlama, ödev yükleme, foruma yazma gibi işlemler okulun sitesinde yapılır; sayfanın üstünde "Sitede aç" bağlantısı çıkar.'],
   ['Uygulama nasıl güncellenir?', 'Yeni sürüm çıkınca uygulama sağ altta sorar; "Güncelle"ye basmadan hiçbir şey indirilmez. Basınca sürüm yalnızca GitHub sayfamızdan indirilir, SHA-256 özetiyle doğrulanır, kurulur ve uygulama kendini yeniden başlatır. Şifren, oturumların ve ayarların korunur. Hakkımızda sayfasından elle de denetleyebilirsin.'],
   ['Mevzuat bölümündeki yanıtlar ne kadar güvenilir?', 'Her hızlı yanıtın altında dayandığı madde yazar ve tıklayınca o madde açılır. Uygulama her açılışta o maddenin metninin hâlâ aynı olduğunu denetler; metin değişmişse yanıtın yanında uyarı çıkar. Belgeler okulun Mevzuat sayfasındaki kaynaklardan (mevzuat.gov.tr ve okulun dosyaları) alınır. Bir yönerge, dayandığı yönetmelik ondan sonra değişmişse işaretlenir; çelişki varsa üst mevzuat geçerlidir. Yine de resmî işlemlerde Öğrenci İşleri esastır.'],
   ['Açılan Dersler\'deki şube ve saatler ne kadar güncel?', 'Ders verisi uygulamayla birlikte gelir; sayfanın üstünde son güncelleme tarihi yazar. Şube, saat ve derslikler o tarihten sonra değişmiş olabilir, bu yüzden kayıttan önce okulun güncel programından kontrol et. Yeni veri uygulama güncellemesiyle gelir.'],
-  ['Uygulama ne zaman çalışıyor, arka planda açık mı kalıyor?', 'Yalnızca "Ortam Sade" siyah penceresi açıkken. Pencereyi kapatınca ya da Hesap > Güvenlik ve Oturumlar > "Uygulamayı kapat" deyince durur ve okul sitelerine hiçbir istek gitmez. Bilgisayar açılınca kendiliğinden başlamaz. Menünün altındaki yeşil nokta uygulamanın açık olduğunu gösterir; kapanırsa sayfanın üstünde kırmızı uyarı çıkar. Açıkken arka planda neyin ne sıklıkta yapıldığı da aynı sayfada yazar.'],
+  ['Uygulama ne zaman çalışıyor, arka planda açık mı kalıyor?', 'Uygulama açıkken. Penceresini kapatınca uygulama sistem tepsisine (saatin yanındaki simgeler) iner ve arka planda çalışmaya devam eder, bildirimler gelir. Tamamen kapatmak için tepsideki simgeye sağ tıklayıp Kapat\'a ya da Hesap > Güvenlik ve Oturumlar > "Uygulamayı kapat"a bas; o zaman okul sitelerine hiçbir istek gitmez. Kurulum dosyasıyla kurulduysa bilgisayar açılınca tepside kendiliğinden başlar (kurulumda bu seçenek kaldırılabilir). Menünün altındaki yeşil nokta uygulamanın açık olduğunu gösterir; kapanırsa sayfanın üstünde kırmızı uyarı çıkar. Açıkken arka planda neyin ne sıklıkta yapıldığı da aynı sayfada yazar.'],
   ['Oturumların açık tutulması güvenli mi?', 'Oturum çerezleri yalnızca bu bilgisayarda, AES-256 ile şifreli ve Windows hesabına bağlı bir anahtarla saklanır; uygulamaya yalnızca bu bilgisayardan erişilebilir. Yine de istersen Hesap > Güvenlik ve Oturumlar\'dan oturumları açık tutmayı ve kendiliğinden yeniden girmeyi kapatabilir, sitelerden çıkış yapabilir ve uygulamaya PIN koyabilirsin. Bilgisayarı başkalarıyla paylaşıyorsan PIN önerilir.'],
   ['Okulun sitelerine doğrudan nasıl giderim?', 'Bütün sitelerin ve sık kullanılan sayfaların orijinal adresleri Hakkında ve SSS > Okulun Siteleri sayfasında. Uygulamadaki her bölümde ayrıca "Sitede aç" ya da benzeri bir bağlantı bulunur.'],
   ['Neden bazen eski bilgi görüyorum?', 'Hız için son alınan veri önce gösterilir, arka planda yenilenir ve birkaç saniye içinde güncellenir. Oturum kapanmışsa üstte bir uyarıyla son kaydedilen veri gösterilir.'],
@@ -2666,8 +2666,8 @@ async function checkServer() {
   if (!ok && !b) {
     b = document.createElement('div');
     b.id = 'srv-down';
-    b.innerHTML = `<b>Uygulama kapalı.</b> Ortam Sade'nin siyah penceresi kapatılmış ya da bilgisayar yeniden başlatılmış olabilir.
-      Yeniden açmak için klasördeki <b>Ortam Sade.cmd</b> dosyasına çift tıkla. Bu sayfa kendiliğinden yenilenecek.`;
+    b.innerHTML = `<b>Uygulama kapalı.</b> Ortam Sade kapatılmış ya da bilgisayar yeniden başlatılmış olabilir.
+      Yeniden açmak için Başlat menüsünden <b>Ortam Sade</b>'yi (ya da klasördeki <b>OrtamSade.exe</b>'yi) aç. Bu sayfa kendiliğinden yenilenecek.`;
     document.body.prepend(b);
   } else if (ok && b) { b.remove(); render(); }
 }
@@ -2686,8 +2686,8 @@ function securitySection(st) {
   return `<h2>Güvenlik ve Oturumlar</h2>
   <div class="card sec">
     <div class="sec-app"><div><b>Uygulama açık</b> <span class="muted">· ${clock(st.startedAt)}'den beri (${dur(st.now - st.startedAt)}) · sürüm ${esc(st.version)}</span>
-      <p class="muted small">Uygulama yalnızca "Ortam Sade" siyah penceresi açıkken çalışır; pencere kapanınca okul sitelerine hiçbir istek gitmez,
-        bildirim ve hatırlatma da gelmez. Bilgisayar açılınca kendiliğinden başlamaz. Menünün altındaki gösterge her zaman uygulamanın açık olup olmadığını gösterir.</p></div>
+      <p class="muted small">Pencere kapatılınca uygulama sistem tepsisinde çalışmaya devam eder (bildirimler gelir). "Uygulamayı kapat" ya da tepsideki Kapat
+        uygulamayı tamamen durdurur; o zaman okul sitelerine hiçbir istek gitmez, bildirim ve hatırlatma da gelmez. Menünün altındaki gösterge her zaman uygulamanın açık olup olmadığını gösterir.</p></div>
       <button type="button" class="btn danger" data-shutdown>Uygulamayı kapat</button></div>
     <details class="sec-jobs" data-keep="sec-jobs"><summary>Uygulama açıkken arka planda yapılanlar</summary>
       <table class="t"><thead><tr><th>İş</th><th>Sıklık</th><th>Son</th><th>Sonraki</th></tr></thead><tbody>${jobs}</tbody></table>
@@ -3043,7 +3043,7 @@ document.addEventListener('click', async e => {
   const poll = async () => {
     const u = await fetch('/api/update').then(x => x.json()).catch(() => null);
     if (u?.current === j.version) return location.reload();
-    if (Date.now() - t0 > 120_000) { msg.textContent = 'Yeniden başlatma uzun sürdü. "Ortam Sade.cmd" ile uygulamayı yeniden açın.'; return; }
+    if (Date.now() - t0 > 120_000) { msg.textContent = 'Yeniden başlatma uzun sürdü. Uygulamayı Başlat menüsünden yeniden açın.'; return; }
     setTimeout(poll, 1500);
   };
   setTimeout(poll, 2500);

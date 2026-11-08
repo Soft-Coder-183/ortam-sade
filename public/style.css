@@ -801,13 +801,13 @@ a.seb { display: inline-block; padding: 6px 12px; border-radius: 8px; border: 1p
 /* Derslerim: Uzak etiketi, menüdeki Ortam işaretinin üç rengiyle (mavi, kırmızı, turuncu) sert geçişli, yavaşça dönen çerçeve. Piazza mavi. */
 .pill.src-uzak { border: 1.5px solid transparent; color: var(--ink);
   background: linear-gradient(var(--card), var(--card)) padding-box,
-    conic-gradient(from var(--exam-ang), #1b449c 0 120deg, #b21f28 120deg 240deg, #f08921 240deg 360deg) border-box;
-  animation: exam-spin 8s linear infinite; }
-/* Kayıtlı eski görünüm (1.7.0 öncesi): yumuşak geçişli mavi–kırmızı–sarı çerçeve. Geri almak için etikete "yumusak" sınıfı eklenir. */
+    conic-gradient(from 0deg, #1b449c 0 120deg, #b21f28 120deg 240deg, #f08921 240deg 360deg) border-box; }   /* sabit, dönmez */
+/* Kayıtlı eski görünüm (1.7.0 öncesi): yumuşak geçişli, dönen mavi–kırmızı–sarı çerçeve. Geri almak için etikete "yumusak" sınıfı eklenir. */
 .pill.src-uzak.yumusak { background: linear-gradient(var(--card), var(--card)) padding-box,
-    conic-gradient(from var(--exam-ang), var(--accent), var(--red), var(--yellow), var(--accent)) border-box; }
+    conic-gradient(from var(--exam-ang), var(--accent), var(--red), var(--yellow), var(--accent)) border-box;
+  animation: exam-spin 8s linear infinite; }
 .pill.src-piazza { background: color-mix(in srgb, var(--pz) 13%, var(--card)); color: var(--pz); border: 1.5px solid color-mix(in srgb, var(--pz) 35%, transparent); }
-@media (prefers-reduced-motion: reduce) { .pill.src-uzak { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .pill.src-uzak.yumusak { animation: none; } }
 
 /* ---------- Sınav takvimi: her sınav tek satır, bir bakışta okunur ---------- */
 .exam.xrow { display: grid; align-items: center; column-gap: 18px; row-gap: 4px; padding: 14px 18px;
@@ -827,7 +827,7 @@ a.seb { display: inline-block; padding: 6px 12px; border-radius: 8px; border: 1p
 .x-room span { overflow: hidden; text-overflow: ellipsis; }
 .exam.xrow .pill { grid-area: rel; grid-column: auto; justify-self: end; white-space: nowrap; }
 .exam.xrow.past { opacity: .55; }
-@media (max-width: 900px) {
+@media (max-width: 1200px) {   /* yan menüyle birlikte ders adı sığmıyorsa iki satır */
   .exam.xrow { grid-template-columns: 52px auto auto minmax(0, 1fr) auto; grid-template-areas: "date code time room rel" "date name name name name"; column-gap: 14px; }
   .exam.xrow .date b { font-size: 1.45rem; }
 }

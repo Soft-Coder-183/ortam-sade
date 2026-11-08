@@ -38,7 +38,7 @@ jobs:
           $exe = (Get-ChildItem dist\OrtamSade-*-kurulum.exe).FullName
           $dir = "$env:RUNNER_TEMP\OrtamSadeDeneme"
           Start-Process $exe -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/DIR=$dir", '/TASKS=masaustu' -Wait
-          foreach ($f in 'Ortam Sade.cmd', 'runtime\node.exe', 'server\server.mjs', 'public\app.js', 'simge.ico', 'unins000.exe') {
+          foreach ($f in 'OrtamSade.exe', 'WebView2Loader.dll', 'Microsoft.Web.WebView2.Core.dll', 'Ortam Sade.cmd', 'runtime\node.exe', 'server\server.mjs', 'public\app.js', 'simge.ico', 'unins000.exe') {
             if (-not (Test-Path "$dir\$f")) { throw "Kurulumda eksik: $f" }
           }
           $lnk = Get-ChildItem "$env:APPDATA\Microsoft\Windows\Start Menu\Programs" -Recurse -Filter 'Ortam Sade.lnk' | Select-Object -First 1
