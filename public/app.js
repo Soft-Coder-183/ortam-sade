@@ -2215,7 +2215,11 @@ async function fillWmSettings() {
       <span class="small">${s.instant.rules.map(esc).join(', ')}</span></div>
     <p class="muted small" style="margin:4px 0 8px">Bu e-postalar gelir gelmez Çöp'e taşınır (Gelen kutusu açılınca ve uygulama açıkken 5 dakikada bir bakılır).
       Yıldızlananlar taşınmaz.${s.instant.moved ? ` Şimdiye kadar ${s.instant.moved} e-posta taşındı.` : ''}</p>` : ''}
-    ${s.enabled || s.notif.enabled ? `<p class="small">Son tur: ${when(s.lastRun)}${s.lastRun ? ` · ${s.lastMoved} e-posta taşındı` : ''} · Sonraki tur: ${when(s.nextRun)} · Toplam taşınan: ${s.totalMoved}</p>` : ''}
+    ${s.purge ? `<div class="wm-opt"><label class="check"><input type="checkbox" data-wm-purge${s.purge.enabled ? ' checked' : ''}> Çöp kutusunu boşalt:</label>
+      <span class="small">${s.purge.days} gün sonra; bildirim e-postaları ve anında silinenler ${s.purge.fastDays} gün sonra</span></div>
+    <p class="muted small" style="margin:4px 0 8px">Çöp'teki e-postalar bu sürelerden sonra <b>kalıcı olarak silinir</b> (geri alınamaz). Süre, e-postanın Çöp'e
+      düştüğü (uygulamanın onu Çöp'te ilk gördüğü) andan sayılır; yıldızlı e-postalar silinmez. Kontrol saatte bir yapılır.${s.purge.deleted ? ` Şimdiye kadar ${s.purge.deleted} e-posta silindi.` : ''}</p>` : ''}
+    ${s.enabled || s.notif.enabled || s.purge?.enabled ? `<p class="small">Son tur: ${when(s.lastRun)}${s.lastRun ? ` · ${s.lastMoved} e-posta taşındı` : ''} · Sonraki tur: ${when(s.nextRun)} · Toplam taşınan: ${s.totalMoved}</p>` : ''}
     ${s.lastError ? `<p class="small bad">Son hata: ${esc(s.lastError)}</p>` : ''}
     <div class="row" style="justify-content:flex-start;gap:8px"><button type="button" class="btn ghost" data-wm-dry>Şimdi taşınacakları göster</button></div>
     <div class="wm-dry"></div>`;
@@ -2227,6 +2231,7 @@ $view.addEventListener('change', async e => {
     'data-wm-hours': [v => ({ afterHours: +v.value }), () => 'Süre kaydedildi'],
     'data-wm-notif': [v => ({ notifEnabled: v.checked }), v => (v.checked ? 'Bildirim e-postaları silinecek' : 'Bildirim e-postaları silinmeyecek')],
     'data-wm-notif-hours': [v => ({ notifHours: +v.value }), () => 'Süre kaydedildi'],
+    'data-wm-purge': [v => ({ purge: v.checked }), v => (v.checked ? 'Çöp kutusu süresi dolunca boşaltılacak' : 'Çöp kutusu boşaltma kapatıldı')],
     'data-wm-instant': [v => ({ instant: v.checked }), v => (v.checked ? 'Bu e-postalar gelir gelmez silinecek' : 'Anında silme kapatıldı')] };
   const k = Object.keys(wm).find(x => t.hasAttribute?.(x));
   if (k) {
@@ -2261,7 +2266,7 @@ $view.addEventListener('click', async e => {
     if (!out) return;
     out.innerHTML = !j ? '<p class="muted small">Denetlenemedi.</p>'
       : `<p class="small">${j.checked} e-posta denetlendi${j.enabled ? '' : ' (otomatik silme kapalı; yalnızca önizleme)'} — şu an taşınacak: <b>${j.wouldMove.length}</b></p>${
-        j.wouldMove.length ? `<ul class="small">${j.wouldMove.map(m => `<li>${esc(m.from)} · ${esc(m.subject)}</li>`).join('')}</ul>` : ''}`;
+        j.wouldMove.length ? `<ul class="small">${j.wouldMove.map(m => `<li>${m.purge ? '<b>Çöp\'ten kalıcı silinecek:</b> ' : ''}${esc(m.from)} · ${esc(m.subject)}</li>`).join('')}</ul>` : ''}`;
   }
 }, true);
 // ---------- Webmail ayarları sonu ----------

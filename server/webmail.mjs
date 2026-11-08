@@ -353,16 +353,20 @@ const NOTIF_SUBJECT = /^\[(Ortam Sade|ETÜ Cep) · Bildirim\]/;
 const INSTANT = [{ id: 'ydb-giris', subject: /^New sign[- ]in to your Department of Foreign Languages account/i,
   label: 'Yabancı Diller Bölümü "New sign in to your … account" e-postaları' }];
 const INSTANT_EVERY = 5 * 60_000;
+// Çöp kutusunu boşaltma (varsayılan AÇIK): Çöp'teki e-postalar 30 gün, uygulamanın bildirim e-postaları ve anında silinenler
+// ("New sign in…") 3 gün sonra KALICI silinir. Süre, e-postanın Çöp'te ilk görüldüğü andan sayılır (Çöp saatte bir taranır);
+// özellik ilk açıldığında Çöp'te zaten olanlar için de o andan başlar. Yıldızlı e-postalar silinmez.
+const PURGE = { days: 30, fastDays: 3 };
 const isInstant = m => INSTANT.some(r => r.subject.test(m.subject || ''));
 // Bildirim e-postaları varsayılan olarak 12 saat sonra silinir. notifVer: varsayılan 24 saatken kaydedilmiş ayar (kullanıcı
 // süreyi kendisi değiştirmediyse) bir kez 12 saate çekilir; kullanıcının sonradan seçtiği süreye dokunulmaz.
 const NOTIF_VER = 2;
-let auto = { enabled: false, afterHours: 12, notif: { enabled: true, afterHours: 12 }, instant: { enabled: true, moved: 0 }, notifVer: NOTIF_VER, readAt: {}, seenAt: {}, exempt: {},
+let auto = { enabled: false, afterHours: 12, notif: { enabled: true, afterHours: 12 }, instant: { enabled: true, moved: 0 }, purge: { enabled: true, deleted: 0 }, trashAt: {}, notifVer: NOTIF_VER, readAt: {}, seenAt: {}, exempt: {},
   lastRun: null, nextRun: null, lastMoved: 0, totalMoved: 0, lastError: null };
 try {
   const f = JSON.parse(fs.readFileSync(AUTO_FILE, 'utf8'));
   if ((f.notifVer ?? 1) < NOTIF_VER && f.notif?.afterHours === 24) f.notif.afterHours = 12;
-  auto = { ...auto, ...f, notif: { ...auto.notif, ...f.notif }, instant: { ...auto.instant, ...f.instant }, seenAt: f.seenAt ?? {}, notifVer: NOTIF_VER };
+  auto = { ...auto, ...f, notif: { ...auto.notif, ...f.notif }, instant: { ...auto.instant, ...f.instant }, purge: { ...auto.purge, ...f.purge }, trashAt: f.trashAt ?? {}, seenAt: f.seenAt ?? {}, notifVer: NOTIF_VER };
 } catch {}
 const hoursOf = h => (AUTO_CHOICES.includes(h) ? h : 12) * 3600_000;
 const isNotif = m => NOTIF_SUBJECT.test(m.subject || '');
@@ -420,9 +424,9 @@ function autoView(mbox, messages) {
 }
 
 // Bir klasörün tamamı (sayfa sayfa; en çok 10 sayfa).
-async function allInbox(mbox = 'INBOX') {
+async function allInbox(mbox = 'INBOX', pages = 10) {
   const out = [];
-  for (let p = 1; p <= 10; p++) {
+  for (let p = 1; p <= pages; p++) {
     const r = await inbox(mbox, p);
     out.push(...r.messages);
     if (r.messages.length < 100) break;
@@ -446,9 +450,35 @@ async function dropInstant(messages) {
   }
 }
 
-// dryRun: hiçbir şey taşımadan hangi e-postaların taşınacağını söyler.
+// Saf seçim (test edilebilir): Çöp'te süresi dolanlar. trashAt: Çöp'te ilk görülme anı (uid -> ms).
+export function selectPurge(messages, s, now = Date.now()) {
+  if (!s.purge?.enabled) return [];
+  return messages.filter(m => {
+    const t = s.trashAt?.[m.uid];
+    if (!t || m.flagged) return false;
+    return now - t >= (isNotif(m) || isInstant(m) ? PURGE.fastDays : PURGE.days) * 86_400_000;
+  }).map(m => m.uid);
+}
+
+// Çöp kutusu: ilk görülme anları güncellenir, süresi dolanlar kalıcı silinir (dryRun: yalnızca listelenir).
+async function purgeTrash(dryRun) {
+  if (!auto.purge.enabled) return [];
+  const messages = await allInbox(TRASH, 30);
+  const now = Date.now(), present = new Set(messages.map(m => m.uid));
+  for (const m of messages) auto.trashAt[m.uid] ??= now;
+  for (const k of Object.keys(auto.trashAt)) if (!present.has(k)) delete auto.trashAt[k];
+  const due = selectPurge(messages, auto, now);
+  if (!dryRun) {
+    for (let i = 0; i < due.length; i += 200) await remove(due.slice(i, i + 200), TRASH);
+    for (const uid of due) delete auto.trashAt[uid];
+    auto.purge.deleted += due.length;
+  }
+  return due.map(uid => { const m = messages.find(x => x.uid === uid); return { uid, mbox: TRASH, subject: m.subject, from: m.from, purge: true }; });
+}
+
+// dryRun: hiçbir şey taşımadan hangi e-postaların taşınacağını (ve Çöp'ten kalıcı silineceğini) söyler.
 export async function runAuto({ dryRun = false } = {}) {
-  const on = auto.enabled || auto.notif.enabled || auto.instant.enabled;
+  const on = auto.enabled || auto.notif.enabled || auto.instant.enabled || auto.purge.enabled;
   if (!folders.length) await freshToken();
   const boxes = ['INBOX', ...(auto.notif.enabled && sentFolder() ? [sentFolder()] : [])];
   const info = [];
@@ -463,7 +493,8 @@ export async function runAuto({ dryRun = false } = {}) {
     for (const uid of due) { const k = akey(mbox, uid); delete auto.readAt[k]; delete auto.exempt[k]; delete auto.seenAt[k]; }
   }
   for (const [k, t] of Object.entries(auto.seenAt)) if (Date.now() - t > 60 * 86_400_000) delete auto.seenAt[k];
-  if (dryRun || !on) return { dryRun: true, enabled: on, wouldMove: info, checked };
+  info.push(...await purgeTrash(dryRun || !on));
+  if (dryRun || !on) { await saveAuto(); return { dryRun: true, enabled: on, wouldMove: info, checked }; }
   auto.lastRun = Date.now();
   auto.lastMoved = info.length;
   auto.totalMoved += info.length;
@@ -479,7 +510,7 @@ export function startAuto() {
   instantTimer = setInterval(() => { if (auto.instant.enabled) inbox('INBOX', 1).catch(() => {}); }, INSTANT_EVERY);
   const tick = async () => {
     auto.nextRun = Date.now() + AUTO_EVERY;
-    if (!auto.enabled && !auto.notif.enabled) return saveAuto();
+    if (!auto.enabled && !auto.notif.enabled && !auto.purge.enabled) return saveAuto();
     try { await runAuto(); auto.lastError = null; } catch (e) { auto.lastError = e.message; await saveAuto(); }
   };
   setTimeout(tick, 2 * 60_000);                     // açılıştan 2 dk sonra, sonra saatte bir
@@ -490,11 +521,13 @@ export function startAuto() {
 export function autoStatus() {
   return { enabled: auto.enabled, afterHours: auto.afterHours, choices: AUTO_CHOICES, notif: auto.notif, lastRun: auto.lastRun,
     instant: { enabled: auto.instant.enabled, moved: auto.instant.moved, rules: INSTANT.map(r => r.label) },
+    purge: { enabled: auto.purge.enabled, deleted: auto.purge.deleted, days: PURGE.days, fastDays: PURGE.fastDays },
     nextRun: auto.enabled || auto.notif.enabled ? auto.nextRun : null,
     lastMoved: auto.lastMoved, totalMoved: auto.totalMoved, lastError: auto.lastError, tracked: Object.keys(auto.readAt).length };
 }
-export async function setAuto({ enabled, afterHours, notifEnabled, notifHours, instant }) {
+export async function setAuto({ enabled, afterHours, notifEnabled, notifHours, instant, purge }) {
   if (typeof enabled === 'boolean') auto.enabled = enabled;
+  if (typeof purge === 'boolean') auto.purge.enabled = purge;
   if (typeof instant === 'boolean') auto.instant.enabled = instant;
   if (AUTO_CHOICES.includes(afterHours)) auto.afterHours = afterHours;
   if (typeof notifEnabled === 'boolean') auto.notif.enabled = notifEnabled;
