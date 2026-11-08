@@ -314,7 +314,8 @@ namespace OrtamSade
             MinimumSize = new Size(420, 520);
             StartPosition = FormStartPosition.CenterScreen;
             Size = new Size(1320, 880);
-            LoadBounds();
+            LoadBounds();                         // "Önceki boyut"a dönülünce kullanılacak konum ve boyut
+            WindowState = FormWindowState.Maximized;   // her açılışta ekranı kaplar
             bool dark = SystemDark();
             BackColor = dark ? Color.FromArgb(18, 20, 24) : Color.FromArgb(244, 245, 247);
             wait.ForeColor = dark ? Color.Gainsboro : Color.DimGray;

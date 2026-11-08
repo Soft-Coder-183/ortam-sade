@@ -102,7 +102,7 @@ Okulun siteleri ve mevzuat.gov.tr
 
 **Masaüstü uygulaması (`masaustu/`, `OrtamSade.exe`):** Kurulumdaki bütün kısayollar bunu açar.
 - `server\start.mjs`'i görünmez başlatır (`ORTAM_MASAUSTU=1`); çıktısı `.cache\sunucu.log`'a yazılır. Port 3000 zaten açıksa (ör. geliştirme sunucusu) yalnızca ona bağlanır.
-- Arayüz tek pencerede, WebView2'de açılır; WebView2 verisi `.cache\webview2`'de durur. Pencere konumu `.cache\pencere.txt`'de saklanır. Uygulamanın adresi dışındaki bağlantılar varsayılan tarayıcıda açılır.
+- Arayüz tek pencerede, WebView2'de açılır; WebView2 verisi `.cache\webview2`'de durur. Pencere her açılışta ekranı kaplar (büyütülmüş); "önceki boyut"a dönünce kullanılan konum `.cache\pencere.txt`'de saklanır. Uygulamanın adresi dışındaki bağlantılar varsayılan tarayıcıda açılır.
 - Pencereyi kapatmak (X) tepsiye indirir; ilk seferde balon bilgisi çıkar. Tepsi menüsündeki "Kapat" önce `/api/shutdown` ile düzgün kapatır, olmazsa süreç ağacını sonlandırır. Sunucu kendisi kapanırsa (Hesap > "Uygulamayı kapat") pencere de kapanır.
 - `--arka`: yalnızca tepside başlar (açılış kısayolu). Tek kopya çalışır (mutex); ikinci açılış adlandırılmış boruyla ilk kopyaya "göster" ya da bağlantı gönderir.
 - `ortamsade:` bağlantı türünü HKCU'ya kendisi yazar (kurulum da yazar). Windows bildirimleri `ORTAM_MASAUSTU` varken `ortamsade:#/...` açar, böylece tıklayınca pencerede o sayfa açılır.
