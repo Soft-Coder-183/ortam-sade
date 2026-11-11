@@ -4,7 +4,7 @@ Ortam Sade, TOBB ETÜ'nün okul sitelerini (Ortam, UBS, Uzak, UZAKYDB, Webmail, 
 
 - **Sahibi:** TOBB ETÜ öğrencisi Eren Akyurt. Türkçe konuşur, uygulamayı arkadaşlarıyla paylaşır.
 - **Depo:** https://github.com/Soft-Coder-183/ortam-sade (herkese açık, MIT lisansı).
-- **Durum:** Yayımlanmış sürüm 1.6.4. Depoda 1.7.0 hazır, gerçek cihaz denemesinden sonra etiketlenecek. GitHub hesabı `gh` ile bağlı.
+- **Durum:** Yayımlanmış sürüm 1.7.0 (Windows kurulum dosyası, zip ve Android APK; 11 Kasım 2026). İmza anahtarı GitHub gizli değişkenlerinde (`ETUCEP_KEY_B64`, `ETUCEP_KEY_PASSWORD`). Telefonda girişin gerçek cihazda doğrulanması bekliyor. GitHub hesabı `gh` ile bağlı.
 - **Devam eden iş:** Android uygulaması "ETÜ Cep". Önce APK çıkacak; Play yayını ve geliştirici hesabı sonraya kaldı. Yalnızca Android hedefleniyor, Windows sürümü kalıyor.
 - **Kapsam notu:** Bu belge uygulamanın her parçasını saymaz. Kodda burada anlatılmayan bir bölüm görürsen değiştirmeden önce kullanıcıya sor.
 
