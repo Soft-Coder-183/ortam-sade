@@ -32,8 +32,9 @@ await esbuild.build({
 // Arayüz: aynı dosyalar; telefona özgü davranışı app.js window.Native'den anlar
 copyDir(path.join(ROOT, 'public'), WWW);
 const rename = s => s.replaceAll('Ortam Sade', 'ETÜ Cep');
-let app = fs.readFileSync(path.join(WWW, 'app.js'), 'utf8');
-for (const [from, to] of TELEFON) {
+// Satır sonları eşitlenir: Windows'ta (GitHub'ın Windows makinesi dahil) dosyalar CRLF gelebilir, metinler.mjs ise LF'li çok satırlı metin içerir
+let app = fs.readFileSync(path.join(WWW, 'app.js'), 'utf8').replace(/\r\n/g, '\n');
+for (const [from, to] of TELEFON.map(([f, t]) => [f.replace(/\r\n/g, '\n'), t.replace(/\r\n/g, '\n')])) {
   if (!app.includes(from)) throw new Error('Metin app.js\'te yok: ' + from.slice(0, 70));
   app = app.replaceAll(from, to);
 }
