@@ -96,6 +96,9 @@ Okulun siteleri ve mevzuat.gov.tr
 - **Çakışma:** Çakışan seçili şubeler takvimde açık zemin, kalın kırmızı sol kenar, kesikli ince kırmızı çerçeve ve ders kodunun yanında kırmızı noktayla görünür. Panelde de liste vardır.
 - **Otomatik program:** Çakışmayan en iyi 5 kombinasyon üretilir. Etikette önce boşluk süresi, sonra gün sayısı yazar.
 - **Sıfırlama:** "Şube seçimlerini sıfırla" dersleri korur. "Planı temizle" seti saklar, "Son ders setini geri yükle" o anki setle yer değiştirir.
+- **Arama kutusu:** Plandaki dersler kutunun içinde blok (`.ac-chip`): koda basınca ders yan panelde açılır, × plandan çıkarır, boş kutuda geri silme son dersi çıkarır. Tek şubeli dersin bloğu mor.
+- **Müfredattan getir:** Ortam'daki Müfredat sayfası (`/api/mufredat`) planlayıcının her dönemi için bir kez okunur, `localStorage` `mufredat-plan`'da saklanır. Bulunduğun dönem, bu dönem kayıtlı olduğun derslerle en çok örtüşen müfredat dönemidir (kutudaki seçimle değiştirilir). O dönemin zorunlu dersleri eklenir: seçmeli yer tutucuları ("ASD-1", "İYD 1") ve geçilen dersler hariç, yalnızca açılan derslerde olanlar.
+- **Tek şubeli dersler:** Takvimde leylak zemin, ince mor çerçeve, solda koyu mor çizgi ve sağ üstte küçük kilit (`.pl-b.sel.tek`, `--pl-tek-*`); çakışma görünümü bunun önüne geçer. Yan panelde "Tek şube" yazar.
 - **Saklama:** Plan tarayıcıda `program-taslak` anahtarındadır (`courses`, `picks`, `off`, `active`, `last`).
 
 **Ortam'daki anket ve duyurular:** "Ankete git" / "Ortam'da aç" (ve Not Görüntüleme'deki anket uyarısı) `POST /api/open-page?site=ortam&path=…` çağırır: sayfa görünür pencerede uygulamanın oturum çerezleriyle açılır (`session.openPage` → `browser.openPage`; Android'de `LoginActivity` `stay` modu). Oturum düşmüşse giriş formu kayıtlı bilgilerle doldurulup gönderilir. Kullanıcı sekmeyi/pencereyi kapatınca istek döner, `ortam-duyuru` ve `notlar` önbelleği silinir ve uyarılar yeniden alınır (anket doldurulduysa kalkar). Anket uygulamada doldurulmaz.
@@ -111,6 +114,10 @@ Okulun siteleri ve mevzuat.gov.tr
 - Not: Başka bir süreçten `CloseMainWindow` (WM_CLOSE) göndermek Windows'ta "Görev Yöneticisi kapatması" sayılır ve uygulamayı tamamen kapatır; X düğmesini denemek için `WM_SYSCOMMAND/SC_CLOSE` gönder.
 
 **Tarayıcıda açma (`Ortam Sade.cmd`, yedek):** `server.mjs` `openBrowser()` varsayılan tarayıcıyı kayıt defterinden bulur; Chromium tabanlıysa (Chrome, Edge, Brave, Vivaldi) `--app=http://localhost:3000/` ile, değilse Edge ile açar. `ORTAM_PENCERE=tarayici` normal sekmeye döndürür.
+
+**İlk açılış:** Kayıtlı giriş bilgisi yoksa (`/api/account` → `email: null`) bilgisayarda `#/hesap/giris` açılır, e-posta alanına odaklanılır. Telefonda bir kez `#/hos-geldin` karşılama ekranı gelir (menü gizli): açıklama → "Tamam" → e-posta ve şifre → `/api/account/login` (bütün doğrudan siteler) → Ortam giriş sayfası → Ana Sayfa. Gösterildiği `localStorage` `ilk-giris` ile tutulur; "Şimdilik geç" de bunu işaretler.
+
+**Durum göstergesi:** `checkServer` 20 saniyede bir `/api/lock`'a sorar. Ayrıca uygulamanın bir `/api/` isteği bağlantı hatasıyla düşerse (ya da kapalıyken biri başarılı olursa) ve sekmeye dönülünce hemen bakar (`window.fetch` sarmalı). Telefonda gösterge gizlidir.
 
 **Hesap ve giriş:** Hesap'tan giriş yapınca sonuçlar Hesap'ta görünür ve hemen 3 saniyelik sayaç başlar, sonra Ana Sayfa açılır ("Hesap'ta kal" sayacı durdurur). Ortam penceresi aynı anda açılır ve arka planda tamamlanır; bu sırada başka sayfaya geçildiyse sayfa yeniden çizilmez. Ortam doğrudan girişi desteklemez (görünmez reCAPTCHA); bilgiler bir sitede kabul edilince görünür pencere kendiliğinden açılır, Oturumlar tablosunda da giriş düğmesi vardır.
 

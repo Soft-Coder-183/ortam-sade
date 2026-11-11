@@ -70,6 +70,8 @@ const ICONS = {
   external: '<path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>',
   check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
   clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+  bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
   loader: '<path d="M12 3a9 9 0 1 0 9 9"/>',
   dot: '<circle cx="12" cy="12" r="2.5" fill="currentColor"/>',
 };
@@ -1046,8 +1048,10 @@ async function viewAcilan() {
   const modes = [['ders', 'Ders'], ['hoca', 'Ders hocası']];
   return header('Açılan Dersler', `${d.term} · ${d.courses.length} ders, ${d.hocas.size} ders hocası`) +
     `<p class="pl-note">${icon('clock')}<span>Ders verisi son güncelleme: <b>${fmtDay(d.updated)}</b>. Şube, saat ve derslikler sonradan değişmiş olabilir; kayıttan önce okulun güncel programından kontrol et.</span></p>
-    <div class="card ac-search"><div class="tabs ac-modes">${modes.map(([id, label]) => `<button type="button" data-ac-mode="${id}" class="${id === acilanMode ? 'on' : ''}">${label}</button>`).join('')}</div>
-      <input type="search" data-ac-q placeholder="${acilanMode === 'hoca' ? 'Ders hocası adı ara (ör. Yılmaz)' : 'Ders kodu ya da adı ara (ör. BİL 214, Olasılık)'}" value="${esc(acilanQ)}" autocomplete="off">
+    <div class="card ac-search"><div class="ac-top"><div class="tabs ac-modes">${modes.map(([id, label]) => `<button type="button" data-ac-mode="${id}" class="${id === acilanMode ? 'on' : ''}">${label}</button>`).join('')}</div>
+        <button type="button" class="btn ghost" data-muf-open>${icon('book')}Müfredattan getir</button></div>
+      <div id="ac-muf">${mufBox()}</div>
+      <label class="ac-field"><span id="ac-chips">${acChips()}</span><input type="search" data-ac-q placeholder="${acilanMode === 'hoca' ? 'Ders hocası adı ara (ör. Yılmaz)' : 'Ders kodu ya da adı ara (ör. BİL 214, Olasılık)'}" value="${esc(acilanQ)}" autocomplete="off"></label>
       <div id="ac-list">${acilanList()}</div></div>
     <div id="pl-area">${plArea()}</div>`;
 }
@@ -1112,6 +1116,77 @@ function hocaList(q) {
   ${kadroIndex === 'yükleniyor' ? '<p class="muted small">Bölüm ve unvan bilgileri yükleniyor…</p>' : ''}
   ${hits.length > 30 ? `<p class="muted small">${hits.length - 30} sonuç daha; aramayı daralt.</p>` : ''}`;
 }
+
+// ---------- Müfredattan getir ----------
+// Ortam'daki Müfredat sayfası planlayıcının her dönemi için bir kez okunur ve bu cihazda saklanır ('mufredat-plan'). Bulunduğun
+// müfredat dönemi, bu dönem kayıtlı olduğun derslerle en çok örtüşen dönemdir (bulunamazsa henüz notu olmayan ilk dönem);
+// kutudaki seçimle değiştirilebilir. O dönemin zorunlu dersleri (seçmeli yer tutucuları "ASD-1", "İYD 1" ve geçilenler hariç)
+// açılan derslerde varsa plana eklenir.
+let muf = null;                          // { term, donem, terms: [{ term, courses: [{ code, name }] }] } ya da 'yükleniyor' / { error }
+let mufOpen = false;
+const MUF_REAL = /^[A-ZÇĞİÖŞÜ]{2,5}\s?\d{3}[A-ZÇĞİÖŞÜ]?$/u;
+const mufPassed = c => !!c.grade && !/^(F[FD]|U|NA|DZ)$/i.test(c.grade.trim());
+async function mufLoad() {
+  const saved = stored('mufredat-plan', null);
+  if (saved?.term === acilanData.term && saved.terms?.length) return saved;
+  const [m, d] = await Promise.all([api('mufredat'), api('derslerim').catch(() => ({ courses: [] }))]);
+  const enrolled = new Set(d.courses.map(c => courseKey(String(c.code).replace(/\.\d+$/, ''))));
+  const terms = m.terms.map(t => ({ term: t.term, courses: t.courses.filter(c => MUF_REAL.test(c.code.trim()) && !mufPassed(c)).map(c => ({ code: c.code.trim(), name: c.name })),
+    hits: t.courses.filter(c => enrolled.has(courseKey(c.code))).length }));
+  const best = [...terms].sort((a, b) => b.hits - a.hits)[0];
+  const donem = (best?.hits ? best : terms.find(t => t.courses.length))?.term ?? terms[0]?.term;
+  const out = { term: acilanData.term, donem, auto: donem, terms: terms.filter(t => t.courses.length).map(({ term, courses }) => ({ term, courses })) };
+  store('mufredat-plan', out);
+  return out;
+}
+const mufOffered = () => new Map(acilanData.courses.map(c => [courseKey(c.c), c]));
+function mufBox() {
+  if (!mufOpen) return '';
+  if (muf === 'yükleniyor') return '<div class="muf-box"><p class="muted small">Müfredat Ortam\'dan okunuyor…</p></div>';
+  if (!muf || muf.error) return `<div class="muf-box"><p class="small bad">${esc(muf?.error || 'Müfredat alınamadı')}</p></div>`;
+  const t = muf.terms.find(x => x.term === muf.donem) ?? muf.terms[0];
+  if (!t) return '<div class="muf-box"><p class="muted small">Müfredatta alınmamış zorunlu ders kalmamış.</p></div>';
+  const off = mufOffered(), inPlan = new Set((taslak.courses || []).map(courseKey));
+  const rows = t.courses.map(c => {
+    const o = off.get(courseKey(c.code)), on = o && inPlan.has(courseKey(o.c));
+    return `<li class="${o ? '' : 'none'}"><b>${esc(c.code)}</b> <span class="muted">${esc(c.name || o?.n || '')}</span>${o ? (on ? ' <span class="pill ok">planda</span>' : '') : ' <span class="pill gray">bu dönem açılmıyor</span>'}</li>`;
+  });
+  const addable = t.courses.map(c => off.get(courseKey(c.code))).filter(o => o && !inPlan.has(courseKey(o.c)));
+  return `<div class="muf-box"><div class="muf-h"><label>Müfredat dönemin <select data-muf-term>${muf.terms.map(x => `<option${x.term === t.term ? ' selected' : ''}>${esc(x.term)}</option>`).join('')}</select></label>
+      <span class="muted small">${t.term === muf.auto ? 'bu dönem kayıtlı olduğun derslere göre' : 'elle seçildi'}</span>
+      <button type="button" class="x" data-muf-close aria-label="Kapat">×</button></div>
+    <ul class="muf-list">${rows.join('')}</ul>
+    <button type="button" class="btn primary" data-muf-add${addable.length ? '' : ' disabled'}>${addable.length ? `${addable.length} zorunlu dersi plana ekle` : 'Hepsi planda'}</button></div>`;
+}
+const mufRefresh = () => { const el = document.getElementById('ac-muf'); if (el) el.innerHTML = mufBox(); };
+$view.addEventListener('click', async e => {
+  if (e.target.closest('[data-muf-open]')) {
+    mufOpen = !mufOpen;
+    if (mufOpen && (!muf || muf.error)) { muf = 'yükleniyor'; mufRefresh(); muf = await mufLoad().catch(err => ({ error: err.message })); }
+    return mufRefresh();
+  }
+  if (e.target.closest('[data-muf-close]')) { mufOpen = false; return mufRefresh(); }
+  if (e.target.closest('[data-muf-add]')) {
+    const t = muf.terms.find(x => x.term === muf.donem) ?? muf.terms[0];
+    const off = mufOffered(), inPlan = new Set((taslak.courses || []).map(courseKey));
+    const add = t.courses.map(c => off.get(courseKey(c.code))).filter(o => o && !inPlan.has(courseKey(o.c)));
+    for (const o of add) {
+      taslak.courses = [...(taslak.courses || []), o.c];
+      if (o.s.length === 1) taslak.picks[o.c] = o.s[0].id;
+    }
+    plCombos = null;
+    toast(`${t.term}: ${add.length} zorunlu ders plana eklendi`);
+    acRefresh();
+    plRender();
+    return mufRefresh();
+  }
+});
+$view.addEventListener('change', e => {
+  if (!e.target.matches('[data-muf-term]') || !muf?.terms) return;
+  muf.donem = e.target.value;
+  store('mufredat-plan', muf);
+  mufRefresh();
+});
 
 // ---------- Çakışma ve kombinasyon ----------
 const meetsOverlap = (x, y) => x.meets.some(m => y.meets.some(n => m.d === n.d && m.a < n.b && n.a < m.b));
@@ -1225,8 +1300,8 @@ function plCalendar(clashes) {
       const pos = `top:${y(i.a)}px;height:${Math.max(30, y(i.b) - y(i.a) - 2)}px;left:calc(${i.lane * 100 / i.lanes}% + 2px);width:calc(${100 / i.lanes}% - 4px)`;
       if (i.kind === 'sel') {
         const bad = hits(i.x, i.m);
-        return `<button type="button" class="pl-b sel${bad.length ? ' clash' : ''}" style="${pos}" data-pl-pick="${esc(i.c.c)}|${esc(i.x.id)}" data-sec="${esc(i.c.c)}|${esc(i.x.id)}" aria-pressed="true"
-          title="${esc(`${i.c.c} ${i.c.n} · ${secLabel(i.x)}${i.x.hoca ? ` · ${i.x.hoca}` : ''}${bad.map(k => ` · Çakışma: ${dropZero(hhmm(k.a))}–${dropZero(hhmm(k.b))}`).join('')} · Seçimi kaldırmak için tıkla`)}">${
+        return `<button type="button" class="pl-b sel${i.c.s.length === 1 ? ' tek' : ''}${bad.length ? ' clash' : ''}" style="${pos}" data-pl-pick="${esc(i.c.c)}|${esc(i.x.id)}" data-sec="${esc(i.c.c)}|${esc(i.x.id)}" aria-pressed="true"
+          title="${esc(`${i.c.c} ${i.c.n} · ${secLabel(i.x)}${i.x.hoca ? ` · ${i.x.hoca}` : ''}${bad.map(k => ` · Çakışma: ${dropZero(hhmm(k.a))}–${dropZero(hhmm(k.b))}`).join('')}${i.c.s.length === 1 ? ' · Tek şube: başka saat seçeneği yok' : ' · Seçimi kaldırmak için tıkla'}`)}">${
           // Yalnızca gerçekten çakışan saat dilimi çizgili
           bad.map(k => `<i class="pl-ov" style="top:${y(k.a) - y(i.a)}px;height:${y(k.b) - y(k.a)}px"></i>`).join('')}<b>${esc(i.c.c)}${i.x.sec ? ` <em>·</em> ${esc(secShort(i.x))}` : ''}</b><span>${esc(i.c.n)}</span><small>${esc(i.m.r)}</small></button>`;
       }
@@ -1254,7 +1329,7 @@ function plPanel(clashes) {
     const clashWith = x => others.filter(o => meetsOverlap(x, o)).map(o => `${o.code}${o.sec ? ` ${secShort(o)}` : ''}`);
     return `<div class="pl-c${open ? ' open' : ''}${p ? '' : ' wait'}">
       <div class="pl-c-h"><button type="button" class="pl-c-t" data-pl-active="${esc(c.c)}" aria-expanded="${open}"><b>${esc(c.c)}</b> <span class="muted">${esc(c.n)}</span>
-        <span class="small ${p ? 'me-ok' : 'pl-need'}">${p ? esc(c.s.length > 1 ? secLabel(p) : 'Seçili') : 'Şube seç'}</span></button>
+        ${c.s.length === 1 ? '<span class="small pl-tek">Tek şube</span>' : `<span class="small ${p ? 'me-ok' : 'pl-need'}">${p ? esc(secLabel(p)) : 'Şube seç'}</span>`}</button>
         <button type="button" class="x" data-ac-toggle="${esc(c.c)}" title="Plandan çıkar" aria-label="${esc(c.c)} dersini plandan çıkar">×</button></div>
       ${c.s.length > 1 ? `<div class="pl-cpick">${c.s.filter(x => x === p || !plHidden(x)).map(x => `<button type="button" class="${x === p ? 'on' : ''}" data-pl-pick="${esc(c.c)}|${esc(x.id)}" data-sec="${esc(c.c)}|${esc(x.id)}" aria-pressed="${x === p}" title="${esc(`${secLabel(x)}: ${x.meets.map(meetText).join(', ')}`)}">${esc(x.sec || '✓')}</button>`).join('')}</div>` : ''}
       ${open ? `<div class="pl-secs">${c.s.map(x => {
@@ -1290,15 +1365,19 @@ function plComboBox() {
 function plArea() {
   const clashes = plClashes();
   return `<div class="pl-wrap"><section class="card pl-cal"><div class="pl-cal-h"><h2>Haftalık takvim</h2>
-      <span class="pl-legend"><i class="sel"></i>Seçili şube<i class="alt"></i>Seçilebilir şube<i class="clash"></i>Çakışma</span></div>${plCalendar(clashes)}</section>
+      <span class="pl-legend"><i class="sel"></i>Seçili şube<i class="tek"></i>Tek şube<i class="alt"></i>Seçilebilir şube<i class="clash"></i>Çakışma</span></div>${plCalendar(clashes)}</section>
     <aside class="pl-side">${plPanel(clashes)}</aside></div>`;
 }
 function plRender() {
   saveTaslak();
+  chipsRefresh();
   const a = document.getElementById('pl-area');
   if (a) a.innerHTML = plArea();
 }
 const acRefresh = () => { const l = document.getElementById('ac-list'); if (l) l.innerHTML = acilanList(); };
+// Plandaki dersler arama kutusunun içinde blok olarak: koda basınca ders yan panelde açılır, × plandan çıkarır
+const acChips = () => plList().map(c => `<span class="ac-chip${taslak.active === c.c ? ' on' : ''}${c.s.length === 1 ? ' tek' : ''}"><button type="button" class="x" data-ac-toggle="${esc(c.c)}" aria-label="${esc(c.c)} dersini plandan çıkar" title="Plandan çıkar">×</button><button type="button" class="t" data-pl-active="${esc(c.c)}" title="${esc(c.n)}">${esc(c.c)}</button></span>`).join('');
+const chipsRefresh = () => { const el = document.getElementById('ac-chips'); if (el) el.innerHTML = acChips(); };
 // Ders eklenince arama sıfırlanır
 function plAdd(code) {
   taslak.courses = [...(taslak.courses || []), code];
@@ -1319,6 +1398,10 @@ $view.addEventListener('input', e => {
 });
 // Enter: listede işaretli dersi plana ekler; yukarı ve aşağı oklar işareti taşır
 $view.addEventListener('keydown', e => {
+  if (e.key === 'Backspace' && e.target.matches?.('[data-ac-q]') && !e.target.value && taslak.courses?.length) {
+    e.preventDefault();
+    return $view.querySelector(`#ac-chips .ac-chip:last-child [data-ac-toggle]`)?.click();
+  }
   if (!['Enter', 'ArrowDown', 'ArrowUp'].includes(e.key) || e.isComposing || !e.target.matches('[data-ac-q]')) return;
   e.preventDefault();
   const q = trFold(acilanQ.trim());
@@ -2276,7 +2359,9 @@ async function viewHesap(r, ctx) {
   // #/hesap/<site>: bir sitenin "Giriş yap" düğmesinden gelindi. Kayıtlı bilgi yoksa e-posta ve şifreye, şifre kabul edilmediyse
   // o sitenin özel şifre alanına gidilir.
   const want = SITE_NAMES[r.param] ? r.param : null;
-  const banner = want ? `<div class="banner">${esc(SITE_NAMES[want])} için giriş: ${a.email
+  // #/hesap/giris: uygulama ilk açıldı, kayıtlı bilgi yok: e-posta (doluysa şifre) alanına gidilir
+  if (r.param === 'giris' && !a.email) ctx.after = () => document.querySelector('#acct input[name=email]')?.focus();
+  const banner = r.param === 'giris' && !a.email ? '<div class="banner">Başlamak için okul e-postanı ve şifreni gir; uygulama bütün sitelere kendisi girer.</div>' : want ? `<div class="banner">${esc(SITE_NAMES[want])} için giriş: ${a.email
     ? `kayıtlı şifren kabul edilmedi. Bu sitedeki şifren farklıysa aşağıdaki "${esc(SITE_NAMES[want])}" alanına yaz ve Giriş yap'a bas.`
     : 'okul e-postanı ve şifreni yaz; uygulama bütün sitelere girer.'}</div>` : '';
   if (want) ctx.after = () => {
@@ -2726,6 +2811,15 @@ async function checkServer() {
   } else if (ok && b) { b.remove(); render(); }
 }
 setInterval(checkServer, 20_000);
+// Uygulamanın bir isteği bağlantı hatasıyla düşerse (sunucu kapandı) ya da kapalıyken biri başarılı olursa gösterge 20 saniyeyi
+// beklemeden güncellenir; pencereye/sekmeye dönünce de hemen bakılır.
+{
+  const plainFetch = window.fetch.bind(window);
+  const own = a => /^\/api\//.test(typeof a === 'string' ? a : a?.url?.replace(location.origin, '') ?? '');
+  window.fetch = (...a) => plainFetch(...a).then(r => { if (!serverUp && own(a[0])) setTimeout(checkServer, 0); return r; },
+    e => { if (serverUp && own(a[0])) setTimeout(checkServer, 0); throw e; });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) checkServer(); });
+}
 const srvStateHtml = () => `<a class="srv-state${serverUp ? '' : ' down'}" href="#/hesap" title="Uygulamanın durumu: Hesap > Güvenlik ve Oturumlar"><i></i>Durum: ${serverUp ? 'Açık' : 'Kapalı'}</a>`;
 
 const dur = ms => { const m = Math.round(ms / 60_000); return m < 60 ? `${m} dk` : m < 1440 ? `${Math.floor(m / 60)} sa ${m % 60} dk` : `${Math.floor(m / 1440)} gün ${Math.floor((m % 1440) / 60)} sa`; };
@@ -2919,6 +3013,8 @@ const subnav = ({ group, sub }) => group.items ? `<div class="tabs subnav${group
 let seq = 0;
 let lastHtml = '';
 async function render(quiet = false) {
+  if (/^#\/hos-geldin/.test(location.hash)) return renderWelcome();
+  document.body.classList.remove('welcome');
   const r = route();
   const my = ++seq;
   if (!quiet) renderNav(r);
@@ -3105,6 +3201,71 @@ document.addEventListener('click', async e => {
 });
 setTimeout(() => checkUpdate(false), 3000);
 
+// ---------- İlk açılış ----------
+// Kayıtlı giriş bilgisi yoksa: bilgisayarda Hesap'taki e-posta ve şifre alanı açılır; telefonda önce kısa bir açıklama, "Tamam"dan
+// sonra bütün sitelere giriş yapılan ilk giriş ekranı gelir, ardından Ana Sayfa. Telefonda karşılama bir kez gösterilir ('ilk-giris').
+let welcomeStep = 1;
+function renderWelcome() {
+  document.body.classList.add('welcome');
+  $view.innerHTML = welcomeStep === 1 ? `<section class="wc"><span class="wc-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+      <h1>ETÜ Cep'e hoş geldin</h1>
+      <p class="wc-lead">Ortam, UBS, Uzak, UZAKYDB, Webmail ve Piazza tek uygulamada. Okul e-postan ve şifrenle bir kez giriş yaparsın; uygulama bütün sitelere kendisi girer.</p>
+      <ul class="wc-list">
+        <li>${icon('lock')}<span>Şifren yalnızca bu telefonda, şifreli olarak saklanır. Bilgilerin yalnızca okulun sitelerine ve Piazza'ya gider; arada başka bir sunucu yoktur.</span></li>
+        <li>${icon('bell')}<span>Piazza'daki yeni gönderiler, Uzak'a eklenenler ve yaklaşan sınavlar için bildirim gelir.</span></li>
+        <li>${icon('help')}<span>Bağımsız bir öğrenci projesidir; TOBB ETÜ'nün resmî uygulaması değildir.</span></li>
+      </ul>
+      <button type="button" class="btn primary wc-btn" data-wc-next>Tamam</button></section>`
+    : `<section class="wc"><span class="wc-mark" aria-hidden="true"><i></i><i></i><i></i></span><h1>Giriş</h1>
+      <p class="wc-lead">Okul e-postan ve şifren. Bir kez girmen yeter; uygulama Ortam, UBS, Uzak, UZAKYDB, Webmail ve Piazza'ya kendisi girer.</p>
+      <form id="ilk-giris" class="acct wc-form">
+        <label>E-posta<input name="email" type="email" autocomplete="username" placeholder="isim@etu.edu.tr" required></label>
+        <label>Şifre<input name="password" type="password" autocomplete="current-password" required></label>
+        <button type="submit" class="btn primary wc-btn">Giriş yap</button>
+        <div id="ig-out"></div>
+      </form>
+      <a href="#/anasayfa" class="muted small wc-skip" data-wc-skip>Şimdilik geç (sonra Hesap'tan girebilirsin)</a></section>`;
+  if (welcomeStep === 2) document.querySelector('#ilk-giris input[name=email]')?.focus();
+}
+$view.addEventListener('click', e => {
+  if (e.target.closest('[data-wc-next]')) { welcomeStep = 2; return renderWelcome(); }
+  if (e.target.closest('[data-wc-skip]')) store('ilk-giris', true);
+});
+$view.addEventListener('submit', async e => {
+  if (e.target.id !== 'ilk-giris') return;
+  e.preventDefault();
+  const f = e.target, btn = f.querySelector('button[type=submit]'), out = document.getElementById('ig-out');
+  const d = new FormData(f);
+  btn.disabled = true;
+  btn.textContent = 'Bütün sitelere giriş yapılıyor…';
+  out.innerHTML = '';
+  const r = await post('/api/account/login', { email: d.get('email'), password: d.get('password'), sites: {}, remember: true }).catch(() => null);
+  const j = r ? await r.json().catch(() => ({})) : { error: 'Uygulamaya ulaşılamadı' };
+  const res = j.results || {};
+  const line = s => (res[s] ? (res[s].ok ? '<span class="pill ok">girildi</span>' : res[s].rejected ? '<span class="pill bad">şifre kabul edilmedi</span>' : `<span class="pill warn">${esc(res[s].error || 'girilemedi')}</span>`)
+    : s === 'ortam' ? '<span class="pill gray">giriş sayfası açılacak</span>' : '');
+  out.innerHTML = `<ul class="ig-res">${SITE_ORDER.map(s => `<li><b>${esc(SITE_NAMES[s])}</b>${line(s)}</li>`).join('')}</ul>`;
+  if (!r?.ok || !Object.values(res).some(x => x.ok)) {
+    btn.disabled = false;
+    btn.textContent = 'Giriş yap';
+    out.insertAdjacentHTML('afterbegin', `<p class="small bad">${esc(j.error || 'E-posta ya da şifre kabul edilmedi.')}</p>`);
+    return;
+  }
+  lastLogin = j;
+  store('ilk-giris', true);
+  // Ortam yalnızca sitenin kendi giriş sayfasıyla girilir: sayfa açılır, bilgiler doldurulur (doğrulama sorusu çıkarsa sen yanıtlarsın)
+  btn.textContent = 'Ortam\'a giriliyor…';
+  await post('/api/login?site=ortam').catch(() => null);
+  location.hash = '#/anasayfa';
+});
+async function firstRun() {
+  const a = await fetch('/api/account').then(r => (r.ok ? r.json() : null)).catch(() => null);
+  if (!a || a.email) return;
+  if (window.Native && !stored('ilk-giris', false)) { location.replace('#/hos-geldin'); return; }
+  if (!location.hash || /^#\/?(anasayfa)?$/.test(location.hash)) location.replace('#/hesap/giris');
+}
+
 window.addEventListener('hashchange', () => render());
 checkLock();
+await firstRun();
 render();
