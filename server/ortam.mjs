@@ -99,16 +99,31 @@ export async function notices() {
   return { items: out, url: 'https://ortam.etu.edu.tr/' };
 }
 
+// Müfredat: her sekme bir program ("Ana Dal Müfredat Görüntüleme"; çift anadal ya da yandal öğrencisinde ikinci sekme o programın
+// müfredatı). terms: ana dal (eski kullanım), programs: hepsi [{ name, terms }].
 export async function mufredat() {
   const $ = await load('/bilgilerim/mufredat-goruntuleme');
-  const terms = $('#kt_content table').map((_, t) => ({ term: cardTitle($, t), courses: tableRows($, t).map(r => {
+  const termsIn = root => $(root).find('table').filter((_, t) => /^\d+\. Dönem/.test(cardTitle($, t))).map((_, t) => ({ term: cardTitle($, t), courses: tableRows($, t).map(r => {
     const [credit, ects] = (r['Kredi / ECTS'] || '').split('/').map(txt);
     return { code: r['Ders Kodu'], name: r['Ders Adı'], credit, ects, grade: r['Harf Notu'], status: r['Başarı Durumu'], elective: r['Secmeli Ders'] };
   }) })).get();
-  return { identity: identity($), terms };
+  const tabs = $('#kt_content .nav-tabs a.nav-link').map((_, a) => ({ name: txt($(a).text()).replace(/\s*Müfredat Görüntüleme$/i, ''), pane: ($(a).attr('href') || '').replace(/^#/, '') })).get();
+  let programs = tabs.map(t => ({ name: t.name || 'Ana Dal', terms: t.pane ? termsIn($('#kt_content').find(`[id="${t.pane}"]`)) : [] })).filter(p => p.terms.length);
+  if (!programs.length) programs = [{ name: 'Ana Dal', terms: termsIn($('#kt_content')) }];
+  return { identity: identity($), terms: programs[0].terms, programs };
 }
 
 export const ortak = () => simpleTable('/bilgilerim/ortak-egitim-bilgilerim');
+// Adres ve iletişim bilgileri: Ortam'daki iki tablo (Adres Bilgileri, İletişim Bilgileri) olduğu gibi
+export async function adresIletisim() {
+  const $ = await load('/bilgilerim/adres-iletisim-bilgilerim');
+  const sections = $('#kt_content table').map((_, t) => {
+    const columns = $(t).find('thead th').map((_, h) => txt($(h).text())).get().filter(Boolean);
+    const rows = $(t).find('tbody tr').map((_, tr) => [$(tr).find('td').map((_, td) => txt($(td).text())).get().slice(0, columns.length)]).get();
+    return [{ title: cardTitle($, t), columns, rows }];
+  }).get();
+  return { identity: identity($), sections };
+}
 export const yabanciDil = () => simpleTable('/bilgilerim/ikinci-yabanci-dil-bilgilerim');
 export const odeme = () => simpleTable('/bilgilerim/odeme-bilgilerim');
 

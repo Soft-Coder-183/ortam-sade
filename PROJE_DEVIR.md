@@ -75,7 +75,7 @@ Okulun siteleri ve mevzuat.gov.tr
 
 | Menü | İçerik |
 |---|---|
-| Profil | Bilgilerim, Not Görüntüleme, Ortalama ve Ders Planı, Müfredat, Ortak Eğitim, İkinci Yabancı Dil, Ödeme |
+| Profil | Bilgilerim, Not Görüntüleme, Ortalama ve Ders Planı, Müfredat (programlar sekmeli), Ortak Eğitim, İkinci Yabancı Dil, Ödeme, Adres ve İletişim |
 | Ana Sayfa | Bugünkü dersler ve sınavlar, yaklaşan sınavlar, posta, Piazza, son kullanılan 6 sayfa; üstte Ortam'da bekleyen anket ve duyurular ("Ankete git"), UZAKYDB ek içerik, yaklaşan son tarihler |
 | Dönem Bilgilerim | Derslerim (Ortam, Uzak, Piazza tek sayfada), Ders Programım |
 | Sınav Takvimi | Ara Sınav, Final ya da Bütünleme; her sınav tek satırda |
@@ -97,7 +97,9 @@ Okulun siteleri ve mevzuat.gov.tr
 - **Otomatik program:** Çakışmayan en iyi 5 kombinasyon üretilir. Etikette önce boşluk süresi, sonra gün sayısı yazar.
 - **Sıfırlama:** "Şube seçimlerini sıfırla" dersleri korur. "Planı temizle" seti saklar, "Son ders setini geri yükle" o anki setle yer değiştirir.
 - **Arama kutusu:** Plandaki dersler kutunun içinde blok (`.ac-chip`): koda basınca ders yan panelde açılır, × plandan çıkarır, boş kutuda geri silme son dersi çıkarır. Tek şubeli dersin bloğu mor.
-- **Müfredattan getir:** Ortam'daki Müfredat sayfası (`/api/mufredat`) planlayıcının her dönemi için bir kez okunur, `localStorage` `mufredat-plan`'da saklanır. Bulunduğun dönem, bu dönem kayıtlı olduğun derslerle en çok örtüşen müfredat dönemidir (kutudaki seçimle değiştirilir). O dönemin zorunlu dersleri eklenir: seçmeli yer tutucuları ("ASD-1", "İYD 1") ve geçilen dersler hariç, yalnızca açılan derslerde olanlar.
+- **Müfredattan getir:** Ortam'daki Müfredat sayfası (`/api/mufredat`) planlayıcının her dönemi için bir kez okunur, `localStorage` `mufredat-plan` (v2)'de saklanır. Müfredat sayfasındaki her sekme bir programdır (`programs`; çift anadal/yandal öğrencisinde ikinci sekme), kutuda program ve dönem seçilir. Bulunduğun dönem, bu dönem kayıtlı olduğun derslerle en çok örtüşen dönemdir. Bütün dönemler görünür (tamamlananlar ✓), derslerin yanında harf notu yazar. Eklenenler: o dönemin alınmamış zorunlu dersleri (açılan derslerde olanlar) ve "İYD n" yerleri; diğer seçmeli yer tutucuları ("ASD-1") eklenmez.
+- **İYD grupları:** `taslak.groups["İYD 1"] = { choice }`. Seçenekler o düzeydeki açılan dil dersleri (ad "Almanca I" … düzeyi Roma rakamından). Seçilen ders `taslak.courses`'a normal ders olarak girer; dil değişince eskisinin yerini alır, ders çıkarılınca grup da çıkar. Ortam'daki İkinci Yabancı Dil sayfasında "Seçmeli Ders Kodu" doluysa o dil önceden seçilir.
+- **Hoca adı blokta:** `hocaForms()` "Çınla ERÇOKLU" → tam ("Çınla Erçoklu"), kısa ("Ç. Erçoklu"), baş harf ("ÇE"); kapsayıcı sorgusu blok genişliğine göre birini gösterir (`small.pl-hc`). `pl-h` sınıfı gün başlıklarına ait, kullanma.
 - **Tek şubeli dersler:** Takvimde leylak zemin, ince mor çerçeve, solda koyu mor çizgi ve sağ üstte küçük kilit (`.pl-b.sel.tek`, `--pl-tek-*`); çakışma görünümü bunun önüne geçer. Yan panelde "Tek şube" yazar.
 - **Saklama:** Plan tarayıcıda `program-taslak` anahtarındadır (`courses`, `picks`, `off`, `active`, `last`).
 
@@ -215,7 +217,7 @@ Sürüm paketi GitHub Actions'ta üretilir. Yerelde üretilen zip asla yüklenme
 - CAPTCHA ve güvenlik doğrulamalarını çözme, aşma, atlatma. Doğrulama sorusunu kullanıcı yanıtlar.
 - Testte form gönderme, e-posta gönderme, e-posta silme ya da geri alınamaz düğmeye basma; açık izin olmadan yapma.
 - Her push'tan önce kişisel veri olmadığını kontrol et.
-- TC kimlik, adres, iletişim ve telefon bilgilerini arayüzde gizle.
+- Kişisel bilgiler (TC kimlik, adres, telefon, iletişim) artık gösterilir: Profil > Adres ve İletişim Bilgilerim (Ortam), UBS sayfalarında filtre yok. Bunları yalnızca kullanıcının kendi uygulamasında göster; test çıktılarına, ekran görüntülerine ve commit'lere değerlerini koyma.
 - Kalıcı silme yapma (yayımlanmış sürüm silme, geçmişi zorla yeniden yazma dahil). Gerekirse kullanıcının çalıştıracağı komutu ya da betiği hazırla.
 
 **Çalışma biçimi**

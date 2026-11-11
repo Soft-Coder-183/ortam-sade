@@ -27,3 +27,6 @@ mobile/android/imza/
 
 # Kullanıcının kişisel notları (asla yayımlanmaz)
 Claude_okumas*.txt
+
+# Yerel arşiv: önceki dönem verileri yalnızca bu bilgisayarda kalır (yayımlanmaz)
+arsiv/

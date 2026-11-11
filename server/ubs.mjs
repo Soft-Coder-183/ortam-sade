@@ -43,7 +43,6 @@ const raw = new Map();                         // yol -> sayfanın son HTML'i (g
 
 // ---------- sayfa: okunur yapıya çevirme ----------
 
-const PRIVATE = /TC Kimlik|Adres|Cep No|Telefon|GSM/i;  // kişisel bilgiler gösterilmez (Ortam profilinde de kaldırıldı)
 const PAY = /öde|ödeme|kredi kartı/i;                    // ödeme düğmeleri maskeye alınmaz
 
 // Bir satırdaki "Etiket : değer" çiftleri. Etiket ":" ile biter ya da sonraki hücre ":"; değer sonraki etikete kadar.
@@ -180,10 +179,6 @@ export function render(html, path) {
   $('script,style,link,meta,noscript,iframe,img,[id*=indowManager],.appheaderpopup,[id*=RadToolTip],[id*=Tooltip],[id^=AppHeader]').remove();
   $('.RadComboBoxDropDown,.rcbSlide,.RadMenu_Context,[id$=_rfltMenu],.RadCalendar,.RadCalendarPopup,.rgGroupPanel,[id$=_GroupPanel],.RadUpload,.RadAsyncUpload,.ruFileWrap').remove();
 
-  // Kişisel bilgiler
-  $('tr').filter((_, tr) => !$(tr).find('tr').length && PRIVATE.test($(tr).text())).remove();
-  $('[id*=AdresBilgileri],[id*=IletisimBilgileri]').remove();
-  $('fieldset').filter((_, f) => /^(Adres|İletişim)\s*Bilgileri/i.test(txt($(f).children('legend').text()))).remove();
 
   // Sayfa adı + sayfa kodu satırı ("Başarı Durum Belgesi (Transkript) OGR.0204-01"): başlık zaten üstte
   $('span').filter((_, el) => /^([A-Z]{2,6}\.)?\d{4}-\d{2}$/.test(txt($(el).text()))).remove();
@@ -394,7 +389,7 @@ export function transcript(html) {
   const t = s => txt(s);
   const kv = new Map();
   $('table.tdRight tr').filter((_, tr) => !$(tr).find('tr').length).each((_, tr) => {
-    kvRow($, tr)?.pairs.forEach(p => { if (!PRIVATE.test(p.label)) kv.set(p.label, t(cheerio.load(p.html || '', null, false).text())); });
+    kvRow($, tr)?.pairs.forEach(p => kv.set(p.label, t(cheerio.load(p.html || '', null, false).text())));
   });
   // Belgedeki iki sütunlu düzen yerine okunur sıra; Adı + Soyadı tek satır
   const info = [['Ad Soyad', [kv.get('Adı'), kv.get('Soyadı')].filter(Boolean).join(' ')]];

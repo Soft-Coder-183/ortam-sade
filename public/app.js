@@ -4,7 +4,7 @@
 const NAV = [
   { id: 'profil', label: 'Profil', short: 'Profil', icon: 'user', side: true, items: [
     ['bilgilerim', 'Bilgilerim'], ['notlar', 'Not Görüntüleme'], ['ortalama', 'Ortalama ve Ders Planı'], ['mufredat', 'Müfredat Görüntüleme'],
-    ['ortak', 'Ortak Eğitim Bilgilerim'], ['yabanci-dil', 'İkinci Yabancı Dil Bilgilerim'], ['odeme', 'Ödeme Bilgilerim']] },
+    ['ortak', 'Ortak Eğitim Bilgilerim'], ['yabanci-dil', 'İkinci Yabancı Dil Bilgilerim'], ['odeme', 'Ödeme Bilgilerim'], ['adres', 'Adres ve İletişim Bilgilerim']] },
   { id: 'anasayfa', label: 'Ana Sayfa', short: 'Anasayfa', icon: 'home' },
   { id: 'donem', label: 'Dönem Bilgilerim', short: 'Dönem', icon: 'calendar', items: [['derslerim', 'Derslerim'], ['program', 'Ders Programım']] },
   { id: 'sinav', label: 'Sınav Takvimi', short: 'Sınav', icon: 'clipboard' },
@@ -663,13 +663,26 @@ async function viewNotlar() {
   return header('Not Görüntüleme') + survey + identityCard(n.identity) + tabs([['liste', 'Liste'], ['donemlik', 'Dönemlik']], state.notTab, 'notTab') + body;
 }
 
+let mufProgram = 0;
 async function viewMufredat() {
-  const m = await api('mufredat');
+  const m0 = await api('mufredat');
+  const progs = m0.programs?.length ? m0.programs : [{ name: 'Ana Dal', terms: m0.terms }];
+  mufProgram = Math.min(mufProgram, progs.length - 1);
+  const m = { ...m0, terms: progs[mufProgram].terms };
+  const progTabs = progs.length > 1 ? `<div class="tabs">${progs.map((p, i) => `<button type="button" data-muf-prog="${i}" class="${i === mufProgram ? 'on' : ''}">${esc(p.name)}</button>`).join('')}</div>` : '';
   const status = s => /alıyor/i.test(s) ? '<span class="pill warn">Bu dönem alıyor</span>' : /^Başarılı/.test(s) ? '<span class="pill ok">Başarılı</span>'
     : /Alınmadı/.test(s) ? '<span class="muted">Alınmadı</span>' : esc(s);
-  return header('Müfredat Görüntüleme') + identityCard(m.identity) + m.terms.map(t => `<h2>${esc(t.term)}</h2><div class="card">${table([
+  return header('Müfredat Görüntüleme', progs.length > 1 ? `${progs.length} program` : '') + identityCard(m.identity) + progTabs + m.terms.map(t => `<h2>${esc(t.term)}</h2><div class="card">${table([
     ['Kod', r => `<b>${esc(r.code)}</b>`], ['Ders', r => esc(r.name)], ['Kredi / AKTS', r => `${esc(r.credit)} / ${esc(r.ects)}`],
     ['Not', r => gradeChip(r.grade)], ['Durum', r => status(r.status)], ['Seçmeli', r => esc(r.elective)]], t.courses)}</div>`).join('');
+}
+
+// Adres ve iletişim bilgileri (Ortam): iki tablo olduğu gibi
+async function viewAdres() {
+  const d = await api('adres');
+  return header('Adres ve İletişim Bilgilerim') + identityCard(d.identity) + (d.sections.map(s => `<h2>${esc(s.title)}</h2><div class="card">${
+    s.rows.length ? table(s.columns.map((c, i) => [c, r => esc(r[i] ?? '')]), s.rows) : '<span class="muted">Kayıt bulunmamaktadır.</span>'}</div>`).join('')
+    || '<div class="card msg">Ortam\'da adres ve iletişim bilgisi bulunamadı.</div>');
 }
 
 const simpleView = (endpoint, title) => async () => {
@@ -912,15 +925,27 @@ $view.addEventListener('click', e => {
 // ÇAP/YAP - Başvurular: ÇAP/YAP ile Dış İlişkiler hareketlilik formları (Staj, Öğrenim, Mezuniyet Sonrası Staj).
 // Her hareketlilik sayfası iki bölüm: başvuru formu (gerçek alanlar) ve Başvurularım. Kapalıyken okulun mesajı görünür.
 // Gönderim iki tıklama ister; form doğrulama (reCAPTCHA) ya da dosya istiyorsa gönderim okulun sitesinde yapılır.
-const CAP_RULES = `<div class="card"><p style="margin:0">Başvuru şartları, hangi dönemlerde başvurulabildiği ve takvimdeki tarihler:
-  <a href="#/ekstra/mevzuat">Mevzuat → Hızlı Yanıtlar</a></p></div>`;
+// Ne zaman başvurulur: yönergelere göre başvuru, başlanacak dönem başlamadan Akademik Takvimdeki günlerde yapılır; sıradaki tarihler
+// Mevzuat'ın Hızlı Yanıtlarındaki takvim satırlarından gelir.
+async function capRules() {
+  const y = await api('mevzuat-yanitlar').catch(() => null);
+  const list = y?.items ?? y?.answers ?? (Array.isArray(y) ? y : []);
+  const cal = (list.find(a => a.id === 'cap-basvuru')?.calendar ?? []).filter(x => !x.end || x.end > Date.now());
+  return `<div class="card cap-when"><h3>Ne zaman başvurulur?</h3>
+    <p>Başvuru, programa <b>başlayacağın dönem başlamadan önce</b>, Akademik Takvimdeki başvuru günlerinde yapılır; dönem başladıktan sonra o dönem için başvurulmaz.
+      Başlayacağın dönem anadalının en erken <b>3.</b> ders dönemi olmalı; son sınır <b>ÇAP'ta 5.</b>, <b>yandalda 6.</b> ders dönemi.
+      Yani en erken 2. dönemini bitirince başvurabilirsin; son fırsat ÇAP için 5., yandal için 6. dönem başlamadan önceki başvuru günleri.</p>
+    ${cal.length ? `<p><b>Sıradaki başvuru günleri:</b></p><ul>${cal.map(x => `<li><b>${esc(x.when)}</b> · ${esc(x.term)} için · ${esc(x.what)}</li>`).join('')}</ul>` : ''}
+    <p class="muted small" style="margin:0">Şartlar (GNO, sıralama) ve kaynak maddeler: <a href="#/ekstra/mevzuat">Mevzuat → Hızlı Yanıtlar</a></p></div>`;
+}
+const CAP_RULES = '';
 async function viewCap() {
   const c = await api('cap');
-  if (!c.active) return header('ÇAP / YAP Başvuru') + `<div class="card msg">${esc(c.message)}</div>` + CAP_RULES;
+  if (!c.active) return header('ÇAP / YAP Başvuru') + `<div class="card msg">${esc(c.message)}</div>` + await capRules();
   return header('ÇAP / YAP Başvuru', 'Başvuru dönemi açık') +
     `<div class="card"><p>Başvuru formu bu arayüze henüz taşınmadı. Okulun sitesinde doldurabilirsiniz:</p>
      <p><a href="https://ortam.etu.edu.tr/CAP-YAP-Basvurusu" target="_blank" rel="noopener">ortam.etu.edu.tr/CAP-YAP-Basvurusu</a></p>
-     <p class="muted">${esc(c.text.slice(0, 600))}</p></div>` + CAP_RULES;
+     <p class="muted">${esc(c.text.slice(0, 600))}</p></div>` + await capRules();
 }
 
 const APPLY_PAGES = {
@@ -1037,14 +1062,15 @@ const meetText = m => `${PL_SHORT[m.d]} ${dropZero(m.from)}–${dropZero(m.to)} 
 const plList = () => (taslak.courses || []).map(c => acilanData.byCode.get(c)).filter(Boolean);
 const plPicked = c => c.s.find(x => x.id === taslak.picks?.[c.c]) ?? null;
 const plHidden = x => !!taslak.off?.[x.code]?.includes(x.id);
-const plEmpty = term => ({ v: 2, term, courses: [], picks: {}, off: {}, active: null });
-const plSet = () => (taslak.courses?.length ? { courses: taslak.courses, picks: taslak.picks, off: taslak.off } : null);
+const plEmpty = term => ({ v: 2, term, courses: [], picks: {}, off: {}, groups: {}, active: null });
+const plSet = () => (taslak.courses?.length || Object.keys(taslak.groups || {}).length ? { courses: taslak.courses, picks: taslak.picks, off: taslak.off, groups: taslak.groups } : null);
 
 async function viewAcilan() {
   acilanData ??= prepProgram(await api('program'));
   const d = acilanData;
   if (taslak.v !== 2 || taslak.term !== d.term) { taslak = plEmpty(d.term); saveTaslak(); }
   taslak.off ??= {};
+  taslak.groups ??= {};
   const modes = [['ders', 'Ders'], ['hoca', 'Ders hocası']];
   return header('Açılan Dersler', `${d.term} · ${d.courses.length} ders, ${d.hocas.size} ders hocası`) +
     `<p class="pl-note">${icon('clock')}<span>Ders verisi son güncelleme: <b>${fmtDay(d.updated)}</b>. Şube, saat ve derslikler sonradan değişmiş olabilir; kayıttan önce okulun güncel programından kontrol et.</span></p>
@@ -1118,48 +1144,72 @@ function hocaList(q) {
 }
 
 // ---------- Müfredattan getir ----------
-// Ortam'daki Müfredat sayfası planlayıcının her dönemi için bir kez okunur ve bu cihazda saklanır ('mufredat-plan'). Bulunduğun
-// müfredat dönemi, bu dönem kayıtlı olduğun derslerle en çok örtüşen dönemdir (bulunamazsa henüz notu olmayan ilk dönem);
-// kutudaki seçimle değiştirilebilir. O dönemin zorunlu dersleri (seçmeli yer tutucuları "ASD-1", "İYD 1" ve geçilenler hariç)
-// açılan derslerde varsa plana eklenir.
-let muf = null;                          // { term, donem, terms: [{ term, courses: [{ code, name }] }] } ya da 'yükleniyor' / { error }
+// Ortam'daki Müfredat sayfası planlayıcının her dönemi için bir kez okunur ve bu cihazda saklanır ('mufredat-plan'). Çift anadal ya
+// da yandal öğrencisinde iki program vardır, kutudan seçilir. Bulunduğun dönem, bu dönem kayıtlı olduğun derslerle en çok örtüşen
+// müfredat dönemidir (bulunamazsa henüz notu olmayan ilk dönem); kutudaki seçimle değiştirilebilir. Bütün dönemler görünür,
+// tamamlanan derslerin yanında harf notu yazar. Eklenenler: o dönemin alınmamış zorunlu dersleri (açılan derslerde olanlar) ve
+// İkinci Yabancı Dil yerleri ("İYD 1"): bunlar plana dil seçimi bekleyen bir grup olarak girer, dil yan panelde seçilir.
+// Diğer seçmeli yer tutucuları ("ASD-1") eklenmez.
+let muf = null;                          // { term, program, donem, auto, programs: [{ name, terms: [{ term, courses }] }], iyd: { 'İYD 1': kod } }
 let mufOpen = false;
 const MUF_REAL = /^[A-ZÇĞİÖŞÜ]{2,5}\s?\d{3}[A-ZÇĞİÖŞÜ]?$/u;
+const isIydSlot = code => /^İYD\s*\d+$/iu.test(String(code).trim());
 const mufPassed = c => !!c.grade && !/^(F[FD]|U|NA|DZ)$/i.test(c.grade.trim());
 async function mufLoad() {
   const saved = stored('mufredat-plan', null);
-  if (saved?.term === acilanData.term && saved.terms?.length) return saved;
-  const [m, d] = await Promise.all([api('mufredat'), api('derslerim').catch(() => ({ courses: [] }))]);
+  if (saved?.term === acilanData.term && saved.v === 2 && saved.programs?.length) return saved;
+  const [m, d, y] = await Promise.all([api('mufredat'), api('derslerim').catch(() => ({ courses: [] })), api('yabanci-dil').catch(() => null)]);
   const enrolled = new Set(d.courses.map(c => courseKey(String(c.code).replace(/\.\d+$/, ''))));
-  const terms = m.terms.map(t => ({ term: t.term, courses: t.courses.filter(c => MUF_REAL.test(c.code.trim()) && !mufPassed(c)).map(c => ({ code: c.code.trim(), name: c.name })),
-    hits: t.courses.filter(c => enrolled.has(courseKey(c.code))).length }));
-  const best = [...terms].sort((a, b) => b.hits - a.hits)[0];
-  const donem = (best?.hits ? best : terms.find(t => t.courses.length))?.term ?? terms[0]?.term;
-  const out = { term: acilanData.term, donem, auto: donem, terms: terms.filter(t => t.courses.length).map(({ term, courses }) => ({ term, courses })) };
+  const progs = (m.programs?.length ? m.programs : [{ name: 'Ana Dal', terms: m.terms }]).map(p => ({ name: p.name,
+    terms: p.terms.map(t => ({ term: t.term, hits: t.courses.filter(c => enrolled.has(courseKey(c.code))).length,
+      courses: t.courses.map(c => ({ code: c.code.trim(), name: c.name, grade: (c.grade || '').trim(), passed: mufPassed(c) })) })) }));
+  const p0 = progs[0];
+  const best = [...p0.terms].sort((a, b) => b.hits - a.hits)[0];
+  const donem = (best?.hits ? best : p0.terms.find(t => t.courses.some(c => !c.passed)))?.term ?? p0.terms[0]?.term;
+  // Ortam'da İkinci Yabancı Dil için seçilmiş ders varsa ("Seçmeli Ders Kodu") dil grubu onunla gelir
+  const iyd = {};
+  for (const r of y?.rows ?? []) { const slot = r[y.columns.indexOf('Ders Kodu')], pick = r[y.columns.indexOf('Seçmeli Ders Kodu')]; if (slot && pick) iyd[slot.trim()] = pick.trim(); }
+  const out = { v: 2, term: acilanData.term, program: 0, donem, auto: donem, programs: progs.map(p => ({ name: p.name, terms: p.terms.map(({ term, courses }) => ({ term, courses })) })), iyd };
   store('mufredat-plan', out);
   return out;
 }
 const mufOffered = () => new Map(acilanData.courses.map(c => [courseKey(c.c), c]));
+const mufTerm = () => { const p = muf.programs[muf.program] ?? muf.programs[0]; return p.terms.find(x => x.term === muf.donem) ?? p.terms[0]; };
+// Eklenecekler: alınmamış zorunlu dersler (açılan derslerde olanlar) ve plana henüz girmemiş İYD grupları
+function mufAddable(t) {
+  const off = mufOffered(), inPlan = new Set((taslak.courses || []).map(courseKey));
+  return { courses: t.courses.filter(c => !c.passed && MUF_REAL.test(c.code)).map(c => off.get(courseKey(c.code))).filter(o => o && !inPlan.has(courseKey(o.c))),
+    groups: t.courses.filter(c => !c.passed && isIydSlot(c.code) && !taslak.groups?.[c.code] && iydOptions(c.code).length).map(c => c.code) };
+}
 function mufBox() {
   if (!mufOpen) return '';
   if (muf === 'yükleniyor') return '<div class="muf-box"><p class="muted small">Müfredat Ortam\'dan okunuyor…</p></div>';
   if (!muf || muf.error) return `<div class="muf-box"><p class="small bad">${esc(muf?.error || 'Müfredat alınamadı')}</p></div>`;
-  const t = muf.terms.find(x => x.term === muf.donem) ?? muf.terms[0];
-  if (!t) return '<div class="muf-box"><p class="muted small">Müfredatta alınmamış zorunlu ders kalmamış.</p></div>';
+  const p = muf.programs[muf.program] ?? muf.programs[0], t = mufTerm();
+  if (!t) return '<div class="muf-box"><p class="muted small">Müfredatta dönem bulunamadı.</p></div>';
   const off = mufOffered(), inPlan = new Set((taslak.courses || []).map(courseKey));
   const rows = t.courses.map(c => {
+    if (c.passed) return `<li class="done"><b>${esc(c.code)}</b> <span class="muted">${esc(c.name || '')}</span> ${gradeChip(c.grade)}</li>`;
+    if (isIydSlot(c.code)) {
+      const g = taslak.groups?.[c.code], n = iydOptions(c.code).length;
+      return `<li><b>${esc(c.code)}</b> <span class="muted">İkinci yabancı dil · ${n ? `${n} dil dersi açılıyor, dili planda seçersin` : 'bu dönem açılmıyor'}</span>${g ? ` <span class="pill ok">planda${g.choice ? ` · ${esc(g.choice)}` : ''}</span>` : ''}</li>`;
+    }
+    if (!MUF_REAL.test(c.code)) return `<li class="none"><b>${esc(c.code)}</b> <span class="muted">${esc(c.name || 'seçmeli')}</span> <span class="pill gray">seçmeli, sen seçersin</span></li>`;
     const o = off.get(courseKey(c.code)), on = o && inPlan.has(courseKey(o.c));
-    return `<li class="${o ? '' : 'none'}"><b>${esc(c.code)}</b> <span class="muted">${esc(c.name || o?.n || '')}</span>${o ? (on ? ' <span class="pill ok">planda</span>' : '') : ' <span class="pill gray">bu dönem açılmıyor</span>'}</li>`;
+    return `<li class="${o ? '' : 'none'}"><b>${esc(c.code)}</b> <span class="muted">${esc(c.name || o?.n || '')}</span>${c.grade ? ` ${gradeChip(c.grade)}` : ''}${o ? (on ? ' <span class="pill ok">planda</span>' : '') : ' <span class="pill gray">bu dönem açılmıyor</span>'}</li>`;
   });
-  const addable = t.courses.map(c => off.get(courseKey(c.code))).filter(o => o && !inPlan.has(courseKey(o.c)));
-  return `<div class="muf-box"><div class="muf-h"><label>Müfredat dönemin <select data-muf-term>${muf.terms.map(x => `<option${x.term === t.term ? ' selected' : ''}>${esc(x.term)}</option>`).join('')}</select></label>
-      <span class="muted small">${t.term === muf.auto ? 'bu dönem kayıtlı olduğun derslere göre' : 'elle seçildi'}</span>
+  const add = mufAddable(t), n = add.courses.length + add.groups.length;
+  return `<div class="muf-box"><div class="muf-h">${muf.programs.length > 1 ? `<label>Program <select data-muf-prog-sel>${muf.programs.map((x, i) => `<option value="${i}"${i === muf.program ? ' selected' : ''}>${esc(x.name)}</option>`).join('')}</select></label>` : ''}
+      <label>Dönem <select data-muf-term>${p.terms.map(x => `<option${x.term === t.term ? ' selected' : ''}>${esc(x.term)}${x.courses.length && x.courses.every(c => c.passed) ? ' ✓' : ''}</option>`).join('')}</select></label>
+      <span class="muted small">${t.term === muf.auto && muf.program === 0 ? 'bu dönem kayıtlı olduğun derslere göre' : 'elle seçildi'}</span>
       <button type="button" class="x" data-muf-close aria-label="Kapat">×</button></div>
     <ul class="muf-list">${rows.join('')}</ul>
-    <button type="button" class="btn primary" data-muf-add${addable.length ? '' : ' disabled'}>${addable.length ? `${addable.length} zorunlu dersi plana ekle` : 'Hepsi planda'}</button></div>`;
+    <button type="button" class="btn primary" data-muf-add${n ? '' : ' disabled'}>${n ? `${n} dersi plana ekle` : t.courses.every(c => c.passed) ? 'Bu dönem tamamlandı' : 'Eklenecek ders yok'}</button></div>`;
 }
 const mufRefresh = () => { const el = document.getElementById('ac-muf'); if (el) el.innerHTML = mufBox(); };
 $view.addEventListener('click', async e => {
+  const mp = e.target.closest('[data-muf-prog]');
+  if (mp) { mufProgram = Number(mp.dataset.mufProg); return render(); }
   if (e.target.closest('[data-muf-open]')) {
     mufOpen = !mufOpen;
     if (mufOpen && (!muf || muf.error)) { muf = 'yükleniyor'; mufRefresh(); muf = await mufLoad().catch(err => ({ error: err.message })); }
@@ -1167,25 +1217,79 @@ $view.addEventListener('click', async e => {
   }
   if (e.target.closest('[data-muf-close]')) { mufOpen = false; return mufRefresh(); }
   if (e.target.closest('[data-muf-add]')) {
-    const t = muf.terms.find(x => x.term === muf.donem) ?? muf.terms[0];
-    const off = mufOffered(), inPlan = new Set((taslak.courses || []).map(courseKey));
-    const add = t.courses.map(c => off.get(courseKey(c.code))).filter(o => o && !inPlan.has(courseKey(o.c)));
-    for (const o of add) {
+    const t = mufTerm(), add = mufAddable(t);
+    for (const o of add.courses) {
       taslak.courses = [...(taslak.courses || []), o.c];
       if (o.s.length === 1) taslak.picks[o.c] = o.s[0].id;
     }
+    for (const g of add.groups) {
+      taslak.groups[g] = { choice: null };
+      const pick = muf.iyd?.[g] && iydOptions(g).find(c => courseKey(c.c) === courseKey(muf.iyd[g]));
+      if (pick) iydChoose(g, pick.c);
+    }
     plCombos = null;
-    toast(`${t.term}: ${add.length} zorunlu ders plana eklendi`);
+    toast(`${t.term}: ${add.courses.length} zorunlu ders${add.groups.length ? ` ve ${add.groups.join(', ')} (dili yan panelde seç)` : ''} plana eklendi`);
     acRefresh();
     plRender();
     return mufRefresh();
   }
 });
 $view.addEventListener('change', e => {
-  if (!e.target.matches('[data-muf-term]') || !muf?.terms) return;
-  muf.donem = e.target.value;
+  if (!muf?.programs) return;
+  if (e.target.matches('[data-muf-term]')) muf.donem = e.target.value;
+  else if (e.target.matches('[data-muf-prog-sel]')) { muf.program = Number(e.target.value); muf.donem = muf.programs[muf.program]?.terms.find(t => t.courses.some(c => !c.passed))?.term; }
+  else return;
   store('mufredat-plan', muf);
   mufRefresh();
+});
+
+// ---------- İkinci Yabancı Dil (İYD) grupları ----------
+// "İYD 1" plana dil seçimi bekleyen bir grup olarak girer (taslak.groups[İYD 1] = { choice: ders kodu | null }). Seçilebilecekler o
+// düzeydeki açılan dil dersleri ("Almanca I", "İspanyolca I" … İYD 2 için "… II"). Dil seçilince o ders plana normal ders gibi
+// girer (şubesi takvimde seçilir); dil değiştirilince eski dersin yerini alır.
+const IYD_LANG = /^(Almanca|Arapça|Çince|Fransızca|İspanyolca|İtalyanca|Japonca|Korece|Rusça|Portekizce|Yunanca|Farsça|Latince)\s+(I|II|III|IV|V|VI)$/iu;
+const ROMAN = { I: 1, II: 2, III: 3, IV: 4, V: 5, VI: 6 };
+const iydOptions = g => {
+  const lvl = Number((String(g).match(/(\d+)\s*$/) || [])[1]);
+  return acilanData.courses.filter(c => { const m = String(c.n).trim().match(IYD_LANG); return m && ROMAN[m[2].toUpperCase()] === lvl; })
+    .sort((a, b) => a.n.localeCompare(b.n, 'tr'));
+};
+const groupOf = code => Object.entries(taslak.groups || {}).find(([, v]) => v.choice === code)?.[0] ?? null;
+function iydChoose(g, code) {
+  const prev = taslak.groups[g]?.choice;
+  if (prev && prev !== code) {
+    taslak.courses = (taslak.courses || []).filter(x => x !== prev);
+    delete taslak.picks[prev];
+    delete taslak.off[prev];
+  }
+  taslak.groups[g] = { choice: code || null };
+  if (code && !(taslak.courses || []).includes(code)) {
+    taslak.courses = [...(taslak.courses || []), code];
+    const c = acilanData.byCode.get(code);
+    if (c?.s.length === 1) taslak.picks[code] = c.s[0].id;
+  }
+  taslak.active = code || null;
+}
+const iydSelect = (g, choice) => `<select data-iyd="${esc(g)}" aria-label="${esc(g)} için dil dersi"><option value="">Dil seç…</option>${iydOptions(g).map(c =>
+  `<option value="${esc(c.c)}"${c.c === choice ? ' selected' : ''}>${esc(c.n)} · ${esc(c.c)} (${c.s.length > 1 ? `${c.s.length} şube` : 'tek şube'})</option>`).join('')}</select>`;
+// Dili henüz seçilmemiş gruplar (yan panelde kart, arama kutusunda blok)
+const iydPending = () => Object.entries(taslak.groups || {}).filter(([, v]) => !v.choice).map(([g]) => g);
+$view.addEventListener('change', e => {
+  if (!e.target.matches('[data-iyd]')) return;
+  iydChoose(e.target.dataset.iyd, e.target.value);
+  plCombos = null;
+  acRefresh();
+  plRender();
+});
+$view.addEventListener('click', e => {
+  const del = e.target.closest('[data-iyd-del]');
+  if (!del) return;
+  const g = del.dataset.iydDel, prev = taslak.groups?.[g]?.choice;
+  if (prev) { taslak.courses = taslak.courses.filter(x => x !== prev); delete taslak.picks[prev]; delete taslak.off[prev]; }
+  delete taslak.groups[g];
+  plCombos = null;
+  acRefresh();
+  plRender();
 });
 
 // ---------- Çakışma ve kombinasyon ----------
@@ -1242,6 +1346,21 @@ function plFindCombos() {
 }
 
 // ---------- Takvim ----------
+// Hoca adı blokta: "Çınla ERÇOKLU" → "Çınla Erçoklu"; blok daralınca "Ç. Erçoklu", çok darsa "ÇE" (kapsayıcı sorgusuyla)
+const tcase = w => w.toLocaleLowerCase('tr').replace(/^\p{L}/u, ch => ch.toLocaleUpperCase('tr'));
+function hocaForms(h) {
+  const one = n => {
+    const w = n.trim().split(/\s+/), up = x => x === x.toLocaleUpperCase('tr') && /\p{Lu}/u.test(x);
+    let k = w.length;
+    while (k > 1 && up(w[k - 1])) k--;
+    if (k === w.length) k = w.length - 1;
+    const given = w.slice(0, k), sur = w.slice(k);
+    return { full: w.map(tcase).join(' '), short: [...given.map(x => tcase(x)[0] + '.'), ...sur.map(tcase)].join(' '), tiny: w.map(x => tcase(x)[0]).join('') };
+  };
+  const list = String(h || '').split(', ').map(x => x.trim()).filter(Boolean).map(one);
+  return list.length ? { full: list.map(x => x.full).join(', '), short: list.map(x => x.short).join(', '), tiny: list.map(x => x.tiny).join(', ') } : null;
+}
+const hocaLines = h => { const f = hocaForms(h); return f ? `<small class="pl-hc hf">${esc(f.full)}</small><small class="pl-hc hs">${esc(f.short)}</small><small class="pl-hc ht">${esc(f.tiny)}</small>` : ''; };
 const PL_HOUR = 54;                     // bir saatin yüksekliği (piksel)
 const PL_LANE = 34;                     // yan yana duran bir kutunun en az genişliği (piksel)
 // Aynı günde üst üste binenler yan yana şeritlere dizilir
@@ -1303,9 +1422,9 @@ function plCalendar(clashes) {
         return `<button type="button" class="pl-b sel${i.c.s.length === 1 ? ' tek' : ''}${bad.length ? ' clash' : ''}" style="${pos}" data-pl-pick="${esc(i.c.c)}|${esc(i.x.id)}" data-sec="${esc(i.c.c)}|${esc(i.x.id)}" aria-pressed="true"
           title="${esc(`${i.c.c} ${i.c.n} · ${secLabel(i.x)}${i.x.hoca ? ` · ${i.x.hoca}` : ''}${bad.map(k => ` · Çakışma: ${dropZero(hhmm(k.a))}–${dropZero(hhmm(k.b))}`).join('')}${i.c.s.length === 1 ? ' · Tek şube: başka saat seçeneği yok' : ' · Seçimi kaldırmak için tıkla'}`)}">${
           // Yalnızca gerçekten çakışan saat dilimi çizgili
-          bad.map(k => `<i class="pl-ov" style="top:${y(k.a) - y(i.a)}px;height:${y(k.b) - y(k.a)}px"></i>`).join('')}<b>${esc(i.c.c)}${i.x.sec ? ` <em>·</em> ${esc(secShort(i.x))}` : ''}</b><span>${esc(i.c.n)}</span><small>${esc(i.m.r)}</small></button>`;
+          bad.map(k => `<i class="pl-ov" style="top:${y(k.a) - y(i.a)}px;height:${y(k.b) - y(k.a)}px"></i>`).join('')}<b>${esc(i.c.c)}${i.x.sec ? ` <em>·</em> ${esc(secShort(i.x))}` : ''}</b><span>${esc(i.c.n)}</span><small>${esc(i.m.r)}</small>${hocaLines(i.x.hoca)}</button>`;
       }
-      return `<div class="pl-b alt${i.quiet ? ' quiet' : ''}" style="${pos}" title="${esc(`${i.c.c} ${i.c.n}`)}"><b>${esc(i.c.c)}</b><span class="pl-mini">${esc(i.c.n)}</span><span class="pl-pills">${i.secs.map(x =>
+      return `<div class="pl-b alt${i.quiet ? ' quiet' : ''}" style="${pos}" title="${esc(`${i.c.c} ${i.c.n}`)}"><b>${esc(i.c.c)}</b><span class="pl-mini">${esc(i.c.n)}</span>${new Set(i.secs.map(x => x.hoca)).size === 1 ? hocaLines(i.secs[0].hoca) : ''}<span class="pl-pills">${i.secs.map(x =>
         `<button type="button" data-pl-pick="${esc(i.c.c)}|${esc(x.id)}" data-sec="${esc(i.c.c)}|${esc(x.id)}" title="${esc(`${secLabel(x)}${x.hoca ? ` · ${x.hoca}` : ''}`)}">${esc(x.sec || '✓')}</button>`).join('')}</span></div>`;
     }).join('')}</div>`;
   };
@@ -1322,20 +1441,24 @@ function plPanel(clashes) {
   const list = plList();
   const restore = taslak.last?.courses?.length
     ? `<button type="button" class="btn ghost" data-pl-restore title="Şu anki dersler varsa onların yerine geçer; şu anki set de bu düğmeyle geri getirilebilir">Son ders setini geri yükle (${taslak.last.courses.length} ders)</button>` : '';
-  if (!list.length) return `<div class="card msg">Henüz ders yok. Yukarıdan ders ara ve plana ekle.${restore ? `<div class="pl-tools">${restore}</div>` : ''}</div>`;
+  const pending = iydPending().map(g => `<div class="pl-c wait pl-grp"><div class="pl-c-h"><span class="pl-c-t"><b>${esc(g)}</b> <span class="muted">İkinci yabancı dil</span>
+      <span class="small pl-need">Dil seç</span></span><button type="button" class="x" data-iyd-del="${esc(g)}" title="Plandan çıkar" aria-label="${esc(g)} grubunu plandan çıkar">×</button></div>
+    <div class="pl-iyd">${iydSelect(g, null)}</div></div>`).join('');
+  if (!list.length && !pending) return `<div class="card msg">Henüz ders yok. Yukarıdan ders ara ve plana ekle.${restore ? `<div class="pl-tools">${restore}</div>` : ''}</div>`;
   const courses = list.map(c => {
-    const p = plPicked(c), open = taslak.active === c.c;
+    const p = plPicked(c), open = taslak.active === c.c, grp = groupOf(c.c);
     const others = list.filter(o => o !== c).map(plPicked).filter(Boolean);
     const clashWith = x => others.filter(o => meetsOverlap(x, o)).map(o => `${o.code}${o.sec ? ` ${secShort(o)}` : ''}`);
     return `<div class="pl-c${open ? ' open' : ''}${p ? '' : ' wait'}">
       <div class="pl-c-h"><button type="button" class="pl-c-t" data-pl-active="${esc(c.c)}" aria-expanded="${open}"><b>${esc(c.c)}</b> <span class="muted">${esc(c.n)}</span>
         ${c.s.length === 1 ? '<span class="small pl-tek">Tek şube</span>' : `<span class="small ${p ? 'me-ok' : 'pl-need'}">${p ? esc(secLabel(p)) : 'Şube seç'}</span>`}</button>
         <button type="button" class="x" data-ac-toggle="${esc(c.c)}" title="Plandan çıkar" aria-label="${esc(c.c)} dersini plandan çıkar">×</button></div>
+      ${grp ? `<div class="pl-iyd"><span class="small muted">${esc(grp)} dili</span>${iydSelect(grp, c.c)}</div>` : ''}
       ${c.s.length > 1 ? `<div class="pl-cpick">${c.s.filter(x => x === p || !plHidden(x)).map(x => `<button type="button" class="${x === p ? 'on' : ''}" data-pl-pick="${esc(c.c)}|${esc(x.id)}" data-sec="${esc(c.c)}|${esc(x.id)}" aria-pressed="${x === p}" title="${esc(`${secLabel(x)}: ${x.meets.map(meetText).join(', ')}`)}">${esc(x.sec || '✓')}</button>`).join('')}</div>` : ''}
       ${open ? `<div class="pl-secs">${c.s.map(x => {
         const off = plHidden(x), key = `${esc(c.c)}|${esc(x.id)}`;
         return `<div class="pl-sec-row${off ? ' off' : ''}"><button type="button" class="pl-sec${x === p ? ' on' : ''}" data-pl-pick="${key}" data-sec="${key}" aria-pressed="${x === p}"${off && x !== p ? ' disabled' : ''}>
-        <b>${esc(secLabel(x))}</b><span>${x.meets.map(m => `<i>${esc(meetText(m))}</i>`).join('')}</span>${x.hoca ? `<small class="muted">${esc(x.hoca)}</small>` : ''}${
+        <b>${esc(secLabel(x))}</b><span>${x.meets.map(m => `<i>${esc(meetText(m))}</i>`).join('')}</span>${x.hoca ? `<small class="muted">${esc(hocaForms(x.hoca)?.full ?? x.hoca)}</small>` : ''}${
         clashWith(x).length ? `<small class="pl-warn">${esc(clashWith(x).join(', '))} ile çakışıyor</small>` : ''}</button>${
         c.s.length > 1 ? `<button type="button" class="pl-off" data-pl-off="${key}" title="${off ? 'Takvimde yeniden göster' : 'Takvimde gösterme (otomatik programları etkilemez)'}">${off ? 'göster' : 'gizle'}</button>` : ''}</div>`;
       }).join('')}</div>` : ''}</div>`;
@@ -1346,7 +1469,7 @@ function plPanel(clashes) {
     return !seen.has(key) && seen.add(key);
   }).map(k => `<li><b>${esc(k.x.code)}${k.x.sec ? ` ${esc(secShort(k.x))}` : ''}</b> ve <b>${esc(k.y.code)}${k.y.sec ? ` ${esc(secShort(k.y))}` : ''}</b>: ${PL_DAYS[k.d]} ${dropZero(hhmm(k.a))}–${dropZero(hhmm(k.b))}</li>`).join('')}</ul></div>`
     : list.every(plPicked) && list.length > 1 ? '<p class="pl-ok small">Seçili şubeler çakışmıyor.</p>' : '';
-  return `${clashList}<div class="card pl-cs">${courses}<div class="pl-tools"><button type="button" class="btn primary" data-pl-combos>Çakışmayan programları bul</button>
+  return `${clashList}<div class="card pl-cs">${pending}${courses}<div class="pl-tools"><button type="button" class="btn primary" data-pl-combos>Çakışmayan programları bul</button>
     <button type="button" class="btn ghost" data-pl-unpick${list.some(c => c.s.length > 1 && plPicked(c)) ? '' : ' disabled'}>Şube seçimlerini sıfırla</button>
     <button type="button" class="btn ghost" data-pl-reset>Planı temizle</button>${restore}</div></div>${plComboBox()}`;
 }
@@ -1376,7 +1499,8 @@ function plRender() {
 }
 const acRefresh = () => { const l = document.getElementById('ac-list'); if (l) l.innerHTML = acilanList(); };
 // Plandaki dersler arama kutusunun içinde blok olarak: koda basınca ders yan panelde açılır, × plandan çıkarır
-const acChips = () => plList().map(c => `<span class="ac-chip${taslak.active === c.c ? ' on' : ''}${c.s.length === 1 ? ' tek' : ''}"><button type="button" class="x" data-ac-toggle="${esc(c.c)}" aria-label="${esc(c.c)} dersini plandan çıkar" title="Plandan çıkar">×</button><button type="button" class="t" data-pl-active="${esc(c.c)}" title="${esc(c.n)}">${esc(c.c)}</button></span>`).join('');
+const acChips = () => plList().map(c => { const g = groupOf(c.c); return `<span class="ac-chip${taslak.active === c.c ? ' on' : ''}${c.s.length === 1 ? ' tek' : ''}"><button type="button" class="x" data-ac-toggle="${esc(c.c)}" aria-label="${esc(c.c)} dersini plandan çıkar" title="Plandan çıkar">×</button><button type="button" class="t" data-pl-active="${esc(c.c)}" title="${esc(c.n)}">${g ? `<small>${esc(g)}</small> ` : ''}${esc(c.c)}</button></span>`; }).join('') +
+  iydPending().map(g => `<span class="ac-chip grp"><button type="button" class="x" data-iyd-del="${esc(g)}" aria-label="${esc(g)} grubunu plandan çıkar" title="Plandan çıkar">×</button><span class="t">${esc(g)} <small>dil seç</small></span></span>`).join('');
 const chipsRefresh = () => { const el = document.getElementById('ac-chips'); if (el) el.innerHTML = acChips(); };
 // Ders eklenince arama sıfırlanır
 function plAdd(code) {
@@ -1398,9 +1522,9 @@ $view.addEventListener('input', e => {
 });
 // Enter: listede işaretli dersi plana ekler; yukarı ve aşağı oklar işareti taşır
 $view.addEventListener('keydown', e => {
-  if (e.key === 'Backspace' && e.target.matches?.('[data-ac-q]') && !e.target.value && taslak.courses?.length) {
+  if (e.key === 'Backspace' && e.target.matches?.('[data-ac-q]') && !e.target.value && $view.querySelector('#ac-chips .ac-chip')) {
     e.preventDefault();
-    return $view.querySelector(`#ac-chips .ac-chip:last-child [data-ac-toggle]`)?.click();
+    return $view.querySelector('#ac-chips .ac-chip:last-child .x')?.click();
   }
   if (!['Enter', 'ArrowDown', 'ArrowUp'].includes(e.key) || e.isComposing || !e.target.matches('[data-ac-q]')) return;
   e.preventDefault();
@@ -1428,6 +1552,8 @@ $view.addEventListener('click', e => {
   if (tog) {
     const code = tog.dataset.acToggle;
     if (!(taslak.courses || []).includes(code)) return plAdd(code);
+    const g = groupOf(code);
+    if (g) delete taslak.groups[g];
     taslak.courses = taslak.courses.filter(x => x !== code);
     delete taslak.picks[code];
     delete taslak.off[code];
@@ -2922,7 +3048,7 @@ const views = {
   anasayfa: viewHome, 'donem/derslerim': viewDerslerim, 'donem/program': viewProgram, sinav: viewSinav,
   'profil/bilgilerim': viewBilgilerim, 'profil/notlar': viewNotlar, 'profil/ortalama': viewPlan, 'profil/mufredat': viewMufredat,
   'profil/ortak': simpleView('ortak', 'Ortak Eğitim Bilgilerim'), 'profil/yabanci-dil': simpleView('yabanci-dil', 'İkinci Yabancı Dil Bilgilerim'),
-  'profil/odeme': simpleView('odeme', 'Ödeme Bilgilerim'), 'ekstra/acilan': viewAcilan, 'ekstra/takvim': viewTakvim,
+  'profil/odeme': simpleView('odeme', 'Ödeme Bilgilerim'), 'profil/adres': viewAdres, 'ekstra/acilan': viewAcilan, 'ekstra/takvim': viewTakvim,
   'ekstra/kadro': viewKadro, 'ekstra/rezervasyon': viewRezervasyon, 'ekstra/yabanci-diller': viewYabanciDiller,
   'ekstra/cap': viewBasvuru,
   ubs: viewUbs, uzakydb: viewUzakydb, webmail: viewWebmail, piazza: viewPiazza, hesap: viewHesap,

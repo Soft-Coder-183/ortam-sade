@@ -8,20 +8,20 @@ export const ANSWERS = [
   {
     id: 'yap-basvuru', tags: ['YAP', 'yandal', 'başvuru'],
     q: 'Yandala (YAP) ne zaman başvurabilirim, son hakkım hangi dönem?',
-    a: 'Anadalının **en erken 3., en geç 6. ders döneminin başında**, Akademik Takvimdeki başvuru süresi içinde. Başvuru anında **GNO en az 3,00** olmalı ve o döneme kadar alman gereken bütün kredili dersleri geçmiş olmalısın. Yani 6. ders döneminin başı son fırsat; 7. dönemde başvurulamaz.',
+    a: 'Başvuru, yandala başlayacağın dönem **başlamadan önce**, Akademik Takvimdeki başvuru günlerinde yapılır (tarihler aşağıda; dönem içinde başvurulmaz). Başlayacağın dönem anadalının **en erken 3., en geç 6. ders dönemi** olmalı: yani en erken **2. ders dönemini bitirince**, en geç **5. ders dönemini bitirince** (6. dönem başlamadan) başvurabilirsin; 6. dönem başladıktan sonra başvuru hakkı kalmaz. Başvuru anında **GNO en az 3,00** olmalı ve başvurduğun döneme kadar alman gereken bütün kredili dersleri geçmiş olmalısın.',
     calendar: /yan ?dal/i, news: /yan ?dal/i,
     cites: [
-      { doc: YANDAL, a: '5', quote: 'en erken üçüncü ve en geç altıncı ders döneminin başında … genel not ortalaması en az 3,00' },
+      { doc: YANDAL, a: '5', quote: 'Akademik Takvimde belirtilen süre içinde, anadal lisans programının en erken üçüncü ve en geç altıncı ders döneminin başında … genel not ortalaması en az 3,00' },
       { doc: YOK_GECIS, a: '19', quote: 'en erken üçüncü, en geç altıncı yarıyılın başında başvurabilir' },
     ],
   },
   {
     id: 'cap-basvuru', tags: ['ÇAP', 'çift anadal', 'başvuru'],
     q: 'Çift anadala (ÇAP) ne zaman ve hangi şartla başvurabilirim?',
-    a: 'Anadalının **en erken 3., en geç 5. ders döneminin başında**. Şartlar: o döneme kadar alman gereken bütün kredili dersleri geçmiş olmak, **GNO en az 3,30** ve sınıfında **ilk %20**. İlk %20\'de değilsen, GNO 3,30 ve puanın başvurduğun programın o yılki taban puanından az değilse yine başvurabilirsin. Vazgeçilen (V) dersler alınmamış sayılır.',
+    a: 'Başvuru, ÇAP\'a başlayacağın dönem **başlamadan önce**, Akademik Takvimdeki son başvuru tarihine kadar yapılır (tarihler aşağıda). Başlayacağın dönem anadalının **en erken 3., en geç 5. ders dönemi** olmalı: yani en erken **2. ders dönemini bitirince**, en geç **4. ders dönemini bitirince** (5. dönem başlamadan) başvurabilirsin. Düzensiz kayıtta hangi ders döneminde olduğun, ders kaydı yaptırdığın ilk dönemden sayılır. Şartlar: o döneme kadar alman gereken bütün kredili dersleri geçmiş olmak, **GNO en az 3,30** ve sınıfında **ilk %20**. İlk %20\'de değilsen, GNO 3,30 ve puanın başvurduğun programın o yılki taban puanından az değilse yine başvurabilirsin. Vazgeçilen (V) dersler alınmamış sayılır.',
     calendar: /çift ana ?dal/i, news: /çift ana ?dal/i,
     cites: [
-      { doc: CAP, a: '5', quote: 'en erken 3 üncü ve en geç 5 inci ders döneminin başında … en az 3,30 olması' },
+      { doc: CAP, a: '5', quote: 'Akademik Takvimde belirtilen son başvuru tarihine kadar … en erken 3 üncü ve en geç 5 inci ders döneminin başında … en az 3,30 olması' },
       { doc: CAP, a: '4', quote: 'en üst yüzde 20’sinde yer almayan öğrencilerden' },
     ],
   },
