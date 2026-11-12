@@ -232,6 +232,17 @@ Sürüm paketi GitHub Actions'ta üretilir. Yerelde üretilen zip asla yüklenme
 - 3000 portundaki süreci yalnızca komut satırı `server/server.mjs` ise durdur.
 - Sayısal ya da hukuki bir bilgiyi kaynaksız yazma; Mevzuat yanıtları maddeye dayanmalı.
 - Dersliklerin boş ya da dolu durumunu hiçbir yerde gösterme.
+- **Her işte izlenen döngü:**
+  1. Değiştir.
+  2. `node --check` ile denetle.
+  3. Depodaki sürümü `PORT=3100 node server/server.mjs` ile aç ve başsız Chrome ile dene. Okula giden geri alınamaz istekleri `page.route` ile sahte yanıtla kes. İş bitince 3100'ü kapat.
+  4. Bu belgeyi ve sürüm notunu güncelle.
+  5. Arayüz değiştiyse `npm run mobil` ile telefon paketini ve APK'yı üret.
+  6. `npm run paketle` ve kurulum dosyasını üret.
+  7. Kurulu uygulamayı sessiz kurulumla güncelle ve `OrtamSade.exe`'yi yeniden aç.
+  8. Yalnızca değişen dosyaları adıyla commit'le ve gönder.
+  9. Türkçe, kısa rapor ver: neyin gerçekten denendiğini ve neyin denenmediğini açıkça yaz.
+- **Kurulu kopya:** Kullanıcının bilgisayarında `%LOCALAPPDATA%\Programs\Ortam Sade` altında kurulu sürüm 3000 portunu tutar. Depodaki kod orada görünmez. O süreci durdurma; denemeyi 3100'de yap.
 
 ## Geliştirme ortamı ve tuzaklar
 

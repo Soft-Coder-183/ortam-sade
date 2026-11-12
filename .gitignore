@@ -30,6 +30,3 @@ Claude_okumas*.txt
 
 # Yerel arşiv: önceki dönem verileri yalnızca bu bilgisayarda kalır (yayımlanmaz)
 arsiv/
-
-# Ajan için yerel başlangıç belgesi (gizli kurallar içerir, yayımlanmaz)
-CLAUDE.md
