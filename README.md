@@ -139,6 +139,8 @@ npm start          # normal çalıştırma
 npm run paketle    # dist/ altına paylaşılabilir Windows paketi (Node.js dahil)
 ```
 
+Kurulum dosyası, zip ve Android APK'yı tek komutla üretmek için: [DERLE.md](DERLE.md) (`derle.ps1`).
+
 Yapı: `server/` (Node, her site için bir modül: `ortam`, `ubs`, `moodle` (Uzak/UZAKYDB), `webmail`, `piazza`, `mevzuat` …),
 `public/` (tek sayfalık arayüz). Sunucu her ekran için okulun tek sayfasını açıp sadeleştirilmiş JSON döndürür.
 Hızlı yanıt eklemek için `server/mevzuat-yanitlar.mjs` dosyasına soru, yanıt ve kaynak maddeden birebir bir alıntı yazman yeterli.

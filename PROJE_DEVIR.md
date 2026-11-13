@@ -1,6 +1,6 @@
 # Ortam Sade: Proje Devir Belgesi
 
-Ortam Sade, TOBB ETÜ'nün okul sitelerini (Ortam, UBS, Uzak, UZAKYDB, Webmail, Piazza) tek ve sade bir arayüzde toplayan açık kaynaklı bir uygulamadır. Windows'ta öğrencinin bilgisayarında, Android'de "ETÜ Cep" adıyla telefonunda çalışır. Bu belge, projeyi devralan bir agent'ın önceki konuşmaları görmeden işe başlayabilmesi için yazıldı.
+Ortam Sade, TOBB ETÜ'nün okul sitelerini (Ortam, UBS, Uzak, UZAKYDB, Webmail, Piazza) tek ve sade bir arayüzde toplayan açık kaynaklı bir uygulamadır. Windows'ta öğrencinin bilgisayarında, Android'de "ETÜ Cep" adıyla telefonunda çalışır. Bu belge, projeyi devralan bir agent'ın önceki konuşmaları görmeden işe başlayabilmesi için yazıldı. Her oturumda gereken özet, komutlar ve kurallar `CLAUDE.md`'dedir (kendiliğinden yüklenir); bu belge gerektiğinde okunan ayrıntıdır.
 
 - **Sahibi:** TOBB ETÜ öğrencisi Eren Akyurt. Türkçe konuşur, uygulamayı arkadaşlarıyla paylaşır.
 - **Depo:** https://github.com/Soft-Coder-183/ortam-sade (herkese açık, MIT lisansı).
@@ -68,6 +68,8 @@ Okulun siteleri ve mevzuat.gov.tr
 | `scripts/paketle.mjs` | Windows paketi üretir (`npm run paketle`) |
 | `.github/workflows/surum.yml` | Etiketle tetiklenen sürüm üretimi |
 | `notlar/vX.Y.Z.md` | Sürüm notları |
+| `CLAUDE.md` | Her oturumda yüklenen özet, komutlar, kurallar (devret sistemi, katman 1) |
+| `DERLE.md`, `derle.ps1` | Tek komutla kurulum exe'si, zip ve APK üretimi |
 | `masaustu/` | Masaüstü penceresi `OrtamSade.exe` (C#, .NET Framework 4.8, WinForms + WebView2) |
 | `Ortam Sade.cmd` | Yedek başlatıcı: siyah pencere, tarayıcıda açar (CRLF olmalı) |
 
@@ -190,15 +192,9 @@ Uygulama açıkken (penceresi kapalı olsa da tepside) çalışır; tepsideki "K
 
 ## Sürüm, paketleme ve güncelleme
 
-Sürüm paketi GitHub Actions'ta üretilir. Yerelde üretilen zip asla yüklenmez.
+Sürüm paketi GitHub Actions'ta üretilir; yerelde üretilen dosyalar yüklenmez. Yayın adımları `CLAUDE.md`'de, yerel derleme `DERLE.md`'de (`derle.ps1`). `surum.yml` kurulum dosyası, zip ve APK'ya imzalı kaynak kanıtı ekler; sürüm notuna doğrulama komutları kendiliğinden eklenir.
 
-1. `package.json` sürümünü artır.
-2. `notlar/vX.Y.Z.md` dosyasını yaz.
-3. Commit'le ve `main`'e gönder.
-4. `git tag -a vX.Y.Z -m "Ortam Sade X.Y.Z"` ve `git push origin vX.Y.Z`.
-5. `.github/workflows/surum.yml` Windows üzerinde kurulum dosyası, zip ve APK üretir, ikisine imzalı kaynak kanıtı ekler ve sürümü yayımlar. Sürüm notuna doğrulama komutu kendiliğinden eklenir.
-
-**Kurulum dosyası:** `kurulum/OrtamSade.iss` (Inno Setup) `dist/OrtamSade` klasöründen `OrtamSade-X.Y.Z-kurulum.exe` üretir. Kurulum yönetici izni istemez, `%LOCALAPPDATA%\Programs\Ortam Sade` klasörüne kurar. Başlat menüsüne kısayol koyar; isteğe bağlı olarak masaüstü kısayolu ve açılışta başlatma (`OrtamSade.exe --arka`: yalnızca tepsi; varsayılan olarak işaretli) ekler. Kısayollar `OrtamSade.exe`'yi açar; `ortamsade:` bağlantı türü HKCU'ya yazılır ve kaldırınca silinir; kaldırmadan önce açık uygulama `taskkill` ile kapatılır. Güncellemede (`PrepareToInstall`) açık uygulama önce `/api/shutdown` ile düzgün kapatılır, kalan olursa `taskkill` ile; uygulama X'te tepsiye indiği için Windows'un yeniden başlatma yöneticisi onu kapatamaz (sessiz kurulum 5 koduyla vazgeçiyordu). Kaldırırken `.cache` ve `.profile` yalnızca kullanıcı onaylarsa silinir. Uygulamanın kendi güncellemesi kurulum klasöründe de çalışır. Simge `kurulum/simge.ico`'dur. Paket yalnızca üretimde kullanılan bağımlılıkları içerir (package-lock'ta `dev` olanlar girmez). Yerelde derlemek için: `npm run paketle`, sonra PowerShell'de `& "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe" /Q "/DSurum=X.Y.Z" kurulum\OrtamSade.iss` (Git Bash `/Q` gibi seçenekleri yola çevirdiği için PowerShell kullan).
+**Kurulum dosyası:** `kurulum/OrtamSade.iss` (Inno Setup) `dist/OrtamSade` klasöründen `OrtamSade-X.Y.Z-kurulum.exe` üretir. Kurulum yönetici izni istemez, `%LOCALAPPDATA%\Programs\Ortam Sade` klasörüne kurar. Başlat menüsüne kısayol koyar; isteğe bağlı olarak masaüstü kısayolu ve açılışta başlatma (`OrtamSade.exe --arka`: yalnızca tepsi; varsayılan olarak işaretli) ekler. Kısayollar `OrtamSade.exe`'yi açar; `ortamsade:` bağlantı türü HKCU'ya yazılır ve kaldırınca silinir; kaldırmadan önce açık uygulama `taskkill` ile kapatılır. Güncellemede (`PrepareToInstall`) açık uygulama önce `/api/shutdown` ile düzgün kapatılır, kalan olursa `taskkill` ile; uygulama X'te tepsiye indiği için Windows'un yeniden başlatma yöneticisi onu kapatamaz (sessiz kurulum 5 koduyla vazgeçiyordu). Kaldırırken `.cache` ve `.profile` yalnızca kullanıcı onaylarsa silinir. Uygulamanın kendi güncellemesi kurulum klasöründe de çalışır. Simge `kurulum/simge.ico`'dur. Paket yalnızca üretimde kullanılan bağımlılıkları içerir (package-lock'ta `dev` olanlar girmez). Inno Setup'ı Git Bash'ten çağırma: `/Q` gibi seçenekleri yola çevirir; PowerShell kullan (`derle.ps1` öyle yapar).
 
 `npm run paketle` yalnızca yerel deneme içindir. Paket `dist/OrtamSade-X.Y.Z-win-x64.zip` adıyla çıkar ve `runtime/node.exe` içerir. Yeni bir kök klasör pakete girecekse `scripts/paketle.mjs` listesine eklenmelidir.
 
@@ -208,41 +204,9 @@ Sürüm paketi GitHub Actions'ta üretilir. Yerelde üretilen zip asla yüklenme
 - Git klasörü: sürüm etiketine ileri sarılır, gerekirse bağımlılıklar kurulur.
 - Sonra uygulama yeniden açılır ve `.cache` korunur.
 
-## Değişmez kurallar
+## Kurallar
 
-**Güvenlik**
-
-- `local.txt` dosyasını asla okuma. Kullanıcı oraya kimlik bilgisi yazdı.
-- Şifreyi hiçbir forma kendin yazma. Şifreyi kullanıcı Hesap ekranında girer.
-- CAPTCHA ve güvenlik doğrulamalarını çözme, aşma, atlatma. Doğrulama sorusunu kullanıcı yanıtlar.
-- Testte form gönderme, e-posta gönderme, e-posta silme ya da geri alınamaz düğmeye basma; açık izin olmadan yapma.
-- Her push'tan önce kişisel veri olmadığını kontrol et.
-- Kişisel bilgiler (TC kimlik, adres, telefon, iletişim) artık gösterilir: Profil > Adres ve İletişim Bilgilerim (Ortam), UBS sayfalarında filtre yok. Bunları yalnızca kullanıcının kendi uygulamasında göster; test çıktılarına, ekran görüntülerine ve commit'lere değerlerini koyma.
-- Kalıcı silme yapma (yayımlanmış sürüm silme, geçmişi zorla yeniden yazma dahil). Gerekirse kullanıcının çalıştıracağı komutu ya da betiği hazırla.
-
-**Çalışma biçimi**
-
-- Her istek bitince mutlaka commit at. Sık push serbest.
-- Her işten sonra bu belgeyi güncelle.
-- Sürüm artırma, paketleme ve sürüm etiketi kullanıcı tarafından önceden onaylı.
-- "Görünmez güncelleme yok": hiçbir şey kullanıcı onayı olmadan kurulmaz.
-- Kullanıcıyla Türkçe konuş, kısa ve net yaz.
-- Yalnızca açılan ekranın verisini çek, okulun sunucularını yorma.
-- Özellik eklerken yeni tarayıcı penceresi açma; görünür pencere yalnızca giriş için gerekir.
-- 3000 portundaki süreci yalnızca komut satırı `server/server.mjs` ise durdur.
-- Sayısal ya da hukuki bir bilgiyi kaynaksız yazma; Mevzuat yanıtları maddeye dayanmalı.
-- Dersliklerin boş ya da dolu durumunu hiçbir yerde gösterme.
-- **Her işte izlenen döngü:**
-  1. Değiştir.
-  2. `node --check` ile denetle.
-  3. Depodaki sürümü `PORT=3100 node server/server.mjs` ile aç ve başsız Chrome ile dene. Okula giden geri alınamaz istekleri `page.route` ile sahte yanıtla kes. İş bitince 3100'ü kapat.
-  4. Bu belgeyi ve sürüm notunu güncelle.
-  5. Arayüz değiştiyse `npm run mobil` ile telefon paketini ve APK'yı üret.
-  6. `npm run paketle` ve kurulum dosyasını üret.
-  7. Kurulu uygulamayı sessiz kurulumla güncelle ve `OrtamSade.exe`'yi yeniden aç.
-  8. Yalnızca değişen dosyaları adıyla commit'le ve gönder.
-  9. Türkçe, kısa rapor ver: neyin gerçekten denendiğini ve neyin denenmediğini açıkça yaz.
-- **Kurulu kopya:** Kullanıcının bilgisayarında `%LOCALAPPDATA%\Programs\Ortam Sade` altında kurulu sürüm 3000 portunu tutar. Depodaki kod orada görünmez. O süreci durdurma; denemeyi 3100'de yap.
+Kurallar, komutlar, iş döngüsü ve commit/sürüm uygulaması `CLAUDE.md`'dedir (her oturumda kendiliğinden yüklenir); burada tekrarlanmaz.
 
 ## Geliştirme ortamı ve tuzaklar
 
