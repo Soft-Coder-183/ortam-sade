@@ -345,7 +345,7 @@ export async function attachment(uid, mbox = 'INBOX', part) {
 // e-postalar hiç taşınmaz. Okunma anı: uygulamada okunanlarda tam an; başka yerde (okulun Webmail'i, telefon) okunanlarda
 // listede ilk kez okunmuş görüldüğü an — böylece ayar açıldığında eski e-postalar hemen değil, 12 saat sonra gider.
 const AUTO_FILE = '.cache/webmail-auto.json';
-export const AUTO_CHOICES = [12, 24, 72, 168];       // saat: 12 saat, 24 saat, 3 gün, 1 hafta
+export const AUTO_CHOICES = [6, 12, 24, 72];         // saat: 6 saat, 12 saat, 24 saat, 3 gün
 const AUTO_EVERY = 60 * 60_000;                     // saatte bir kontrol
 const NOTIF_SUBJECT = /^\[(Ortam Sade|ETÜ Cep) · Bildirim\]/;
 // Anında silinenler (varsayılan AÇIK): gelir gelmez Çöp'e taşınır (kalıcı silinmez). Gelen kutusu her açıldığında ve uygulama
@@ -358,14 +358,29 @@ const INSTANT_EVERY = 5 * 60_000;
 // özellik ilk açıldığında Çöp'te zaten olanlar için de o andan başlar. Yıldızlı e-postalar silinmez.
 const PURGE = { days: 30, fastDays: 3 };
 const isInstant = m => INSTANT.some(r => r.subject.test(m.subject || ''));
+// Okulun rezervasyon sisteminin aynı e-postayı iki kez göndermesi: aynı gönderen, aynı konu ve aynı tarihteki ikinci kopya anında
+// Çöp'e taşınır, ilki kalır. Yalnızca konusu "rezervasyon" geçen ve okulun adresinden gelen e-postalara uygulanır.
+const isRezMail = m => /rezervasyon/i.test(m.subject || '') && /etu\.edu\.tr|rezervasyon|kütüphane|kutuphane/i.test(m.from || '');
+const rezDuplicates = messages => {
+  const seen = new Set(), dup = [];
+  for (const m of [...messages].sort((a, b) => Number(a.uid) - Number(b.uid))) {     // eskisi (küçük uid) kalır
+    if (!isRezMail(m) || m.flagged) continue;
+    const k = `${m.from}|${m.subject}|${m.date}`;
+    if (seen.has(k)) dup.push(m.uid); else seen.add(k);
+  }
+  return dup;
+};
 // Bildirim e-postaları varsayılan olarak 12 saat sonra silinir. notifVer: varsayılan 24 saatken kaydedilmiş ayar (kullanıcı
 // süreyi kendisi değiştirmediyse) bir kez 12 saate çekilir; kullanıcının sonradan seçtiği süreye dokunulmaz.
 const NOTIF_VER = 2;
-let auto = { enabled: false, afterHours: 12, notif: { enabled: true, afterHours: 12 }, instant: { enabled: true, moved: 0 }, purge: { enabled: true, deleted: 0 }, trashAt: {}, notifVer: NOTIF_VER, readAt: {}, seenAt: {}, exempt: {},
+let auto = { enabled: false, afterHours: 12, notif: { enabled: true, afterHours: 12, readHours: 6 }, instant: { enabled: true, moved: 0 }, purge: { enabled: true, deleted: 0 }, trashAt: {}, notifVer: NOTIF_VER, readAt: {}, seenAt: {}, exempt: {},
   lastRun: null, nextRun: null, lastMoved: 0, totalMoved: 0, lastError: null };
 try {
   const f = JSON.parse(fs.readFileSync(AUTO_FILE, 'utf8'));
   if ((f.notifVer ?? 1) < NOTIF_VER && f.notif?.afterHours === 24) f.notif.afterHours = 12;
+  // "1 hafta" seçeneği kaldırıldı (yerine 6 saat geldi): kayıtlı 1 hafta 3 güne çekilir
+  if (f.afterHours === 168) f.afterHours = 72;
+  if (f.notif?.afterHours === 168) f.notif.afterHours = 72;
   auto = { ...auto, ...f, notif: { ...auto.notif, ...f.notif }, instant: { ...auto.instant, ...f.instant }, purge: { ...auto.purge, ...f.purge }, trashAt: f.trashAt ?? {}, seenAt: f.seenAt ?? {}, notifVer: NOTIF_VER };
 } catch {}
 const hoursOf = h => (AUTO_CHOICES.includes(h) ? h : 12) * 3600_000;
@@ -405,7 +420,9 @@ export function selectDue(messages, s, now = Date.now(), mbox = 'INBOX') {
     const k = akey(mbox, m.uid);
     if (m.flagged || s.exempt[k]) return false;
     if (isInstant(m) && s.instant?.enabled) return true;
-    if (isNotif(m) && s.notif?.enabled) return !!s.seenAt?.[k] && now - s.seenAt[k] >= hoursOf(s.notif.afterHours);
+    // Bildirim e-postası: okunduysa okunduktan readHours (varsayılan 6 saat), okunmasa da gelişinden afterHours (12 saat) sonra
+    if (isNotif(m) && s.notif?.enabled) return (m.seen && !!s.readAt?.[k] && now - s.readAt[k] >= hoursOf(s.notif.readHours ?? 6))
+      || (!!s.seenAt?.[k] && now - s.seenAt[k] >= hoursOf(s.notif.afterHours));
     return mbox === 'INBOX' && s.enabled && m.seen && !!s.readAt[k] && now - s.readAt[k] >= hoursOf(s.afterHours);
   }).map(m => m.uid);
 }
@@ -417,7 +434,10 @@ function autoView(mbox, messages) {
   const items = {};
   for (const m of messages) {
     const k = akey(mbox, m.uid), notif = isNotif(m) && auto.notif.enabled;
-    if (notif) items[m.uid] = { exempt: !!auto.exempt[k] || m.flagged, starred: m.flagged, notif: true, dueAt: auto.seenAt[k] ? auto.seenAt[k] + hoursOf(auto.notif.afterHours) : null };
+    if (notif) {
+      const due = [auto.seenAt[k] && auto.seenAt[k] + hoursOf(auto.notif.afterHours), m.seen && auto.readAt[k] && auto.readAt[k] + hoursOf(auto.notif.readHours ?? 6)].filter(Boolean);
+      items[m.uid] = { exempt: !!auto.exempt[k] || m.flagged, starred: m.flagged, notif: true, dueAt: due.length ? Math.min(...due) : null };
+    }
     else if (auto.enabled && m.seen) items[m.uid] = { exempt: !!auto.exempt[k] || m.flagged, starred: m.flagged, dueAt: auto.readAt[k] ? auto.readAt[k] + hoursOf(auto.afterHours) : null };
   }
   return { enabled: auto.enabled, notif: auto.notif.enabled, afterHours: auto.afterHours, items };
@@ -436,7 +456,8 @@ async function allInbox(mbox = 'INBOX', pages = 10) {
 
 // Anında silinecekleri Çöp'e taşır; taşınamazsa (ör. bağlantı) listede kalırlar, sonraki kontrolde yeniden denenir.
 async function dropInstant(messages) {
-  const due = messages.filter(m => isInstant(m) && !m.flagged && !auto.exempt[akey('INBOX', m.uid)]).map(m => m.uid);
+  const dups = rezDuplicates(messages);
+  const due = [...new Set([...messages.filter(m => isInstant(m) && !m.flagged && !auto.exempt[akey('INBOX', m.uid)]).map(m => m.uid), ...dups])];
   if (!due.length) return messages;
   try {
     await move(due, 'INBOX', TRASH);
@@ -520,18 +541,19 @@ export function startAuto() {
 
 export function autoStatus() {
   return { enabled: auto.enabled, afterHours: auto.afterHours, choices: AUTO_CHOICES, notif: auto.notif, lastRun: auto.lastRun,
-    instant: { enabled: auto.instant.enabled, moved: auto.instant.moved, rules: INSTANT.map(r => r.label) },
+    instant: { enabled: auto.instant.enabled, moved: auto.instant.moved, rules: [...INSTANT.map(r => r.label), 'okulun aynı rezervasyon e-postasının ikinci kopyası'] },
     purge: { enabled: auto.purge.enabled, deleted: auto.purge.deleted, days: PURGE.days, fastDays: PURGE.fastDays },
     nextRun: auto.enabled || auto.notif.enabled ? auto.nextRun : null,
     lastMoved: auto.lastMoved, totalMoved: auto.totalMoved, lastError: auto.lastError, tracked: Object.keys(auto.readAt).length };
 }
-export async function setAuto({ enabled, afterHours, notifEnabled, notifHours, instant, purge }) {
+export async function setAuto({ enabled, afterHours, notifEnabled, notifHours, notifReadHours, instant, purge }) {
   if (typeof enabled === 'boolean') auto.enabled = enabled;
   if (typeof purge === 'boolean') auto.purge.enabled = purge;
   if (typeof instant === 'boolean') auto.instant.enabled = instant;
   if (AUTO_CHOICES.includes(afterHours)) auto.afterHours = afterHours;
   if (typeof notifEnabled === 'boolean') auto.notif.enabled = notifEnabled;
   if (AUTO_CHOICES.includes(notifHours)) auto.notif.afterHours = notifHours;
+  if (AUTO_CHOICES.includes(notifReadHours)) auto.notif.readHours = notifReadHours;
   await saveAuto();
   return autoStatus();
 }

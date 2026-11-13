@@ -2396,7 +2396,7 @@ $view.addEventListener('click', async e => {
 // ---------- Webmail ayarları (fork D) ----------
 // Hesap'ta "Webmail" bölümü: okunan e-postaları seçilen süre sonra Çöp'e taşıma (varsayılan kapalı), bildirim e-postaları
 // (varsayılan açık, 24 saat), son/sonraki tur, deneme.
-const HOURS_TEXT = { 12: '12 saat', 24: '24 saat', 72: '3 gün', 168: '1 hafta' };
+const HOURS_TEXT = { 6: '6 saat', 12: '12 saat', 24: '24 saat', 72: '3 gün', 168: '1 hafta' };
 const hoursText = h => HOURS_TEXT[h] || `${h} saat`;
 const hoursSelect = (attr, value, choices) => `<select ${attr} aria-label="Süre">${choices.map(h =>
   `<option value="${h}"${h === value ? ' selected' : ''}>${hoursText(h)}</option>`).join('')}</select>`;
@@ -2413,16 +2413,17 @@ async function fillWmSettings() {
   const s = r?.ok ? await r.json() : null;
   if (!s) { box.innerHTML = '<p class="muted">Webmail ayarları alınamadı (Webmail oturumu kapalı olabilir).</p>'; return; }
   const when = t => (t ? whenTR(t) : '—');
-  s.choices ??= [12, 24, 72, 168];                     // eski sürüm sunucusu bu alanları göndermez
+  s.choices ??= [6, 12, 24, 72];                       // eski sürüm sunucusu bu alanları göndermez
   s.notif ??= { enabled: false, afterHours: 12 };
   box.innerHTML = `<div class="wm-opt"><label class="check"><input type="checkbox" data-wm-auto${s.enabled ? ' checked' : ''}> Okunan e-postaları sil:</label>
       ${hoursSelect('data-wm-hours', s.afterHours, s.choices)}<span class="muted small">sonra</span></div>
     <p class="muted small" style="margin:4px 0 12px">Gelen kutusundaki okunmuş e-postalar okunduktan seçilen süre sonra <b>Çöp kutusuna taşınır</b> (kalıcı silinmez, Çöp'ten geri alınabilir).
       Yıldızlı e-postalar hiç taşınmaz; okunmuş bir e-postayı açıp alttaki "Otomatik silinmesin" düğmesine basarak tek tek de koruyabilirsiniz. Varsayılan kapalıdır.</p>
     <div class="wm-opt"><label class="check"><input type="checkbox" data-wm-notif${s.notif.enabled ? ' checked' : ''}> Ortam Sade bildirim e-postalarını sil:</label>
+      <span class="muted small">okunduktan</span>${hoursSelect('data-wm-notif-read', s.notif.readHours ?? 6, s.choices)}<span class="muted small">ya da okunmasa da gelişinden</span>
       ${hoursSelect('data-wm-notif-hours', s.notif.afterHours, s.choices)}<span class="muted small">sonra</span></div>
-    <p class="muted small" style="margin:4px 0 8px">Uygulamanın sana gönderdiği "[Ortam Sade · Bildirim]" e-postaları okunmasa da gelişinden seçilen süre sonra
-      Gelen kutusundan ve Gönderilmiş klasöründen Çöp'e taşınır. Kontrol saatte bir, uygulama açıkken yapılır.</p>
+    <p class="muted small" style="margin:4px 0 8px">Uygulamanın sana gönderdiği "[Ortam Sade · Bildirim]" e-postaları (Uzak ve Piazza) okunduktan sonra ilk seçilen sürede,
+      hiç okunmasa da gelişinden ikinci seçilen sürede Gelen kutusundan ve Gönderilmiş klasöründen Çöp'e taşınır. Kontrol saatte bir, uygulama açıkken yapılır.</p>
     ${s.instant ? `<div class="wm-opt"><label class="check"><input type="checkbox" data-wm-instant${s.instant.enabled ? ' checked' : ''}> Anında sil:</label>
       <span class="small">${s.instant.rules.map(esc).join(', ')}</span></div>
     <p class="muted small" style="margin:4px 0 8px">Bu e-postalar gelir gelmez Çöp'e taşınır (Gelen kutusu açılınca ve uygulama açıkken 5 dakikada bir bakılır).
@@ -2443,6 +2444,7 @@ $view.addEventListener('change', async e => {
     'data-wm-hours': [v => ({ afterHours: +v.value }), () => 'Süre kaydedildi'],
     'data-wm-notif': [v => ({ notifEnabled: v.checked }), v => (v.checked ? 'Bildirim e-postaları silinecek' : 'Bildirim e-postaları silinmeyecek')],
     'data-wm-notif-hours': [v => ({ notifHours: +v.value }), () => 'Süre kaydedildi'],
+    'data-wm-notif-read': [v => ({ notifReadHours: +v.value }), () => 'Süre kaydedildi'],
     'data-wm-purge': [v => ({ purge: v.checked }), v => (v.checked ? 'Çöp kutusu süresi dolunca boşaltılacak' : 'Çöp kutusu boşaltma kapatıldı')],
     'data-wm-instant': [v => ({ instant: v.checked }), v => (v.checked ? 'Bu e-postalar gelir gelmez silinecek' : 'Anında silme kapatıldı')] };
   const k = Object.keys(wm).find(x => t.hasAttribute?.(x));
@@ -2602,7 +2604,7 @@ const SSS = [
   ['Okulun sunucularını yorar mı?', 'Hayır, normal kullanıma yakındır. Yalnızca açtığın ekran okuldan istenir ve kısa süre önbellekte tutulur. Arka planda oturumu açık tutmak için seyrek kontroller yapılır; siteye zaten bir istek gittiyse o kontrol atlanır. Bildirimler için Piazza yarım saatte, Uzak saatte bir sorulur.'],
   ['Bildirimler nasıl geliyor?', 'Uygulama açıkken Piazza ve Uzak\'taki yeni içerikleri ve Akademik Takvimde yaklaşan önemli tarihleri kontrol eder (Uzak turuncu, Piazza mavi noktayla gösterilir); yenilik varsa Windows bildirimi gösterir ve (açıksa) okul adresine "[Ortam Sade · Bildirim]" konulu bir özet e-posta yollar. Uygulama kapalıyken kontrol yapılmaz. Hesap > Bildirimler\'den kapatabilirsin.'],
   ['İndirdiğim paketin bu koddan üretildiğini nasıl anlarım?', 'Sürüm paketleri elle yüklenmez: GitHub Actions bu depodaki koddan üretir ve imzalı kaynak kanıtı ekler. GitHub CLI kuruluysa indirdiğin dosyanın yanında şu komutu çalıştır: gh attestation verify OrtamSade-1.6.4-win-x64.zip --repo Soft-Coder-183/ortam-sade. Sürüm numarasını kendi dosyanınkiyle değiştir. "Verification succeeded" yazıyorsa dosya bu depodan ve bu iş akışından çıkmıştır.'],
-  ['Otomatik silme e-postalarımı kalıcı olarak siler mi?', 'Hayır. Ayar açıksa okunmuş e-postalar seçtiğin süre (12 saat, 24 saat, 3 gün ya da 1 hafta) sonra, uygulamanın bildirim e-postaları da (varsayılan) 12 saat sonra Çöp kutusuna taşınır; oradan geri alınabilir. Yıldızlı e-postalar ve "Otomatik silinmesin" düğmesine basılanlar taşınmaz. Ayar varsayılan olarak kapalıdır.'],
+  ['Otomatik silme e-postalarımı kalıcı olarak siler mi?', 'Hayır. Ayar açıksa okunmuş e-postalar seçtiğin süre (6 saat, 12 saat, 24 saat ya da 3 gün) sonra, uygulamanın bildirim e-postaları da (varsayılan) okunduktan 6 saat, okunmasa da gelişinden 12 saat sonra Çöp kutusuna taşınır; oradan geri alınabilir. Yıldızlı e-postalar ve "Otomatik silinmesin" düğmesine basılanlar taşınmaz. Ayar varsayılan olarak kapalıdır.'],
   ['Bazı bilgiler neden yok (ör. açılan derslerin şube ve saatleri)?', 'Ortam bu bilgileri yalnızca doğrulamalı (reCAPTCHA) aramayla veriyor. Uygulama doğrulamaları aşmadığı için bu bilgiler için okulun sayfasına bağlantı verilir.'],
   ['Uzak\'ta sınav, ödev yükleme ya da Safe Exam Browser isteyen içerik olursa?', 'İçeriğin kendisi (açıklama, dosyalar, bağlantılar, Safe Exam Browser indirme bağlantısı ve yapılandırma dosyası) uygulamada görünür. Sınava başlama, ödev yükleme, foruma yazma gibi işlemler okulun sitesinde yapılır; sayfanın üstünde "Sitede aç" bağlantısı çıkar.'],
   ['Uygulama nasıl güncellenir?', 'Yeni sürüm çıkınca uygulama sağ altta sorar; "Güncelle"ye basmadan hiçbir şey indirilmez. Basınca sürüm yalnızca GitHub sayfamızdan indirilir, SHA-256 özetiyle doğrulanır, kurulur ve uygulama kendini yeniden başlatır. Şifren, oturumların ve ayarların korunur. Hakkımızda sayfasından elle de denetleyebilirsin.'],

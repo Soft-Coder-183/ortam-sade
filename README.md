@@ -15,7 +15,7 @@ toplayan, **senin bilgisayarında çalışan** açık kaynaklı bir öğrenci pr
 - **Sınav Takvimi:** hangi sınav dönemindeysen (Ara Sınav / Final / Bütünleme); her sınav tek satırda: tarih ve gün, ders,
   saat, yer ve kalan süre.
 - **Ortalama ve Ders Planı:** GNO, kredi durumu, dönemlik kredi sınırı, hedef not ve yükseltme hesabı (yönetmeliğe göre).
-- **Webmail:** okundu/okunmadı senkronizasyonu, yazma/yanıtlama/silme, yıldızlar, isteğe bağlı otomatik silme (12 saat, 24 saat, 3 gün ya da 1 hafta sonra Çöp'e taşır; uygulamanın bildirim e-postaları varsayılan 12 saatte; Yabancı Diller "New sign in" e-postaları anında; Çöp kutusu 30 günde, bildirimler 3 günde kalıcı boşalır).
+- **Webmail:** okundu/okunmadı senkronizasyonu, yazma/yanıtlama/silme, yıldızlar, isteğe bağlı otomatik silme (6 saat, 12 saat, 24 saat ya da 3 gün sonra Çöp'e taşır; uygulamanın bildirim e-postaları okunduktan 6, okunmasa da gelişinden 12 saat sonra; Yabancı Diller "New sign in" e-postaları ve rezervasyon e-postasının ikinci kopyası anında; Çöp kutusu 30 günde, bildirimler 3 günde kalıcı boşalır).
 - **UBS, UZAKYDB, Piazza** kendi sade arayüzleriyle; PDF'ler uygulamanın içinde açılır.
 - **Bildirimler:** Piazza ve Uzak'a yeni içerik gelince Windows bildirimi ve isteğe bağlı özet e-posta; menüde ve derslerin
   üzerinde kaynağın renginde nokta (Uzak turuncu, Piazza mavi). Akademik Takvimdeki önemli tarihler (ders kaydı, ekle-sil,

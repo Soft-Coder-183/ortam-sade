@@ -94,5 +94,5 @@ jobs:
             for f in "$exe" "$zip" "$apk"; do printf 'gh attestation verify %s --repo %s\n' "$(basename "$f")" "$GITHUB_REPOSITORY"; done
             printf '```\n'
           } > surum-notu.md
-          gh release create "$GITHUB_REF_NAME" "$exe" "$zip" "$apk" --title "Ortam Sade ${GITHUB_REF_NAME#v}" --notes-file surum-notu.md --verify-tag
+          gh release create "$GITHUB_REF_NAME" "$exe#Windows · kurulum dosyası, önerilen ($(basename "$exe"))" "$zip#Windows · kurulumsuz, açıp çalıştır ($(basename "$zip"))" "$apk#ETÜ Cep · Android telefon uygulaması ($(basename "$apk"))" --title "Ortam Sade ${GITHUB_REF_NAME#v}" --notes-file surum-notu.md --verify-tag
           sha256sum "$exe" "$zip" "$apk" >> "$GITHUB_STEP_SUMMARY"
