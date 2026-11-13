@@ -71,6 +71,9 @@ const ICONS = {
   check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
   clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
   lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+  login: '<path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4"/><path d="m10 8 4 4-4 4M14 12H4"/>',
+  eye: '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/>',
+  'eye-off': '<path d="m4 4 16 16"/><path d="M9.9 5.8a9 9 0 0 1 2.1-.3c6 0 9.5 6.5 9.5 6.5a16 16 0 0 1-2.6 3.4M6.3 7.4A16 16 0 0 0 2.5 12S6 18.5 12 18.5a9 9 0 0 0 4-.9"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>',
   bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
   loader: '<path d="M12 3a9 9 0 1 0 9 9"/>',
   dot: '<circle cx="12" cy="12" r="2.5" fill="currentColor"/>',
@@ -384,7 +387,7 @@ async function viewCourse(r, ctx) {
   if (tab === 'tumu') {
     // Bölümler paralel yüklenir; hata veren bölüm yerinde kısa bir mesaj gösterir
     const part = (title, link, fn) => fn().then(html => ({ title, link, html }),
-      e => ({ title, link, html: `<div class="card msg err">${esc(e.message)}${e.login ? `<br>${loginButton(`${e.siteName} için giriş yap`, e.login)}` : ''}</div>` }));
+      e => ({ title, link, html: e.login ? `<div class="card">${loginGate(e.login, e.siteName)}</div>` : `<div class="card msg err">${esc(e.message)}</div>` }));
     const parts = await Promise.all([
       c.uzak && part('Uzak', `${base}/uzak`, () => courseUzak(c, { sub: true })),
       c.piazza && part('Piazza', `${base}/piazza`, () => coursePiazza(c, { recent: 4, resources: 'inline' })),
@@ -537,7 +540,7 @@ async function openLazy(el) {
     box.innerHTML = panels[key];
     if (key.startsWith('ppost:')) { await linkResources(box, key.split(':')[1]); panels[key] = box.innerHTML; }
   } catch (e) {
-    box.innerHTML = `<p class="msg err">${esc(e.message)}</p>${e.login ? loginButton(`${e.siteName} için giriş yap`, e.login) : ''}`;
+    box.innerHTML = e.login ? loginGate(e.login, e.siteName, true) : `<p class="msg err">${esc(e.message)}</p>`;
   }
 }
 
@@ -958,7 +961,7 @@ const viewApply = kind => async () => {
   const get = p => api('ortam-basvuru?path=' + encodeURIComponent(p)).catch(e => ({ error: e }));
   const [form, list] = await Promise.all([get(formPath), get(listPath)]);
   const part = (p, empty) => {
-    if (p.error) return `<div class="card msg err">${esc(p.error.message)}${p.error.login ? `<br>${loginButton(`${p.error.siteName} için giriş yap`, p.error.login)}` : ''}</div>`;
+    if (p.error) return p.error.login ? `<div class="card">${loginGate(p.error.login, p.error.siteName)}</div>` : `<div class="card msg err">${esc(p.error.message)}</div>`;
     if (!p.active) return `<div class="card msg">${esc(p.message)}</div>`;
     const offsite = p.captcha || p.hasFile;
     const html = offsite ? p.html.replace(/data-o-submit=/g, 'disabled data-o-off=') : p.html;
@@ -2153,7 +2156,7 @@ function homeToday(res) {
   const e = Array.isArray(res) ? res.find(x => x.site === 'exams')?.data : null;
   if (!s) {
     const lg = Array.isArray(res) && res.find(x => x.site === 'schedule' && x.login);
-    return `<p class="muted">${lg ? `${esc(lg.siteName)} oturumu kapalı.` : 'Ders programı alınamadı.'}</p>${lg ? loginButton('Giriş yap', lg.login) : ''}`;
+    return lg ? loginGate(lg.login, lg.siteName, true) : '<p class="muted">Ders programı alınamadı.</p>';
   }
   const per = blocks(s);
   const t = todayIdx();
@@ -2298,14 +2301,14 @@ async function loadCard(c, again = false) {
     if (!box()) return;
     if (!multi && !res[0].r.ok) {
       const { r, j } = res[0];
-      box().innerHTML = r.status === 401 ? `<p class="muted">${esc(j.siteName)} oturumu kapalı.</p>${loginButton('Giriş yap', j.site)}`
+      box().innerHTML = r.status === 401 ? loginGate(j.site, j.siteName, true)
         : `<p class="muted">${esc(j.error || 'Veri alınamadı')}</p>`;
       return;
     }
     const data = multi ? res.map(({ name, r, j }) => (r.ok ? { site: name, data: j } : { site: name, login: j.site, siteName: j.siteName, error: j.error })) : res[0].j;
     homeData[c.id] = data;
     const stale = res.map(x => x.r.headers.get('X-Login-Required')).find(Boolean);
-    box().innerHTML = c.body(data) + (stale ? `<p class="muted small">Oturum kapalı, son kaydedilen veri. ${loginButton('Giriş yap', stale)}</p>` : '');
+    box().innerHTML = c.body(data) + (stale ? `<p class="muted small stale-note">Oturum kapalı, son kaydedilen veri. ${loginButton('Giriş yap', stale, true)}</p>` : '');
     if (res.some(x => x.r.headers.get('X-Refreshing')) && !again) setTimeout(() => loadCard(c, true), 3000);
   } catch {
     if (box() && !homeData[c.id]) box().innerHTML = '<p class="muted">Uygulama sunucusuna ulaşılamadı.</p>';
@@ -2518,7 +2521,7 @@ async function viewHesap(r, ctx) {
       ['Site', r => `<b>${esc(SITE_NAMES[r.site] || r.site)}</b>`],
       ['Durum', r => r.alive ? '<span class="pill ok">açık</span>' : '<span class="pill warn">kapalı</span>'],
       ['Giriş', r => (r.direct ? (r.blocked ? '<span class="pill bad">otomatik giriş durdu</span>' : 'otomatik')
-        : r.alive ? 'tarayıcı penceresi' : loginButton(`${SITE_NAMES[r.site] || r.site} için giriş yap`, r.site))],
+        : r.alive ? 'tarayıcı penceresi' : loginButton(`${SITE_NAMES[r.site] || r.site} için giriş yap`, r.site, true))],
       ['', r => resultText(r.site)]], rows)}
       ${rows.some(r => !r.direct && !r.alive) ? `<p class="muted small">Ortam'a yalnızca tarayıcı penceresinden girilebilir, çünkü sitede güvenlik doğrulaması var. Pencere açılır, bilgilerin doldurulur; doğrulama sorusu çıkarsa sen yanıtlarsın.</p>` : ''}</div>` +
     `<p class="muted">${a.email ? (a.remembered ? 'Bilgileriniz bu bilgisayarda şifreli olarak saklanıyor.' : 'Bilgileriniz yalnızca uygulama açıkken bellekte tutuluyor.') : 'Henüz kayıtlı bilgi yok.'}</p>` +
@@ -2540,6 +2543,7 @@ async function submitAccount(f) {
     return btn.insertAdjacentHTML('afterend', `<span class="muted">${esc(j.error || 'Giriş başarısız')}</span>`);
   }
   lastLogin = j;
+  if (j.saved) hasAccount = true;
   // Hesap'ta kalınır: Oturumlar tablosunda her sitenin durumu ve sonucu görünür.
   await render();
   document.getElementById('acct-sessions')?.scrollIntoView({ block: 'center' });
@@ -3139,8 +3143,8 @@ const subnav = ({ group, sub }) => group.items ? `<div class="tabs subnav${group
 let seq = 0;
 let lastHtml = '';
 async function render(quiet = false) {
-  if (/^#\/hos-geldin/.test(location.hash)) return renderWelcome();
-  document.body.classList.remove('welcome');
+  if (/^#\/(hos-geldin|giris)/.test(location.hash)) return renderWelcome();
+  document.body.classList.remove('welcome', 'lgs');
   const r = route();
   const my = ++seq;
   if (!quiet) renderNav(r);
@@ -3167,28 +3171,38 @@ async function render(quiet = false) {
   } catch (e) {
     clearTimeout(loading);
     if (my !== seq || quiet) return;
-    $view.innerHTML = subnav(r) + `<div class="card msg err">${esc(e.message)}<br>${e.login ? loginButton(`${e.siteName} için giriş yap`, e.login) : '<button id="retry">Tekrar dene</button>'}</div>`;
+    $view.innerHTML = subnav(r) + (e.login ? `<div class="card">${loginGate(e.login, e.siteName)}</div>`
+      : `<div class="card msg err">${esc(e.message)}<br><button id="retry">Tekrar dene</button></div>`);
     document.getElementById('retry')?.addEventListener('click', () => render());
   }
 }
 
-const loginButton = (label, site) => `<button class="login" data-login="${esc(site)}">${esc(label)}</button>`;
+// Giriş düğmesi her yerde aynı görünür: dolu mavi, giriş simgeli. small: satır içinde (tablo, küçük not) kullanılan dar hâli.
+const loginButton = (label, site, small = false) =>
+  `<button type="button" class="btn primary login${small ? ' sm' : ''}" data-login="${esc(site)}">${icon('login')}${esc(label)}</button>`;
+// Oturumu kapalı bir sitenin içeriği yerine: kilit simgesi, kısa açıklama, giriş düğmesi. mini: kart ve açılır bölüm içindeki tek satırlık hâli.
+const loginGate = (site, siteName = SITE_NAMES[site] || site, mini = false) => `<div class="gate${mini ? ' mini' : ''}"><span class="gate-ic">${icon('lock')}</span>
+  <div class="gate-t"><b>${esc(siteName)} oturumu kapalı</b>${mini ? '' : `<p>Bu içerik için ${esc(siteName)} oturumu gerekiyor. Giriş yapınca burada görünür.</p>`}</div>
+  ${loginButton(mini ? 'Giriş yap' : `${siteName} için giriş yap`, site)}</div>`;
 
 // Kayıtlı bilgiyle doğrudan girilebilen sitelerde sunucu arka planda girer; diğerlerinde (Ortam, UBS) okulun
 // giriş sayfasını ayrı bir pencerede açar. Giriş bitince ekran yenilenir.
 const DIRECT_LOGIN = new Set(['webmail', 'uzakydb', 'uzak', 'piazza', 'ubs']);
 // stay: Hesap'tan sonra açılan Ortam penceresi; o sırada başka sayfaya geçildiyse sayfa yeniden çizilmez
 async function doLogin(btn, { stay = false } = {}) {
-  btn.disabled = true;
-  btn.textContent = DIRECT_LOGIN.has(btn.dataset.login) ? 'Giriş yapılıyor…' : 'Giriş penceresi açıldı; bilgiler dolduruluyor…';
   const from = location.hash;
+  // Kayıtlı bilgi yoksa ilk giriş, giriş ekranından yapılır; giriş bitince bu sayfaya dönülür
+  if (hasAccount === false) return openLoginScreen(from);
+  btn.disabled = true;
+  btn.innerHTML = icon('loader', 'spin') + (DIRECT_LOGIN.has(btn.dataset.login) ? 'Giriş yapılıyor…' : 'Giriş penceresi açıldı; bilgiler dolduruluyor…');
   const r = await post('/api/login?site=' + encodeURIComponent(btn.dataset.login));
   if (stay && location.hash !== from) { if (r.ok) renderNav(route()); return; }
   if (r.ok) return render();
   const j = await r.json().catch(() => ({}));
-  if (j.account || j.rejected) { location.hash = '#/hesap/' + btn.dataset.login; return; }
+  if (j.account) { hasAccount = false; return openLoginScreen(from); }
+  if (j.rejected) { location.hash = '#/hesap/' + btn.dataset.login; return; }
   btn.disabled = false;
-  btn.textContent = 'Tekrar dene';
+  btn.innerHTML = icon('login') + 'Tekrar dene';
   btn.insertAdjacentHTML('afterend', `<div class="muted">${esc(j.error || 'Giriş tamamlanmadı')}${j.rejected || j.account ? ' <a href="#/hesap">Hesap</a>' : ''}</div>`);
 }
 
@@ -3214,7 +3228,7 @@ $view.addEventListener('change', e => {
 $view.addEventListener('click', e => {
   const lb = e.target.closest('[data-login]');
   if (lb) return doLogin(lb);
-  if (e.target.closest('[data-forget]')) { lastLogin = null; return post('/api/account/forget').then(() => render()); }
+  if (e.target.closest('[data-forget]')) { lastLogin = null; hasAccount = false; return post('/api/account/forget').then(() => render()); }
   const pdf = e.target.closest('[data-pdf]');
   if (pdf) return showPdf(pdf.dataset.pdf, pdf.dataset.title);
   // UBS: sayfanın PDF'i, sekmeler, form düğmeleri
@@ -3327,13 +3341,56 @@ document.addEventListener('click', async e => {
 });
 setTimeout(() => checkUpdate(false), 3000);
 
-// ---------- İlk açılış ----------
-// Kayıtlı giriş bilgisi yoksa: bilgisayarda Hesap'taki e-posta ve şifre alanı açılır; telefonda önce kısa bir açıklama, "Tamam"dan
-// sonra bütün sitelere giriş yapılan ilk giriş ekranı gelir, ardından Ana Sayfa. Telefonda karşılama bir kez gösterilir ('ilk-giris').
+// ---------- İlk açılış: giriş ekranı ----------
+// Kayıtlı giriş bilgisi yoksa uygulama giriş ekranıyla açılır (#/giris; menü gizli). Bilgisayarda ve web arayüzünde solda marka
+// paneli, sağda e-posta ve şifre formu vardır. Telefonda önce kısa bir açıklama (#/hos-geldin, bir kez: 'ilk-giris'), "Tamam"dan sonra
+// form gelir. Form bütün doğrudan sitelere girer, ardından Ortam'ın kendi giriş sayfası açılır ve gelinen sayfaya (yoksa Ana Sayfa) dönülür.
 let welcomeStep = 1;
+let hasAccount = null;       // kayıtlı giriş bilgisi var mı (firstRun öğrenir; giriş ve "Kayıtlı bilgileri sil" günceller)
+let loginReturn = null;      // giriş ekranına bir "Giriş yap" düğmesinden gelindiyse giriş bitince dönülecek sayfa
+function openLoginScreen(from = null) {
+  loginReturn = from && !/^#\/(giris|hos-geldin)/.test(from) ? from : null;
+  welcomeStep = 2;
+  location.hash = '#/giris';
+}
+const wcMark = '<span class="wc-mark" aria-hidden="true"><i></i><i></i><i></i></span>';
+const loginScreen = () => `<section class="lg">
+  <aside class="lg-brand">
+    <span class="lg-deco" aria-hidden="true"><i></i><i></i><i></i></span>
+    <div class="lg-logo">${wcMark}<span>Ortam Sade</span></div>
+    <div class="lg-pitch">
+      <h2>Okulun bütün siteleri, tek ve sade bir arayüzde.</h2>
+      <p>Dersler, notlar, sınavlar, e-posta ve duyurular aynı yerde. Bir kez giriş yaparsın; gerisini uygulama halleder.</p>
+      <ul class="lg-sites">${SITE_ORDER.map(s => `<li>${esc(SITE_NAMES[s])}</li>`).join('')}</ul>
+    </div>
+    <ul class="lg-points">
+      <li>${icon('lock')}<span>Şifren yalnızca okulun sitelerine girerken kullanılır; "Beni hatırla" seçiliyse bu bilgisayarda şifreli saklanır.</span></li>
+      <li>${icon('home')}<span>Uygulama senin bilgisayarında çalışır; okul ile aranda başka bir sunucu yoktur.</span></li>
+      <li>${icon('bell')}<span>Piazza'daki yeni gönderiler, Uzak'a eklenenler ve yaklaşan sınavlar için bildirim gelir.</span></li>
+    </ul>
+    <p class="lg-foot">Bağımsız, açık kaynaklı bir öğrenci projesidir; TOBB ETÜ'nün resmî uygulaması değildir.</p>
+  </aside>
+  <div class="lg-main">
+    <form id="ilk-giris" class="lg-form">
+      <h1>Giriş yap</h1>
+      <p class="lg-lead">Okul e-postan ve şifren. Bir kez girmen yeter; uygulama altı siteye kendisi girer.</p>
+      <label>E-posta<span class="lg-in">${icon('mail')}<input name="email" type="email" autocomplete="username" placeholder="isim@etu.edu.tr" required></span></label>
+      <label>Şifre<span class="lg-in">${icon('lock')}<input name="password" type="password" autocomplete="current-password" required>
+        <button type="button" class="lg-eye" data-pw-toggle aria-label="Şifreyi göster" aria-pressed="false">${icon('eye')}</button></span></label>
+      <label class="check"><input name="remember" type="checkbox" checked><span>Beni hatırla <span class="muted">(Windows'un şifreli kasasında saklanır)</span></span></label>
+      <button type="submit" class="btn primary wc-btn">${icon('login')}Giriş yap</button>
+      <div id="ig-out" aria-live="polite"></div>
+    </form>
+    <a href="#/anasayfa" class="muted small wc-skip" data-wc-skip>Şimdilik geç (sonra Hesap'tan girebilirsin)</a>
+  </div></section>`;
 function renderWelcome() {
+  const phone = !!window.Native;
+  if (!phone || /^#\/giris/.test(location.hash)) welcomeStep = 2;
   document.body.classList.add('welcome');
-  $view.innerHTML = welcomeStep === 1 ? `<section class="wc"><span class="wc-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+  document.body.classList.toggle('lgs', !phone);
+  seq++;                                 // yüklenmekte olan bir ekran giriş ekranının üzerine yazmasın
+  lastHtml = '';
+  $view.innerHTML = !phone ? loginScreen() : welcomeStep === 1 ? `<section class="wc">${wcMark}
       <h1>ETÜ Cep'e hoş geldin</h1>
       <p class="wc-lead">Ortam, UBS, Uzak, UZAKYDB, Webmail ve Piazza tek uygulamada. Okul e-postan ve şifrenle bir kez giriş yaparsın; uygulama bütün sitelere kendisi girer.</p>
       <ul class="wc-list">
@@ -3342,7 +3399,7 @@ function renderWelcome() {
         <li>${icon('help')}<span>Bağımsız bir öğrenci projesidir; TOBB ETÜ'nün resmî uygulaması değildir.</span></li>
       </ul>
       <button type="button" class="btn primary wc-btn" data-wc-next>Tamam</button></section>`
-    : `<section class="wc"><span class="wc-mark" aria-hidden="true"><i></i><i></i><i></i></span><h1>Giriş</h1>
+    : `<section class="wc">${wcMark}<h1>Giriş</h1>
       <p class="wc-lead">Okul e-postan ve şifren. Bir kez girmen yeter; uygulama Ortam, UBS, Uzak, UZAKYDB, Webmail ve Piazza'ya kendisi girer.</p>
       <form id="ilk-giris" class="acct wc-form">
         <label>E-posta<input name="email" type="email" autocomplete="username" placeholder="isim@etu.edu.tr" required></label>
@@ -3356,39 +3413,63 @@ function renderWelcome() {
 $view.addEventListener('click', e => {
   if (e.target.closest('[data-wc-next]')) { welcomeStep = 2; return renderWelcome(); }
   if (e.target.closest('[data-wc-skip]')) store('ilk-giris', true);
+  const eye = e.target.closest('[data-pw-toggle]');
+  if (eye) {
+    const inp = eye.parentElement.querySelector('input'), show = inp.type === 'password';
+    inp.type = show ? 'text' : 'password';
+    eye.innerHTML = icon(show ? 'eye-off' : 'eye');
+    eye.setAttribute('aria-pressed', String(show));
+    eye.setAttribute('aria-label', show ? 'Şifreyi gizle' : 'Şifreyi göster');
+    inp.focus();
+  }
 });
 $view.addEventListener('submit', async e => {
   if (e.target.id !== 'ilk-giris') return;
   e.preventDefault();
   const f = e.target, btn = f.querySelector('button[type=submit]'), out = document.getElementById('ig-out');
+  const phone = !!window.Native;
   const d = new FormData(f);
+  const onScreen = () => /^#\/(giris|hos-geldin)/.test(location.hash);
+  const here = () => onScreen() && document.body.contains(out);
+  // Her sitenin durumu satır satır görünür: önce "giriş yapılıyor", yanıt gelince sonuç
+  const pill = (cls, text) => `<span class="pill ${cls}">${esc(text)}</span>`;
+  const show = (lines, note = '') => { if (here()) out.innerHTML = note + `<ul class="ig-res">${SITE_ORDER.map(s => `<li><b>${esc(SITE_NAMES[s])}</b>${lines(s) || ''}</li>`).join('')}</ul>`; };
+  const ortamWait = phone ? 'giriş sayfası açılacak' : 'giriş penceresi açılacak';
   btn.disabled = true;
-  btn.textContent = 'Bütün sitelere giriş yapılıyor…';
-  out.innerHTML = '';
-  const r = await post('/api/account/login', { email: d.get('email'), password: d.get('password'), sites: {}, remember: true }).catch(() => null);
+  btn.innerHTML = icon('loader', 'spin') + 'Bütün sitelere giriş yapılıyor…';
+  show(s => (s === 'ortam' ? pill('gray', ortamWait) : pill('gray', 'giriş yapılıyor…')));
+  const r = await post('/api/account/login', { email: d.get('email'), password: d.get('password'), sites: {}, remember: phone || d.get('remember') === 'on' }).catch(() => null);
   const j = r ? await r.json().catch(() => ({})) : { error: 'Uygulamaya ulaşılamadı' };
   const res = j.results || {};
-  const line = s => (res[s] ? (res[s].ok ? '<span class="pill ok">girildi</span>' : res[s].rejected ? '<span class="pill bad">şifre kabul edilmedi</span>' : `<span class="pill warn">${esc(res[s].error || 'girilemedi')}</span>`)
-    : s === 'ortam' ? '<span class="pill gray">giriş sayfası açılacak</span>' : '');
-  out.innerHTML = `<ul class="ig-res">${SITE_ORDER.map(s => `<li><b>${esc(SITE_NAMES[s])}</b>${line(s)}</li>`).join('')}</ul>`;
+  const line = s => (res[s] ? (res[s].ok ? pill('ok', 'girildi') : res[s].rejected ? pill('bad', 'şifre kabul edilmedi') : pill('warn', res[s].error || 'girilemedi')) : '');
   if (!r?.ok || !Object.values(res).some(x => x.ok)) {
     btn.disabled = false;
-    btn.textContent = 'Giriş yap';
-    out.insertAdjacentHTML('afterbegin', `<p class="small bad">${esc(j.error || 'E-posta ya da şifre kabul edilmedi.')}</p>`);
+    btn.innerHTML = (phone ? '' : icon('login')) + 'Giriş yap';
+    const note = `<p class="small bad">${esc(j.error || 'E-posta ya da şifre kabul edilmedi.')}</p>`;
+    if (!r?.ok) { if (here()) out.innerHTML = note; } else show(s => line(s) || (s === 'ortam' ? pill('gray', 'denenmedi') : ''), note);
     return;
   }
   lastLogin = j;
+  hasAccount = true;
   store('ilk-giris', true);
+  const dest = loginReturn || '#/anasayfa';
+  loginReturn = null;
   // Ortam yalnızca sitenin kendi giriş sayfasıyla girilir: sayfa açılır, bilgiler doldurulur (doğrulama sorusu çıkarsa sen yanıtlarsın)
-  btn.textContent = 'Ortam\'a giriliyor…';
-  await post('/api/login?site=ortam').catch(() => null);
-  location.hash = '#/anasayfa';
+  btn.innerHTML = icon('loader', 'spin') + 'Ortam\'a giriliyor…';
+  show(s => line(s) || (s === 'ortam' ? pill('info', phone ? 'giriş sayfası açıldı' : 'giriş penceresi açıldı') : ''),
+    phone ? '' : `<p class="small muted ig-note">Ortam'ın giriş penceresi açıldı, bilgilerin dolduruluyor; doğrulama sorusu çıkarsa sen yanıtlarsın. <a href="${esc(dest)}">Beklemeden devam et</a></p>`);
+  const o = await post('/api/login?site=ortam').catch(() => null);
+  if (onScreen()) { location.hash = dest; return; }
+  // Kullanıcı beklemeden devam ettiyse: Ortam girişi bitince açık ekran yenilenir (Ana Sayfa kartları Ortam verisini alır)
+  if (o?.ok) render(!/^#\/?(anasayfa)?$/.test(location.hash));
 });
 async function firstRun() {
   const a = await fetch('/api/account').then(r => (r.ok ? r.json() : null)).catch(() => null);
-  if (!a || a.email) return;
+  if (!a) return;
+  hasAccount = !!a.email;
+  if (a.email) return;
   if (window.Native && !stored('ilk-giris', false)) { location.replace('#/hos-geldin'); return; }
-  if (!location.hash || /^#\/?(anasayfa)?$/.test(location.hash)) location.replace('#/hesap/giris');
+  if (!location.hash || /^#\/?(anasayfa)?$/.test(location.hash)) location.replace('#/giris');
 }
 
 window.addEventListener('hashchange', () => render());

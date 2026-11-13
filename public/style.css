@@ -978,6 +978,77 @@ body.welcome main { margin: 0; padding: 24px 18px 40px; }
 .wc-skip { align-self: center; }
 .ig-res { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .ig-res li { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+
+/* Giriş ekranı (bilgisayar ve web arayüzü): solda marka paneli, sağda form. Dar ekranda panel üstte kısa bir bant olur. */
+body.lgs main { padding: 0; max-width: none; }
+.lg { min-height: 100vh; display: grid; grid-template-columns: minmax(340px, 5fr) 7fr; }
+.lg-brand { position: relative; overflow: hidden; isolation: isolate; display: flex; flex-direction: column; justify-content: space-between; gap: 28px;
+  padding: clamp(28px, 4.5vw, 60px); color: #fff; background: linear-gradient(155deg, #1b449c 0%, #15367f 55%, #0f275f 100%); }
+:root[data-theme="dark"] .lg-brand { background: linear-gradient(155deg, #17377f 0%, #0f2456 55%, #0a1839 100%); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .lg-brand { background: linear-gradient(155deg, #17377f 0%, #0f2456 55%, #0a1839 100%); } }
+/* süs: logodaki üç çubuğun büyütülmüş, eğik hâli */
+.lg-deco { position: absolute; z-index: -1; right: -70px; bottom: -150px; display: flex; gap: 26px; transform: rotate(20deg); }
+.lg-deco i { width: 92px; height: 470px; border-radius: 30px; background: rgb(255 255 255 / .07); }
+.lg-deco i:nth-child(2) { background: rgb(178 31 40 / .5); margin-top: -70px; } .lg-deco i:nth-child(3) { background: rgb(240 137 33 / .5); margin-top: -140px; }
+.lg-logo { display: flex; align-items: center; gap: 12px; font-size: 1.3rem; font-weight: 750; letter-spacing: -.01em; }
+.lg-logo .wc-mark { height: 42px; gap: 4px; padding: 9px 10px; border-radius: 12px; background: #fff; box-shadow: 0 4px 14px rgb(0 0 0 / .18); }
+.lg-logo .wc-mark i { width: 6px; border-radius: 2.5px; }
+.lg-pitch h2 { margin: 0 0 12px; font-size: clamp(1.5rem, 2.6vw, 2.25rem); line-height: 1.2; font-weight: 750; letter-spacing: -.02em; max-width: 16ch; }
+.lg-pitch p { margin: 0 0 20px; max-width: 44ch; font-size: 1.02rem; line-height: 1.55; color: rgb(255 255 255 / .85); }
+.lg-sites { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.lg-sites li { padding: 5px 13px; border-radius: 999px; background: rgb(255 255 255 / .12); border: 1px solid rgb(255 255 255 / .24); font-size: .86rem; font-weight: 600; }
+.lg-points { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 13px; max-width: 46ch; }
+.lg-points li { display: flex; gap: 11px; align-items: flex-start; font-size: .93rem; line-height: 1.45; color: rgb(255 255 255 / .9); }
+.lg-points .ic { margin-top: 2px; color: #ffc27a; }
+.lg-foot { margin: 0; font-size: .8rem; color: rgb(255 255 255 / .66); max-width: 46ch; }
+.lg-main { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 32px 20px; }
+.lg-form { position: relative; overflow: hidden; width: min(410px, 100%); display: grid; gap: 15px; padding: 34px 30px 28px; background: var(--card);
+  border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow-2); }
+.lg-form::before { content: ""; position: absolute; inset: 0 0 auto; height: 4px; background: linear-gradient(90deg, #1b449c 0 33.4%, #b21f28 33.4% 66.7%, #f08921 66.7%); }
+.lg-form h1 { margin: 0; font-size: 1.5rem; }
+.lg-lead { margin: -8px 0 4px; color: var(--muted); line-height: 1.5; }
+.lg-form label { display: grid; gap: 6px; font-weight: 600; font-size: .9rem; }
+.lg-form label.check { display: flex; gap: 8px; align-items: center; font-weight: 500; }
+.lg-form label.check input { width: 16px; height: 16px; accent-color: var(--accent); }
+.lg-in { position: relative; display: flex; }
+.lg-in > .ic { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+.lg-in input { width: 100%; min-height: 46px; padding: 10px 44px 10px 41px; border-radius: 10px; border: 1px solid var(--line-2); background: var(--card); color: var(--ink); font: inherit; font-weight: 500; }
+.lg-in input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
+.lg-in:focus-within > .ic { color: var(--accent); }
+.lg-eye { position: absolute; right: 5px; top: 50%; transform: translateY(-50%); display: grid; place-items: center; width: 36px; height: 36px; border: 0; border-radius: 8px;
+  background: none; color: var(--muted); cursor: pointer; }
+.lg-eye:hover { background: var(--card-2); color: var(--ink); }
+.lg-form .wc-btn { margin: 4px 0 0; }
+.lg-form .ig-res { margin-top: 2px; padding-top: 12px; border-top: 1px solid var(--line); }
+.lg-form .bad { color: var(--bad); margin: 0; }
+.ig-note { margin: 0 0 4px; }
+@media (max-width: 860px) {
+  .lg { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+  .lg-brand { padding: 22px 20px 24px; gap: 16px; }
+  .lg-deco, .lg-points, .lg-foot { display: none; }
+  .lg-pitch h2 { font-size: 1.3rem; max-width: none; margin-bottom: 8px; } .lg-pitch p { display: none; }
+  .lg-main { justify-content: flex-start; padding: 22px 16px 32px; }
+  .lg-form { padding: 28px 20px 22px; }
+}
+
+/* Giriş düğmesi ve "oturum kapalı" kutusu: uygulamanın her yerinde aynı görünüm */
+.btn.login { margin: 0; white-space: nowrap; }
+.btn.login.sm { min-height: 30px; padding: 3px 11px; font-size: .84rem; border-radius: 8px; }
+.btn.login.sm .ic { width: 15px; height: 15px; }
+.btn.login:disabled { white-space: normal; text-align: left; }
+.ic.spin { animation: ic-spin .9s linear infinite; }
+@keyframes ic-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .ic.spin { animation-duration: 2.5s; } }
+.stale-note { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.gate { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 30px 20px; text-align: center; }
+.gate-ic { flex: none; display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); }
+.gate-ic .ic { width: 24px; height: 24px; }
+.gate-t b { font-size: 1.05rem; }
+.gate-t p { margin: 4px 0 0; color: var(--muted); max-width: 44ch; }
+.gate > .muted { flex-basis: 100%; }
+.gate.mini { flex-direction: row; flex-wrap: wrap; gap: 10px 12px; padding: 4px 0; text-align: left; }
+.gate.mini .gate-ic { width: 36px; height: 36px; } .gate.mini .gate-ic .ic { width: 18px; height: 18px; }
+.gate.mini .gate-t { flex: 1 1 130px; } .gate.mini .gate-t b { font-size: .95rem; }
 .srv-state { display: flex; align-items: center; margin: 2px 0 0; padding: 1px 12px; gap: 6px; color: var(--muted); font-size: .7rem; font-weight: 500; text-decoration: none; }
 .srv-state i { flex: none; width: 6px; height: 6px; margin-inline: 7px 2px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 20%, transparent); }
 .srv-state.down { color: var(--bad); font-weight: 650; }
