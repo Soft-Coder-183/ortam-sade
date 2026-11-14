@@ -4,7 +4,7 @@ Ortam Sade, TOBB ETÜ'nün okul sitelerini (Ortam, UBS, Uzak, UZAKYDB, Webmail, 
 
 - **Sahibi:** TOBB ETÜ öğrencisi Eren Akyurt. Türkçe konuşur, uygulamayı arkadaşlarıyla paylaşır.
 - **Depo:** https://github.com/Soft-Coder-183/ortam-sade (herkese açık, MIT lisansı).
-- **Durum:** Yayımlanmış sürüm 1.7.0 (Windows kurulum dosyası, zip ve Android APK; 11 Kasım 2026). İmza anahtarı GitHub gizli değişkenlerinde (`ETUCEP_KEY_B64`, `ETUCEP_KEY_PASSWORD`). Telefonda girişin gerçek cihazda doğrulanması bekliyor. GitHub hesabı `gh` ile bağlı. Yayımlanmamış (13 Kasım 2026, `notlar/v1.8.0.md`): Windows/web giriş ekranı, tek tip "Giriş yap" düğmeleri ve "oturum kapalı" kutusu; `package.json` hâlâ 1.7.0.
+- **Durum:** Yayımlanmış sürüm 1.7.0 (Windows kurulum dosyası, zip ve Android APK; 11 Kasım 2026). İmza anahtarı GitHub gizli değişkenlerinde (`ETUCEP_KEY_B64`, `ETUCEP_KEY_PASSWORD`). Telefonda girişin gerçek cihazda doğrulanması bekliyor. GitHub hesabı `gh` ile bağlı. Yayımlanmamış (13 Kasım 2026, `notlar/v1.8.0.md`): Windows/web giriş ekranı, tek tip "Giriş yap" düğmeleri ve "oturum kapalı" kutusu; `package.json` hâlâ 1.7.0. Tanıtım videosu (14 Kasım 2026): `npm run tanitim` ile üretilir, çıktı `dist/tanitim/OrtamSade-tanitim.mp4` (depoda değil); seslendirmenin okunuşu kulakla dinlenmedi, video henüz bir yere yüklenmedi.
 - **Devam eden iş:** Android uygulaması "ETÜ Cep". Önce APK çıkacak; Play yayını ve geliştirici hesabı sonraya kaldı. Yalnızca Android hedefleniyor, Windows sürümü kalıyor.
 - **Kapsam notu:** Bu belge uygulamanın her parçasını saymaz. Kodda burada anlatılmayan bir bölüm görürsen değiştirmeden önce kullanıcıya sor.
 
@@ -70,6 +70,7 @@ Okulun siteleri ve mevzuat.gov.tr
 | `notlar/vX.Y.Z.md` | Sürüm notları |
 | `CLAUDE.md` | Her oturumda yüklenen özet, komutlar, kurallar (devret sistemi, katman 1) |
 | `DERLE.md`, `derle.ps1` | Tek komutla kurulum exe'si, zip ve APK üretimi |
+| `tanitim/` | Tanıtım videosu üretimi: `yap.mjs` (seslendirme → kayıt → birleştirme), `sahneler.mjs` (senaryo), `kayit.mjs` (ekran kaydı), `veri.mjs` (sahte öğrenci verisi), `kartlar.html` (tam ekran kartlar). Pakete ve APK'ya girmez |
 | `masaustu/` | Masaüstü penceresi `OrtamSade.exe` (C#, .NET Framework 4.8, WinForms + WebView2) |
 | `Ortam Sade.cmd` | Yedek başlatıcı: siyah pencere, tarayıcıda açar (CRLF olmalı) |
 
@@ -208,6 +209,17 @@ Sürüm paketi GitHub Actions'ta üretilir; yerelde üretilen dosyalar yüklenme
 - Paketli ya da git'siz kurulum: zip indirilir, GitHub'ın SHA-256 özetiyle doğrulanır, dosyalar yedekli değiştirilir.
 - Git klasörü: sürüm etiketine ileri sarılır, gerekirse bağımlılıklar kurulur.
 - Sonra uygulama yeniden açılır ve `.cache` korunur.
+
+## Tanıtım videosu (`tanitim/`)
+
+`npm run tanitim` yaklaşık 5 dakikalık, 1920×1080, Türkçe seslendirmeli ve müzikli videoyu baştan üretir (10 dakika kadar sürer). Çıktılar `dist/tanitim/` altındadır (gitignore): `OrtamSade-tanitim.mp4` (içinde açılıp kapatılabilen altyazı), `OrtamSade-tanitim.srt`, ara dosyalar (`ses/`, `sahne/`, `norm/`, `foto/`).
+
+- **Veri tamamen uydurmadır.** Depodaki sunucu 3100'de açılır, görünmez Chrome'da gezilir; kişisel bütün `/api/*` uçlarını `veri.mjs` yanıtlar (öğrenci "Ada Örnek"), okula giriş yapılmaz. Yalnızca herkese açık uçlar (`program`, `etu-*`, `mevzuat*`, `hatirlatmalar`, `rezervasyon` GET) gerçek sunucuya geçer; bu yüzden Açılan Dersler, Akademik Kadro ve Duyurular'da gerçek (herkese açık) adlar görünür. Saat `veri.mjs`'teki `SIMDI`'ye sabitlenir (17 Kasım 2026 Salı 10:42); sınav ve ders verisi o güne göre yazıldı.
+- **Senaryo `sahneler.mjs`'te:** her sahnede adımlar; `s` altyazı ve seslendirme metni, `oku` seslendirmenin okuyacağı yazım (kısaltmalar: "U B S", "P D F"), `is` o cümle okunurken ekranda yapılanlar. Kayıt seslendirmeye göre ilerler: adım, kendi cümlesinin süresi dolmadan bitmez. Uygulamada bir seçici ya da metin değişirse ilgili sahne zaman aşımıyla durur; `node tanitim/yap.mjs kayit 04-dersler` ile yalnızca o sahne yeniden kaydedilir, sonra `node tanitim/yap.mjs birlestir`.
+- **Kayıt (`kayit.mjs`):** Chrome'un ekran akışı (CDP `Page.startScreencast`) sabit 30 kare/sn ile ffmpeg'e verilir. Uygulama 1440×786 CSS pikselinde 4/3 ölçekle çekilir (1920×1048); üstüne `kartlar.html#baslik`'tan alınan 32 piksellik pencere başlığı eklenir. İmleç ve tıklama halkası sayfaya eklenen betikle çizilir. Kartlarda (`k.sabit`) sayfa kaydırılmaz.
+- **Ses:** Seslendirme Microsoft Edge'in ücretsiz sinir ağı sesi (`uvx edge-tts`, `tr-TR-AhmetNeural`, `+8%`; `TANITIM_SES`/`TANITIM_HIZ` ortam değişkenleriyle değişir), cümle başına bir dosya, metnin özetiyle önbelleklenir. Müzik ilk çalıştırmada indirilir: "EDM Detection Mode", Kevin MacLeod (incompetech.com), **CC BY 4.0: künye videoda (kapanış kartı) ve paylaşılan her yerde yazılmalıdır.** Konuşma sırasında müzik kendiliğinden kısılır; toplam ses -16 LUFS'a ayarlanır.
+- **Tuzaklar:** Birleştirmede `-shortest` kullanma (altyazı akışı son cümlede biter, videoyu erken keser). 3100 portu doluysa betik durur. `rezervasyon` ısıtma isteği girişsiz 502 döner, sayfa yine de açılır. Telefon kartı uygulamayı 390 piksellik bir `iframe`'de gösterir (gerçek APK değil).
+- **Denenmedi:** Seslendirme kulakla dinlenmedi (okunuş hataları olabilir; düzeltmek için adıma `oku` yaz). CapCut kullanılmadı.
 
 ## Kurallar
 

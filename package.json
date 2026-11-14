@@ -16,7 +16,8 @@
     "start": "node server/server.mjs",
     "dev": "node --watch-path=server server/server.mjs",
     "mobil": "node scripts/mobil.mjs",
-    "paketle": "node scripts/paketle.mjs"
+    "paketle": "node scripts/paketle.mjs",
+    "tanitim": "node tanitim/yap.mjs"
   },
   "dependencies": {
     "cheerio": "^1.0.0",

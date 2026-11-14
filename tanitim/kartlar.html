@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>Ortam Sade tanıtım kartları</title>
+<style>
+  /* Tanıtım videosunun tam ekran kartları (1920×1080). Hangi kartın görüneceği adresteki #ad ile seçilir; kayıt betiği
+     window.adim(n) çağırarak kartı seslendirmeyle eşzamanlı ilerletir. Renkler uygulamanınkiyle aynı (TOBB ETÜ kılavuzu). */
+  :root { --mavi: #1b449c; --kirmizi: #b21f28; --turuncu: #f08921; --murekkep: #1c2230; --font: "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; font-family: var(--font); color: #fff; background: #0f275f; }
+  .kart { position: absolute; inset: 0; display: none; }
+  .kart.acik { display: block; }
+  .zemin { position: absolute; inset: 0; background: radial-gradient(1200px 800px at 20% 10%, #2a5ac0 0%, transparent 60%), linear-gradient(150deg, #1b449c 0%, #15367f 50%, #0c1f4d 100%); }
+  .cubuklar { position: absolute; right: -120px; bottom: -260px; display: flex; gap: 46px; transform: rotate(20deg); }
+  .cubuklar i { width: 170px; height: 900px; border-radius: 56px; background: rgb(255 255 255 / .06); }
+  .cubuklar i:nth-child(2) { background: rgb(178 31 40 / .45); margin-top: -130px; } .cubuklar i:nth-child(3) { background: rgb(240 137 33 / .45); margin-top: -260px; }
+  .isaret { display: inline-flex; gap: 9px; padding: 22px 24px; height: 108px; border-radius: 30px; background: #fff; box-shadow: 0 18px 50px rgb(0 0 0 / .3); }
+  .isaret i { width: 16px; border-radius: 6px; background: var(--mavi); } .isaret i:nth-child(2) { background: var(--kirmizi); } .isaret i:nth-child(3) { background: var(--turuncu); }
+
+  /* ---- açılış ---- */
+  #acilis .site { position: absolute; width: 400px; padding: 22px 24px; border-radius: 22px; background: #fff; color: var(--murekkep); box-shadow: 0 24px 60px rgb(0 0 0 / .35);
+    opacity: 0; transform: translateY(40px) scale(.9) rotate(var(--r)); transition: opacity .45s, transform .6s cubic-bezier(.2, .9, .3, 1.2); }
+  #acilis .site.gel { opacity: 1; transform: translateY(0) scale(1) rotate(var(--r)); }
+  #acilis .site.git { opacity: 0; transform: translate(var(--tx), var(--ty)) scale(.15) rotate(0deg); transition: opacity .7s .15s, transform .85s cubic-bezier(.6, 0, .4, 1); }
+  #acilis .site b { display: block; font-size: 34px; letter-spacing: -.01em; }
+  #acilis .site small { display: block; margin: 2px 0 16px; font-size: 19px; color: #5d6470; }
+  #acilis .site .alan { height: 40px; margin-top: 9px; border-radius: 10px; border: 2px solid #d2d7de; background: #f7f8fa; display: flex; align-items: center; padding: 0 12px; font-size: 17px; color: #8a919c; }
+  #acilis .site .dugme { height: 42px; margin-top: 12px; border-radius: 10px; background: var(--c); color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 18px; }
+  #acilis .soru { position: absolute; left: 0; right: 0; bottom: 70px; text-align: center; font-size: 46px; font-weight: 650; letter-spacing: -.01em; opacity: 0; transition: opacity .6s; }
+  #acilis .soru.gel { opacity: 1; } #acilis .soru.git { opacity: 0; }
+  #acilis .marka { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 30px; opacity: 0; transform: scale(.8); transition: opacity .6s, transform .8s cubic-bezier(.2, .9, .3, 1.15); }
+  #acilis .marka.gel { opacity: 1; transform: scale(1); }
+  #acilis .marka h1 { margin: 0; font-size: 150px; font-weight: 800; letter-spacing: -.03em; line-height: 1; }
+  #acilis .marka p { margin: 0; font-size: 46px; color: rgb(255 255 255 / .88); opacity: 0; transform: translateY(16px); transition: opacity .6s .5s, transform .6s .5s; }
+  #acilis .marka.gel p { opacity: 1; transform: none; }
+  #acilis .marka .isaret { height: 150px; padding: 30px 34px; gap: 13px; border-radius: 42px; } #acilis .marka .isaret i { width: 23px; border-radius: 9px; }
+
+  /* ---- bildirimler: sahte masaüstü ---- */
+  #bildirim .zemin { background: radial-gradient(1400px 900px at 70% 20%, #3b6fd6 0%, transparent 65%), linear-gradient(160deg, #16357d 0%, #0b1c47 100%); }
+  #bildirim .yazi { position: absolute; left: 120px; top: 150px; width: 900px; }
+  #bildirim h2 { margin: 0 0 26px; font-size: 92px; font-weight: 800; letter-spacing: -.025em; line-height: 1.05; }
+  #bildirim .yazi li { list-style: none; display: flex; gap: 18px; align-items: center; margin: 22px 0; font-size: 36px; color: rgb(255 255 255 / .9); opacity: 0; transform: translateX(-24px); transition: opacity .5s, transform .5s; }
+  #bildirim .yazi li.gel { opacity: 1; transform: none; }
+  #bildirim .yazi ul { margin: 0; padding: 0; }
+  #bildirim .nokta { flex: none; width: 20px; height: 20px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 7px color-mix(in srgb, var(--c) 30%, transparent); }
+  #bildirim .gorev { position: absolute; left: 0; right: 0; bottom: 0; height: 72px; background: rgb(18 24 38 / .82); backdrop-filter: blur(20px); display: flex; align-items: center; justify-content: flex-end; gap: 26px; padding: 0 34px; font-size: 21px; }
+  #bildirim .gorev .tepsi { display: flex; align-items: center; gap: 18px; }
+  #bildirim .gorev .mini { display: inline-flex; gap: 3px; padding: 6px 7px; height: 34px; border-radius: 9px; background: #fff; outline: 3px solid transparent; transition: outline-color .3s; }
+  #bildirim .gorev .mini.yan { outline-color: var(--turuncu); }
+  #bildirim .gorev .mini i { width: 5px; border-radius: 2px; background: var(--mavi); } #bildirim .gorev .mini i:nth-child(2) { background: var(--kirmizi); } #bildirim .gorev .mini i:nth-child(3) { background: var(--turuncu); }
+  #bildirim .gorev .saat { text-align: right; line-height: 1.25; }
+  #bildirim .ok { opacity: .7; }
+  #bildirim .yigin { position: absolute; right: 34px; bottom: 100px; width: 600px; display: flex; flex-direction: column-reverse; gap: 16px; }
+  .balon { padding: 22px 24px; border-radius: 16px; background: rgb(32 38 52 / .96); border: 1px solid rgb(255 255 255 / .12); box-shadow: 0 20px 50px rgb(0 0 0 / .45);
+    transform: translateX(680px); transition: transform .55s cubic-bezier(.2, .9, .3, 1.05); }
+  .balon.gel { transform: none; }
+  .balon .ust { display: flex; align-items: center; gap: 12px; font-size: 19px; color: rgb(255 255 255 / .75); margin-bottom: 10px; }
+  .balon .ust .mini { display: inline-flex; gap: 2px; padding: 5px 6px; height: 28px; border-radius: 7px; background: #fff; }
+  .balon .ust .mini i { width: 4px; border-radius: 2px; background: var(--mavi); } .balon .ust .mini i:nth-child(2) { background: var(--kirmizi); } .balon .ust .mini i:nth-child(3) { background: var(--turuncu); }
+  .balon b { display: block; font-size: 26px; } .balon span.m { display: block; margin-top: 4px; font-size: 23px; color: rgb(255 255 255 / .82); }
+
+  /* ---- telefon ---- */
+  #telefon .yazi { position: absolute; left: 130px; top: 200px; width: 880px; }
+  #telefon h2 { margin: 26px 0 18px; font-size: 118px; font-weight: 800; letter-spacing: -.03em; line-height: 1; }
+  #telefon p { margin: 0 0 34px; font-size: 42px; color: rgb(255 255 255 / .88); line-height: 1.3; }
+  #telefon li { list-style: none; display: flex; gap: 18px; align-items: center; margin: 20px 0; font-size: 34px; color: rgb(255 255 255 / .9); }
+  #telefon ul { margin: 0; padding: 0; }
+  #telefon .tik { flex: none; width: 40px; height: 40px; border-radius: 50%; background: rgb(255 255 255 / .14); display: grid; place-items: center; font-size: 24px; color: #ffc27a; }
+  #telefon .cihaz { position: absolute; right: 250px; top: 50px; width: 482px; height: 980px; padding: 16px; border-radius: 64px; background: #0b0d12; box-shadow: 0 40px 90px rgb(0 0 0 / .55), inset 0 0 0 3px #2b2f3a; }
+  #telefon .cihaz::before { content: ""; position: absolute; left: 50%; top: 30px; width: 16px; height: 16px; margin-left: -8px; border-radius: 50%; background: #1d2029; z-index: 2; }
+  #telefon .ekran { width: 450px; height: 948px; border-radius: 50px; overflow: hidden; background: #fff; }
+  #telefon .durum { height: 46px; padding: 0 30px; display: flex; align-items: center; justify-content: space-between; background: #f4f5f8; color: #1c2230; font-size: 17px; font-weight: 600; }
+  #telefon .durum span:last-child { font-size: 13px; letter-spacing: 3px; opacity: .75; }
+  #telefon iframe { width: 390px; height: 782px; border: 0; transform: scale(1.1538); transform-origin: 0 0; background: #fff; }
+
+  /* ---- kapanış ---- */
+  #kapanis .orta { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; text-align: center; }
+  #kapanis h1 { margin: 14px 0 0; font-size: 132px; font-weight: 800; letter-spacing: -.03em; line-height: 1; }
+  #kapanis .slogan { margin: 0; font-size: 44px; color: rgb(255 255 255 / .9); }
+  #kapanis .rozetler { display: flex; gap: 16px; margin-top: 10px; }
+  #kapanis .rozetler span { padding: 10px 26px; border-radius: 999px; background: rgb(255 255 255 / .12); border: 2px solid rgb(255 255 255 / .25); font-size: 28px; font-weight: 650; opacity: 0; transform: translateY(14px); transition: opacity .5s, transform .5s; }
+  #kapanis .gel .rozetler span { opacity: 1; transform: none; } #kapanis .rozetler span:nth-child(2) { transition-delay: .15s; } #kapanis .rozetler span:nth-child(3) { transition-delay: .3s; } #kapanis .rozetler span:nth-child(4) { transition-delay: .45s; }
+  #kapanis .adres { margin-top: 34px; padding: 20px 44px; border-radius: 20px; background: #fff; color: var(--mavi); font-size: 50px; font-weight: 750; letter-spacing: -.01em; box-shadow: 0 20px 50px rgb(0 0 0 / .35);
+    opacity: 0; transform: scale(.85); transition: opacity .5s, transform .6s cubic-bezier(.2, .9, .3, 1.2); }
+  #kapanis .adres.gel { opacity: 1; transform: none; }
+  #kapanis .dip { position: absolute; left: 0; right: 0; bottom: 44px; text-align: center; font-size: 22px; color: rgb(255 255 255 / .62); line-height: 1.5; }
+
+  /* ---- pencere başlık çubuğu (uygulama sahnelerinin üstüne eklenir; 1920×32) ---- */
+  body.baslik { width: 1920px; height: 32px; background: #f3f3f3; color: #1c2230; }
+  #baslik { height: 32px; display: flex; align-items: center; font-size: 14px; padding-left: 12px; gap: 10px; }
+  #baslik .mini { display: inline-flex; gap: 1.5px; height: 16px; padding: 2.5px 3px; border-radius: 4px; background: #fff; box-shadow: 0 0 0 1px #d8dbe0; }
+  #baslik .mini i { width: 2.6px; border-radius: 1px; background: var(--mavi); } #baslik .mini i:nth-child(2) { background: var(--kirmizi); } #baslik .mini i:nth-child(3) { background: var(--turuncu); }
+  #baslik .tuslar { margin-left: auto; display: flex; height: 32px; }
+  #baslik .tuslar span { width: 46px; display: grid; place-items: center; }
+  #baslik svg { width: 10px; height: 10px; stroke: #1c2230; stroke-width: 1; fill: none; }
+</style>
+</head>
+<body>
+<section class="kart" id="acilis">
+  <div class="zemin"></div><div class="cubuklar"><i></i><i></i><i></i></div>
+  <div class="soru">Altı site. Altı giriş. Altı farklı arayüz.</div>
+  <div class="marka"><span class="isaret"><i></i><i></i><i></i></span><h1>Ortam Sade</h1><p>Okulun bütün siteleri, tek ve sade bir arayüzde.</p></div>
+</section>
+
+<section class="kart" id="bildirim">
+  <div class="zemin"></div>
+  <div class="yazi"><h2>Sen ders çalışırken<br>o nöbette.</h2>
+    <ul><li style="--c:#2f6fdb"><span class="nokta"></span>Piazza'da yeni gönderi</li><li style="--c:#e2583a"><span class="nokta"></span>Uzak'a eklenen dosya ve ödev</li>
+      <li style="--c:#f08921"><span class="nokta"></span>Yaklaşan sınav ve akademik takvim</li></ul></div>
+  <div class="yigin"></div>
+  <div class="gorev"><div class="tepsi"><span class="ok">⌃</span><span class="mini"><i></i><i></i><i></i></span><span class="ok">🔈</span></div><div class="saat">10:42<br>17.11.2026</div></div>
+</section>
+
+<section class="kart" id="telefon">
+  <div class="zemin"></div><div class="cubuklar" style="right:auto;left:-260px;bottom:-420px"><i></i><i></i><i></i></div>
+  <div class="yazi"><span class="isaret"><i></i><i></i><i></i></span><h2>ETÜ Cep</h2><p>Aynı uygulama Android'de de cebinde.</p>
+    <ul><li><span class="tik">✓</span>Uygulama kapalıyken de bildirim</li><li><span class="tik">✓</span>Şifren telefonda, şifreli olarak</li><li><span class="tik">✓</span>PDF'ler uygulamanın içinde</li></ul></div>
+  <div class="cihaz"><div class="ekran"><div class="durum"><span>10:42</span><span>▂▄▆ ▮</span></div><iframe id="tel" title="telefon"></iframe></div></div>
+</section>
+
+<section class="kart" id="kapanis">
+  <div class="zemin"></div><div class="cubuklar"><i></i><i></i><i></i></div>
+  <div class="orta"><span class="isaret"><i></i><i></i><i></i></span><h1>Ortam Sade</h1><p class="slogan">Bir kez giriş yap, gerisini ona bırak.</p>
+    <div class="rozetler"><span>Ücretsiz</span><span>Açık kaynak</span><span>Windows</span><span>Android</span></div>
+    <div class="adres">github.com/Soft-Coder-183/ortam-sade</div></div>
+  <div class="dip">Bağımsız bir öğrenci projesidir; TOBB ETÜ'nün resmî uygulaması değildir. Videodaki öğrenci, notlar ve e-postalar örnektir.<br><span id="muzik"></span></div>
+</section>
+
+<div id="baslik" hidden><span class="mini"><i></i><i></i><i></i></span><span>Ortam Sade</span>
+  <span class="tuslar"><span><svg viewBox="0 0 10 10"><path d="M0 5h10"/></svg></span><span><svg viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9"/></svg></span><span><svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10"/></svg></span></span></div>
+
+<script>
+  const ad = location.hash.slice(1).split('?')[0] || 'acilis';
+  const q = new URLSearchParams(location.hash.split('?')[1] || '');
+  const $ = (s, k = document) => k.querySelector(s);
+  if (ad === 'baslik') { document.body.className = 'baslik'; $('#baslik').hidden = false; }
+  else $('#' + ad).classList.add('acik');
+  if (q.get('muzik')) $('#muzik').textContent = 'Müzik: ' + q.get('muzik');
+
+  const SITELER = [['Ortam', 'ortam.etu.edu.tr', '#1b449c', 150, 110, -5], ['UBS', 'ubs.etu.edu.tr', '#2f6b45', 760, 60, 3], ['Uzak', 'uzak.etu.edu.tr', '#e2583a', 1370, 120, -3],
+    ['UZAKYDB', 'uzakydb.etu.edu.tr', '#7c3aed', 220, 520, 4], ['Webmail', 'webmail.etu.edu.tr', '#b21f28', 780, 470, -2], ['Piazza', 'piazza.com', '#2f6fdb', 1340, 540, 5]];
+  const ADIMLAR = {
+    acilis: [
+      () => { const k = $('#acilis'); SITELER.forEach(([n, a, c, x, y, r], i) => { const d = document.createElement('div'); d.className = 'site';
+          d.style.cssText = `left:${x}px;top:${y}px;--r:${r}deg;--c:${c};--tx:${960 - x - 200}px;--ty:${470 - y - 130}px`;
+          d.innerHTML = `<b>${n}</b><small>${a}</small><div class="alan">Kullanıcı adı</div><div class="alan">••••••••</div><div class="dugme">Giriş</div>`;
+          k.append(d); setTimeout(() => d.classList.add('gel'), 250 + i * 620); });
+        setTimeout(() => $('#acilis .soru').classList.add('gel'), 4300); },
+      () => { document.querySelectorAll('#acilis .site').forEach((d, i) => setTimeout(() => d.classList.add('git'), i * 70)); $('#acilis .soru').classList.add('git');
+        setTimeout(() => $('#acilis .marka').classList.add('gel'), 650); },
+    ],
+    bildirim: [
+      () => { document.querySelectorAll('#bildirim .yazi li').forEach((l, i) => setTimeout(() => l.classList.add('gel'), 900 + i * 900)); balon('BİL 214 · Piazza', 'Ödev 3 teslim tarihi uzatıldı. (Ders hocası)', 1100);
+        balon('MAT 202 · Uzak', 'Yeni dosya: Hafta 8 - Çalışma Soruları', 2600); balon('Ara Sınav hatırlatması', 'Perşembe 18:30 · MAT 202 Diferansiyel Denklemler · Amfi 3', 4100); },
+      () => { $('#bildirim .gorev .mini').classList.add('yan'); },
+    ],
+    telefon: [() => {}],
+    kapanis: [() => { $('#kapanis .orta').classList.add('gel'); }, () => { $('#kapanis .adres').classList.add('gel'); }],
+  };
+  function balon(baslik, metin, gecikme) {
+    const b = document.createElement('div'); b.className = 'balon';
+    b.innerHTML = `<div class="ust"><span class="mini"><i></i><i></i><i></i></span>Ortam Sade</div><b>${baslik}</b><span class="m">${metin}</span>`;
+    $('#bildirim .yigin').append(b); setTimeout(() => b.classList.add('gel'), gecikme);
+  }
+  window.adim = n => ADIMLAR[ad]?.[n]?.();
+  window.telefonAc = url => { $('#tel').src = url; };
+</script>
+</body>
+</html>

@@ -12,6 +12,8 @@ Ayrıntılar `PROJE_DEVIR.md`'de; bir alana dokunmadan önce ilgili bölümünü
   `& "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe" /Q "/DSurum=X.Y.Z" kurulum\OrtamSade.iss` ·
   `npm run mobil` + `mobile/android` içinde `gradlew :app:assembleRelease` (JAVA_HOME = Android Studio `jbr`)
 - Sözdizimi: `node --check public/app.js` (ve değişen `.mjs`)
+- **Tanıtım videosu:** `npm run tanitim` → `dist\tanitim\OrtamSade-tanitim.mp4` (sahte veri, 3100 portu; ffmpeg ve uv gerekir).
+  Tek sahne: `node tanitim/yap.mjs kayit 04-dersler`, sonra `node tanitim/yap.mjs birlestir`
 - **Deneme:** Kullanıcının kurulu kopyası (`%LOCALAPPDATA%\Programs\Ortam Sade`) 3000 portunu tutar ve depodaki kodu göstermez;
   onu durdurma. Depodaki sürümü `PORT=3100 node server/server.mjs` ile aç, başsız Chrome (`playwright-core`, `channel: 'chrome'`)
   ile `tools/` altındaki betiklerle dene (tools/ gitignore'da). Okula giden geri alınamaz istekleri `page.route` ile sahte yanıtla
@@ -26,6 +28,7 @@ Ayrıntılar `PROJE_DEVIR.md`'de; bir alana dokunmadan önce ilgili bölümünü
 - `mobile/`: Android (`core.mjs`, `shim/`, `metinler.mjs` = telefona özgü metin değişimleri, `android/` Kotlin projesi)
 - `masaustu/`: `OrtamSade.exe` (C#, .NET Framework 4.8, WinForms + WebView2) · `kurulum/`: Inno Setup betiği ve simge
 - `notlar/vX.Y.Z.md`: sürüm notları · `data/`: uygulamayla gelen veri · `.github/workflows/surum.yml`: yayın
+- `tanitim/`: tanıtım videosu (senaryo `sahneler.mjs`, sahte veri `veri.mjs`); arayüzde seçici/metin değişince sahnesi de güncellenir
 
 ## Kod kuralları
 - Arayüz metni Türkçe. Türkçe karşılaştırmada `trFold` (arayüz) / `norm` (mevzuat); JS `/i` `İ`/`i`'yi eşlemez.
@@ -63,4 +66,5 @@ Ayrıntılar `PROJE_DEVIR.md`'de; bir alana dokunmadan önce ilgili bölümünü
 - **Android (ETÜ Cep):** telefon tarafında, imza ve derlemede
 - **Güvenlik modeli:** şifre, çerez, şifreleme, PIN işlerinde
 - **Sürüm, paketleme ve güncelleme:** kurulum dosyası, paket ve uygulama içi güncellemede
+- **Tanıtım videosu:** videoyu yeniden üretirken, sahne ya da seslendirme değiştirirken (müzik künyesi zorunlu)
 - **Geliştirme ortamı ve tuzaklar:** Windows/Git Bash tuzakları, test düzeni

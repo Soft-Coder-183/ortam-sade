@@ -33,6 +33,17 @@ Bir adım hata verirse durur ve hangi adımın başarısız olduğunu yazar.
 - Android için: Android Studio (Java'yı `Android Studio\jbr` içinden alır), Android SDK (`mobile/android/local.properties` içinde
   `sdk.dir`), imza anahtarı `mobile/android/imza/etucep.keystore` + `parola.txt` (depoda yok, yalnızca bu bilgisayarda)
 
+## Tanıtım videosu
+
+```powershell
+npm run tanitim
+```
+
+`dist\tanitim\OrtamSade-tanitim.mp4` (1920×1080, yaklaşık 5 dakika, Türkçe seslendirme + müzik, altyazı içinde) ve yanında
+`OrtamSade-tanitim.srt` çıkar; 10 dakika kadar sürer. Gerekenler: Google Chrome, ffmpeg (`winget install Gyan.FFmpeg`),
+uv (`winget install astral-sh.uv`), internet (seslendirme ve ilk seferde müzik). Videodaki öğrenci ve verileri uydurmadır;
+okula giriş yapılmaz. 3100 portu boş olmalı. Müzik künyesi (CC BY 4.0) paylaşırken yazılmalıdır: `PROJE_DEVIR.md` → Tanıtım videosu.
+
 ## Nasıl denenir
 
 - **Windows:** `dist\OrtamSade-X.Y.Z-kurulum.exe`'yi çalıştır (var olan kurulumu günceller, açık uygulamayı önce kapatır).
