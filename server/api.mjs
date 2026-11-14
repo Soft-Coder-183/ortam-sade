@@ -24,7 +24,7 @@ import * as program from './program.mjs';
 import * as rez from './rezervasyon.mjs';
 
 const CACHE_DIR = '.cache/api';
-const CACHE_VER = 13;            // ayrıştırıcıların çıktısı değişince artır: eski kayıtlar açılışta silinir
+const CACHE_VER = 14;            // ayrıştırıcıların çıktısı değişince artır: eski kayıtlar açılışta silinir
 const STALE_AFTER = 20_000;      // varsayılan: kayıtlı veri hemen gösterilir, bu süreden eskiyse arka planda yenilenir
 // Seyrek değişen bilgiler okulun sunucusuna her açılışta sorulmaz (dakika cinsinden).
 const STALE_MIN = { exams: 10, schedule: 30, courses: 30, course: 360, derslerim: 10, mufredat: 60, bilgilerim: 60, notlar: 10,

@@ -27,6 +27,10 @@ export function configure({ every, defaults, ...rest }) {
   Object.assign(platform, rest);
 }
 const KEEP = 200;                                  // saklanan en fazla bildirim
+// 24 saatten eski içerik (uygulama kapalıyken ya da oturum açılamadığı için geç fark edilen) Windows bildirimi ve e-posta olarak
+// gelmez; yalnızca uygulamadaki listeye okunmuş olarak yazılır.
+const MAX_AGE = 24 * 3600_000;
+const SENT_KEEP = 30 * 24 * 3600_000;              // aynı bildirimin yinelenmemesi için gönderilenlerin anahtarı 30 gün tutulur
 
 let db = { seen: {}, items: [], settings: { toast: true, mail: true, takvim: true }, last: {} };
 let loaded = false;
@@ -65,6 +69,7 @@ async function checkPiazza() {
     db.seen[maxKey] = Math.max(max ?? 0, top);
     const fresh = max === undefined ? [] : f.posts.filter(p => p.nr > max).map(p => ({ p }));
     for (const p of fresh) out.push({
+      key: `piazza|${n.id}|${p.p.id}`, at: p.p.created || p.p.updated || null,
       source: 'piazza', course: key, courseName: `${n.code}`, title: `${n.code} · Piazza`,
       text: p.p.subject + (p.p.role ? ` (${p.p.role})` : ''), link: `#/donem/derslerim/${encodeURIComponent(key)}/piazza/${encodeURIComponent(p.p.id)}`,
       url: `https://piazza.com/class/${n.id}/post/${p.p.nr}`,
@@ -75,6 +80,9 @@ async function checkPiazza() {
 
 async function checkUzak() {
   const out = [];
+  // Uzak'ın ders sayfası etkinliğin eklenme tarihini vermez: son başarılı kontrolün üzerinden 24 saatten çok geçtiyse
+  // yeni görünenlerin ne zaman eklendiği bilinmez, eski sayılır (bildirim ve e-posta gelmez).
+  const gap = db.last.uzak && Date.now() - db.last.uzak > MAX_AGE;
   const m = moodle('uzak');
   for (const c of await m.courses()) {
     const u = await m.course(c.id);
@@ -82,6 +90,7 @@ async function checkUzak() {
     const code = (c.name.match(/^\[([^\]]+)\]/) || [])[1] || c.short;
     const key = courseKey(c.name) || courseKey(c.short) || code;
     for (const x of diff(`uzak:${c.id}`, items)) out.push({
+      key: `uzak|${key}|${x.i.name}`, at: gap ? db.last.uzak : null,
       source: 'uzak', course: key, courseName: code.replace(/\.\d+$/, ''), title: `${code.replace(/\.\d+$/, '')} · Uzak`,
       text: `${x.i.name} eklendi`, link: `#/donem/derslerim/${encodeURIComponent(key)}/uzak/${x.i.cmid}`,
     });
@@ -172,15 +181,17 @@ function toast(title, body, link) {
 }
 
 // Özet e-posta: kullanıcının kendi adresine, okulun Webmail'i üzerinden (bir kontrol turunda tek e-posta).
+// İki adımdır: yazma sayfası açılır (başarısızsa e-posta giden kutusunda kalır), sonra gönder() gönderir. Gönderme isteği
+// çıktıktan sonra hata alınsa da yeniden denenmez: okul e-postayı göndermiş olabilir, aynı bildirim ikinci kez gitmemeli.
 async function mail(items) {
   const to = credentials.get()?.email;
-  if (!to) return;
+  if (!to) return null;
   const c = await webmail.compose({ mode: 'new' });
   // Konu ve metin, e-postanın okuldan değil Ortam Sade'den geldiğini açıkça söyler.
   const app = `http://localhost:${process.env.PORT || 3000}/`;
   const lines = items.map(n => `• ${n.title}: ${n.text}${platform.appLink ? `\n  Aç: ${app}${n.link || ''}` : n.url ? `\n  Aç: ${n.url}` : ''}`).join('\n');
   const rule = '-'.repeat(40);
-  await webmail.send({ id: c.id, from: c.from.find(f => f.selected)?.id ?? c.from[0]?.id, to,
+  return () => webmail.send({ id: c.id, from: c.from.find(f => f.selected)?.id ?? c.from[0]?.id, to,
     subject: `[${platform.brand} · Bildirim] ${items.length === 1 ? `${items[0].title}: ${items[0].text}` : `${items.length} yeni içerik`}`.slice(0, 180),
     text: `${platform.brand.toLocaleUpperCase('tr')} BİLDİRİMİ\n${rule}\n${lines}\n${rule}\n\n` +
       `Bu e-postayı okul değil, ${platform.device} çalışan ${platform.brand} uygulaması gönderdi: Piazza ya da Uzak'ta yeni içerik ` +
@@ -189,25 +200,40 @@ async function mail(items) {
       `Kapatmak için: ${platform.brand} > Hesap > Bildirimler > e-posta seçeneği.` });
 }
 
-// Gönderilemeyen bildirim e-postaları kaybolmaz: giden kutusunda (outbox) bekler, her kontrol turunda ve girişten sonra
-// yeniden denenir. 2 günden eski bekleyenler artık haber değeri taşımadığı için atılır.
-const OUTBOX_MAX_AGE = 2 * 24 * 3600_000;
+// Gönderilemeyen bildirim e-postaları (yazma sayfası açılamadı, hesap yok) giden kutusunda (outbox) bekler, her kontrol turunda
+// ve girişten sonra yeniden denenir. İçeriği 24 saatten eski olanlar artık haber değeri taşımadığı için atılır.
+// Her bildirim en fazla bir kez e-postayla gider (okunmasa, tıklanmasa da yeniden gönderilmez).
+const ageOf = n => Date.now() - (n.at ?? n.t);
 let flushing = null;
 export function flushMail() {
   flushing ??= (async () => {
     await load();
-    db.outbox = (db.outbox ?? []).filter(n => Date.now() - n.t < OUTBOX_MAX_AGE);
+    db.mailed ??= {};
+    db.outbox = (db.outbox ?? []).filter(n => ageOf(n) < MAX_AGE && !db.mailed[n.id]);
     if (!db.settings.mail) db.outbox = [];
     if (!db.outbox.length) return save();
     if (!credentials.get()?.email) { console.error(`bildirim e-postası bekliyor (${db.outbox.length}): kayıtlı hesap yok`); return save(); }
     const items = db.outbox;
+    let send;
     try {
-      await mail(items);
-      db.outbox = db.outbox.filter(n => !items.includes(n));
+      send = await mail(items);
+    } catch (e) {
+      console.error(`bildirim e-postası hazırlanamadı, sonra yeniden denenecek (${items.length}):`, e.message);
+      return save();
+    }
+    if (!send) return save();
+    // Göndermeden önce giden kutusundan çıkarılır ve kaydedilir: ne olursa olsun ikinci kez gönderilmez
+    const now = Date.now();
+    db.outbox = db.outbox.filter(n => !items.includes(n));
+    for (const n of items) db.mailed[n.id] = now;
+    for (const [k, t] of Object.entries(db.mailed)) if (now - t > SENT_KEEP) delete db.mailed[k];
+    await save();
+    try {
+      await send();
       db.lastMail = Date.now();
       console.log(`bildirim e-postası gönderildi (${items.length})`);
     } catch (e) {
-      console.error(`bildirim e-postası gönderilemedi, sonra yeniden denenecek (${items.length}):`, e.message);
+      console.error(`bildirim e-postası gönderilemedi (${items.length}); okul göndermiş olabileceği için yinelenmiyor:`, e.message);
     }
     await save();
   })().finally(() => { flushing = null; });
@@ -217,13 +243,23 @@ export function flushMail() {
 async function deliver(found) {
   if (!found.length) return;
   const t = Date.now();
-  const items = found.map((n, i) => ({ id: `${t}-${i}`, t, read: false, ...n }));
+  db.sent ??= {};
+  // Aynı içerik (aynı gönderi, aynı dersteki aynı adlı etkinlik) daha önce bildirildiyse yeniden bildirilmez
+  const fresh = found.filter(n => !n.key || !db.sent[n.key]);
+  if (!fresh.length) return;
+  for (const n of fresh) if (n.key) db.sent[n.key] = t;
+  for (const [k, s] of Object.entries(db.sent)) if (t - s > SENT_KEEP) delete db.sent[k];
+  const items = fresh.map((n, i) => ({ id: `${t}-${i}`, t, read: false, ...n }));
+  // 24 saatten eski içerik: listeye okunmuş olarak girer, Windows bildirimi ve e-posta yok
+  const old = n => n.at && t - n.at >= MAX_AGE;
+  for (const n of items) if (old(n)) { n.read = true; n.late = true; }
+  const news = items.filter(n => !n.late);
   db.items = [...items, ...db.items].slice(0, KEEP);
-  if (db.settings.mail) db.outbox = [...(db.outbox ?? []), ...items];
+  if (db.settings.mail && news.length) db.outbox = [...(db.outbox ?? []), ...news];
   await save();
-  if (db.settings.toast) {
-    if (items.length <= 3) items.forEach(n => toast(n.title, n.text, n.link));
-    else toast(`${items.length} yeni içerik`, [...new Set(items.map(n => n.courseName))].join(', '), '#/donem/derslerim');
+  if (db.settings.toast && news.length) {
+    if (news.length <= 3) news.forEach(n => toast(n.title, n.text, n.link));
+    else toast(`${news.length} yeni içerik`, [...new Set(news.map(n => n.courseName))].join(', '), '#/donem/derslerim');
   }
 }
 

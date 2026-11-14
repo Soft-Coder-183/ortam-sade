@@ -51,6 +51,7 @@ export async function feed(nid) {
       updated: Date.parse(p.updated) || null, isNew: !!p.is_new, pinned: (p.tags ?? []).includes('pin') || !!p.pin,
       instructor: (p.tags ?? []).includes('instructor-note') || (p.tags ?? []).includes('instructor-question'),
       unanswered: !!p.no_answer, folders: p.folders ?? [],
+      created: (c => Date.parse(c?.t || c?.when || '') || null)((p.log ?? []).find(l => l.n === 'create')),   // gönderinin açıldığı an
       role: (c => (c ? roleOf(staff, c.u, !c.u) : ''))((p.log ?? []).find(l => l.n === 'create')) })),   // oluşturma kaydında kimlik yoksa anonim
   };
 }
