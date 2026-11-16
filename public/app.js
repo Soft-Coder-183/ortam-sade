@@ -429,7 +429,7 @@ async function courseUzak(c, { sub = false, site = 'uzak' } = {}) {
   const sections = sub ? u.sections.filter(s => s.items.length) : u.sections;
   if (!sections.length) return '<div class="card msg">Bu derste Uzak\'ta içerik yok.</div>';
   const h = sub ? 'h3' : 'h2';
-  return sections.map(s => `<${h}>${esc(s.name)}</${h}>${s.summary ? `<p class="muted">${esc(s.summary)}</p>` : ''}
+  return sections.map(s => `<${h}>${esc(s.name)}</${h}>${s.summary ? `<p class="muted sec-sum">${esc(s.summary)}</p>` : ''}
     <div class="card mitems">${s.items.map(i => uzakItem(i, site)).join('') || '<span class="muted">Bu bölüm boş.</span>'}</div>`).join('');
 }
 

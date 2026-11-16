@@ -1248,3 +1248,5 @@ body.lgs main { padding: 0; max-width: none; }
 .rz-kv b { font-weight: 600; overflow-wrap: anywhere; }
 .rz-rules ul { margin: 8px 0 0; padding-left: 18px; font-size: .9rem; line-height: 1.5; }
 @media (max-width: 1100px) { .rz-wrap { grid-template-columns: minmax(0, 1fr); } }
+
+.sec-sum { white-space: pre-line; }

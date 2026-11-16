@@ -6,6 +6,14 @@ import { SITES, getPage, getFile, fileName, ExternalRedirect } from './session.m
 export const decode = s => String(s ?? '').replace(/<[^>]*>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
   .replace(/&quot;/g, '"').replace(/&#0?39;/g, "'").replace(/&nbsp;/g, ' ').trim();
 const txt = s => (s ?? '').replace(/\s+/g, ' ').trim();
+// Bölüm özeti: satır ve madde sınırları korunur (liste maddeleri "• " ile), kısaltılmaz.
+const lines = el => {
+  const c = el.clone();
+  c.find('br').replaceWith('\n');
+  c.find('li').prepend('\n• ');
+  c.find('li, p, div, h1, h2, h3, h4, h5, h6, tr').append('\n');
+  return c.text().split('\n').map(txt).filter(Boolean).join('\n').slice(0, 6000);
+};
 
 const instances = {};
 export const moodle = site => (instances[site] ??= create(site));
@@ -120,7 +128,7 @@ function create(site) {
           desc: txt($(a).find('.contentafterlink').text()).slice(0, 300), url: link.attr('href') || '' }];
       }).get();
       const name = txt($(s).find('.sectionname').first().text()) || ($(s).attr('id') === 'section-0' || $(s).attr('data-sectionid') === '0' ? 'Genel' : '');
-      const summary = txt($(s).find('.summary').first().text()).slice(0, 400);
+      const summary = lines($(s).find('.summary').first());
       return items.length || summary ? [{ name, summary, items }] : [];
     }).get();
     return { id: Number(id), title: txt($('.page-header-headings h1, h1').first().text()), sections };
