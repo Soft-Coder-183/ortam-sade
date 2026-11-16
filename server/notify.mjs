@@ -20,7 +20,7 @@ import * as vault from './vault.mjs';
 const FILE = '.cache/notify.json';
 const EVERY = { piazza: 30, uzak: 60, takvim: 180 };   // dakika (okul sunucularını yormamak için seyrek)
 // Platform ayarları: Android bildirimi kendi gösterir, Uzak'ı 30 dakikada bir denetler ve özet e-postayı varsayılan kapalı tutar.
-const platform = { toast: null, brand: 'Ortam Sade', device: 'bilgisayarınızda', appLink: true };
+const platform = { toast: null, brand: 'Ortam Sade' };
 export function configure({ every, defaults, ...rest }) {
   Object.assign(EVERY, every);
   Object.assign(db.settings, defaults);
@@ -72,7 +72,6 @@ async function checkPiazza() {
       key: `piazza|${n.id}|${p.p.id}`, at: p.p.created || p.p.updated || null,
       source: 'piazza', course: key, courseName: `${n.code}`, title: `${n.code} · Piazza`,
       text: p.p.subject + (p.p.role ? ` (${p.p.role})` : ''), link: `#/donem/derslerim/${encodeURIComponent(key)}/piazza/${encodeURIComponent(p.p.id)}`,
-      url: `https://piazza.com/class/${n.id}/post/${p.p.nr}`,
     });
   }
   return out;
@@ -187,17 +186,13 @@ async function mail(items) {
   const to = credentials.get()?.email;
   if (!to) return null;
   const c = await webmail.compose({ mode: 'new' });
-  // Konu ve metin, e-postanın okuldan değil Ortam Sade'den geldiğini açıkça söyler.
-  const app = `http://localhost:${process.env.PORT || 3000}/`;
-  const lines = items.map(n => `• ${n.title}: ${n.text}${platform.appLink ? `\n  Aç: ${app}${n.link || ''}` : n.url ? `\n  Aç: ${n.url}` : ''}`).join('\n');
+  // Yalnızca başlık ve metin (bağlantı yok); alttaki tek satır e-postanın Ortam Sade'den geldiğini ve nasıl kapatılacağını söyler.
+  const lines = items.map(n => `• ${n.title}: ${n.text}`).join('\n');
   const rule = '-'.repeat(40);
   return () => webmail.send({ id: c.id, from: c.from.find(f => f.selected)?.id ?? c.from[0]?.id, to,
     subject: `[${platform.brand} · Bildirim] ${items.length === 1 ? `${items[0].title}: ${items[0].text}` : `${items.length} yeni içerik`}`.slice(0, 180),
     text: `${platform.brand.toLocaleUpperCase('tr')} BİLDİRİMİ\n${rule}\n${lines}\n${rule}\n\n` +
-      `Bu e-postayı okul değil, ${platform.device} çalışan ${platform.brand} uygulaması gönderdi: Piazza ya da Uzak'ta yeni içerik ` +
-      `görünce ve Akademik Takvimdeki önemli bir tarih yaklaşınca kendi okul adresinizden size kısa bir özet yollar. ` +
-      `Okulun resmî bir duyurusu değildir; tarihler için okulun Akademik Takvimi esastır.\n` +
-      `Kapatmak için: ${platform.brand} > Hesap > Bildirimler > e-posta seçeneği.` });
+      `Bu bildirim ${platform.brand} tarafından gönderildi; ${platform.brand} > Hesap > Bildirimler'den kapatılabilir.` });
 }
 
 // Gönderilemeyen bildirim e-postaları (yazma sayfası açılamadı, hesap yok) giden kutusunda (outbox) bekler, her kontrol turunda

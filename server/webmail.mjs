@@ -55,7 +55,9 @@ function rows(exec, mbox) {
     const flags = cols && jsonAt(exec, cols.end);
     if (!id || !cols) continue;
     const f = flags?.value ?? {};
-    messages.push({ uid: id[1], mbox: id[2] ? unq(id[2]) : mbox, subject: plain(cols.value.subject), from: plain(cols.value.fromto), date: plain(cols.value.date),
+    // fromto: <span title="adres" class="rcmContactAddress">Ad</span>; adres yalnızca sunucuda kurallar için (ör. Piazza'nın e-postaları)
+    const fromAddr = (String(cols.value.fromto ?? '').match(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/) || [])[0] ?? '';
+    messages.push({ uid: id[1], mbox: id[2] ? unq(id[2]) : mbox, subject: plain(cols.value.subject), from: plain(cols.value.fromto), fromAddr, date: plain(cols.value.date),
       size: plain(cols.value.size), seen: !!f.seen, flagged: !!f.flagged, answered: !!f.answered,
       attachment: /attachment|multipart\/(mixed|report)/.test(cols.value.attachment || f.ctype || '') });
   }
@@ -350,14 +352,22 @@ const AUTO_EVERY = 60 * 60_000;                     // saatte bir kontrol
 const NOTIF_SUBJECT = /^\[(Ortam Sade|ETÜ Cep) · Bildirim\]/;
 // Anında silinenler (varsayılan AÇIK): gelir gelmez Çöp'e taşınır (kalıcı silinmez). Gelen kutusu her açıldığında ve uygulama
 // açıkken 5 dakikada bir kontrol edilir. Yıldızlananlar ve "Otomatik silinmesin" denenler taşınmaz.
-const INSTANT = [{ id: 'ydb-giris', subject: /^New sign[- ]in to your Department of Foreign Languages account/i,
-  label: 'Yabancı Diller Bölümü "New sign in to your … account" e-postaları' }];
+// Piazza'nın kendi e-postaları (yeni gönderi, günlük özet…): uygulama yeni gönderileri kendi bildirimiyle haber verir. Gönderen
+// piazza.com adresi (ya da adresi gelmezse "… on Piazza" adı); şifre, doğrulama ve kayıt e-postaları silinmez.
+const PZ_ACCOUNT = /password|şifre|verif|confirm|doğrula|reset|sign[- ]?up|activate|etkinleştir/i;
+export const isPiazzaMail = m => (/@([\w-]+\.)*piazza\.com$/i.test(m.fromAddr || '') || /(^|\son\s)Piazza$/i.test(m.from || ''))
+  && !PZ_ACCOUNT.test(m.subject || '');
+const INSTANT = [
+  { id: 'ydb-giris', test: m => /^New sign[- ]in to your Department of Foreign Languages account/i.test(m.subject || ''),
+    label: 'Yabancı Diller Bölümü "New sign in to your … account" e-postaları' },
+  { id: 'piazza', test: isPiazzaMail, label: 'Piazza\'nın kendi e-postaları (yeni gönderiler uygulamanın bildirimiyle gelir)' },
+];
 const INSTANT_EVERY = 5 * 60_000;
 // Çöp kutusunu boşaltma (varsayılan AÇIK): Çöp'teki e-postalar 30 gün, uygulamanın bildirim e-postaları ve anında silinenler
 // ("New sign in…") 3 gün sonra KALICI silinir. Süre, e-postanın Çöp'te ilk görüldüğü andan sayılır (Çöp saatte bir taranır);
 // özellik ilk açıldığında Çöp'te zaten olanlar için de o andan başlar. Yıldızlı e-postalar silinmez.
 const PURGE = { days: 30, fastDays: 3 };
-const isInstant = m => INSTANT.some(r => r.subject.test(m.subject || ''));
+const isInstant = m => INSTANT.some(r => r.test(m));
 // Okulun rezervasyon sisteminin aynı e-postayı iki kez göndermesi: aynı gönderen, aynı konu ve aynı tarihteki ikinci kopya anında
 // Çöp'e taşınır, ilki kalır. Yalnızca konusu "rezervasyon" geçen ve okulun adresinden gelen e-postalara uygulanır.
 const isRezMail = m => /rezervasyon/i.test(m.subject || '') && /etu\.edu\.tr|rezervasyon|kütüphane|kutuphane/i.test(m.from || '');

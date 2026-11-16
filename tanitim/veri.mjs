@@ -158,7 +158,7 @@ const webmail = (d, kutu) => {
   return { mbox: kutu, folders: KLASORLER, unread: d.posta.filter(m => !m.seen).length, rowcount: `İletiler: 1 - ${l.length} , Toplam: ${kutu === 'INBOX' ? 42 : 0}`,
     messages: l.map(postaSatiri), auto: { enabled: false, notif: true, afterHours: 12, items: {} } };
 };
-const WM_AYAR = { enabled: false, afterHours: 24, choices: [6, 12, 24, 72], notif: { enabled: true, afterHours: 12 }, instant: { enabled: true, rules: ['Yabancı Diller "New sign in to your … account" e-postaları'], moved: 6 },
+const WM_AYAR = { enabled: false, afterHours: 24, choices: [6, 12, 24, 72], notif: { enabled: true, afterHours: 12 }, instant: { enabled: true, rules: ['Yabancı Diller "New sign in to your … account" e-postaları', 'Piazza\'nın kendi e-postaları (yeni gönderiler uygulamanın bildirimiyle gelir)'], moved: 6 },
   purge: { enabled: true, days: 30, fastDays: 3, deleted: 14 }, lastRun: dk(38), lastMoved: 2, nextRun: dk(-22), totalMoved: 57, lastError: null };
 
 // ---------- Piazza ----------

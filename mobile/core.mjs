@@ -102,7 +102,7 @@ globalThis.fetch = (input, init) => {
 notify.configure({
   every: { uzak: 30 },                                 // Android'de Uzak yarım saatte bir denetlenir
   defaults: { mail: false },                           // özet e-posta telefonda varsayılan kapalı: bildirim zaten telefona gelir
-  brand: 'ETÜ Cep', device: 'telefonunuzda', appLink: false,
+  brand: 'ETÜ Cep',
   toast: (title, body, link) => Native.notify(title, body, link || ''),
 });
 
