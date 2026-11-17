@@ -18,7 +18,7 @@ import * as ortam from './ortam.mjs';
 import * as vault from './vault.mjs';
 
 const FILE = '.cache/notify.json';
-const EVERY = { piazza: 30, uzak: 60, takvim: 180 };   // dakika (okul sunucularını yormamak için seyrek)
+const EVERY = { piazza: 10, uzak: 60, takvim: 180 };   // dakika (okul sunucularını yormamak için seyrek)
 // Platform ayarları: Android bildirimi kendi gösterir, Uzak'ı 30 dakikada bir denetler ve özet e-postayı varsayılan kapalı tutar.
 // E-postadaki bağlantı her cihazda aynıdır (docs/ac.html, GitHub Pages): sayfa cihaza göre ETÜ Cep'i ya da Ortam Sade'yi açar, uygulama yoksa indirme sayfasına gider.
 const OPEN_URL = 'https://soft-coder-183.github.io/ortam-sade/ac.html';
@@ -186,14 +186,28 @@ function toast(title, body, link) {
 // Özet e-posta: kullanıcının kendi adresine, okulun Webmail'i üzerinden (bir kontrol turunda tek e-posta).
 // İki adımdır: yazma sayfası açılır (başarısızsa e-posta giden kutusunda kalır), sonra gönder() gönderir. Gönderme isteği
 // çıktıktan sonra hata alınsa da yeniden denenmez: okul e-postayı göndermiş olabilir, aynı bildirim ikinci kez gitmemeli.
+const isOurs = m => /·\s*Bildirim\]/.test(m.subject || '');
+const same = s => s.replace(/^\[[^\]]*·\s*Bildirim\]\s*/, '').trim().slice(0, 150);
+
+// İki cihaz aynı anda gönderdiyse gelen kutusunda aynı başlıklı okunmamış kopyalar kalır: en eskisi durur, fazlası Çöp'e gider.
+async function dropDuplicateMails() {
+  const box = await webmail.inbox('INBOX', 1);
+  const seen = new Set(), extra = [];
+  for (const m of [...box.messages].reverse()) {                      // eskiden yeniye
+    if (!isOurs(m)) continue;
+    const k = same(m.subject);
+    if (seen.has(k) && !m.seen) extra.push(m.uid); else seen.add(k);
+  }
+  if (extra.length) { await webmail.remove(extra, 'INBOX'); console.log(`yinelenen bildirim e-postası silindi (${extra.length})`); }
+}
+
 async function mail(items) {
   const to = credentials.get()?.email;
   if (!to) return null;
   const tail = items.length === 1 ? `${items[0].title}: ${items[0].text}` : `${items.length} yeni içerik`;
   // Aynı hesapta başka bir cihaz (telefon/bilgisayar) aynı bildirimi zaten e-postalamışsa gelen kutusunda aynı başlıklı e-posta durur: yinelenmez.
-  const same = s => s.replace(/^\[[^\]]*·\s*Bildirim\]\s*/, '').trim().slice(0, 150);
   const box = await webmail.inbox('INBOX', 1).catch(() => null);
-  if (box?.messages?.some(m => /·\s*Bildirim\]/.test(m.subject || '') && same(m.subject) === same(tail))) return () => Promise.resolve();
+  if (box?.messages?.some(m => isOurs(m) && same(m.subject) === same(tail))) return () => Promise.resolve();
   const c = await webmail.compose({ mode: 'new' });
   // Başlık, metin ve sayfayı uygulamada açan bağlantı; alttaki tek satır e-postanın Ortam Sade'den geldiğini ve nasıl kapatılacağını söyler.
   const lines = items.map(n => `• ${n.title}: ${n.text}${n.link ? `\n  Aç: ${platform.appLink(n.link)}` : ''}`).join('\n');
@@ -215,6 +229,7 @@ export function flushMail() {
     db.mailed ??= {};
     db.outbox = (db.outbox ?? []).filter(n => ageOf(n) < MAX_AGE && !db.mailed[n.id]);
     if (!db.settings.mail) db.outbox = [];
+    if (db.settings.mail && credentials.get()?.email) await dropDuplicateMails().catch(e => console.error('yinelenen e-posta denetimi:', e.message));
     if (!db.outbox.length) return save();
     if (!credentials.get()?.email) { console.error(`bildirim e-postası bekliyor (${db.outbox.length}): kayıtlı hesap yok`); return save(); }
     const items = db.outbox;

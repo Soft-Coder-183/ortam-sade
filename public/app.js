@@ -2362,7 +2362,7 @@ function notifSection() {
   const ago2 = t => (t ? whenTR(t) : 'henüz yok');
   const recent = notif.items.slice(0, 8);
   return `<h2>Bildirimler</h2><div class="card notif-set">
-    <p class="muted" style="margin-top:0">Piazza'ya (30 dakikada bir) ve Uzak'a (saatte bir) eklenen yeni gönderi ve içerikler için haber verilir.
+    <p class="muted" style="margin-top:0">Piazza'ya (10 dakikada bir) ve Uzak'a (saatte bir) eklenen yeni gönderi ve içerikler için haber verilir.
       Kontroller uygulama (sunucu) açıkken yapılır. Yeni içerik menüde ve Derslerim'de dersin üzerinde renkli noktayla işaretlenir:
       <span class="sdot src-uzak"></span>Uzak, <span class="sdot src-piazza"></span>Piazza.</p>
     <label class="check"><input type="checkbox" data-notif="takvim"${notif.settings.takvim !== false ? ' checked' : ''}> <span>Akademik takvim hatırlatmaları
@@ -2602,7 +2602,7 @@ const SSS = [
   ['Bu, okulun resmî uygulaması mı?', 'Hayır. Ortam Sade bağımsız bir öğrenci projesidir; TOBB ETÜ tarafından geliştirilmemiş, onaylanmamış ya da desteklenmemektedir. Ayrıntılar Sorumluluk Reddi sayfasında.'],
   ['Şifrem nerede duruyor, güvende mi?', '"Beni hatırla" seçiliyse yalnızca bu bilgisayarda, Windows\'un şifreli kasasında saklanır; başka bir yere gönderilmez. Seçili değilse yalnızca uygulama açıkken bellekte tutulur. Hesap sayfasındaki "Kayıtlı bilgileri sil" ile istediğin an silebilirsin.'],
   ['Şifrelerim her sitede aynı değil, ne yapmalıyım?', 'Hesap sayfasında "Siteye özel şifreler" bölümünü aç; farklı olan sitenin şifresini oraya yaz. Boş bıraktığın siteler ana şifreni kullanır.'],
-  ['Okulun sunucularını yorar mı?', 'Hayır, normal kullanıma yakındır. Yalnızca açtığın ekran okuldan istenir ve kısa süre önbellekte tutulur. Arka planda oturumu açık tutmak için seyrek kontroller yapılır; siteye zaten bir istek gittiyse o kontrol atlanır. Bildirimler için Piazza yarım saatte, Uzak saatte bir sorulur.'],
+  ['Okulun sunucularını yorar mı?', 'Hayır, normal kullanıma yakındır. Yalnızca açtığın ekran okuldan istenir ve kısa süre önbellekte tutulur. Arka planda oturumu açık tutmak için seyrek kontroller yapılır; siteye zaten bir istek gittiyse o kontrol atlanır. Bildirimler için Piazza 10 dakikada, Uzak saatte bir sorulur.'],
   ['Bildirimler nasıl geliyor?', 'Uygulama açıkken Piazza ve Uzak\'taki yeni içerikleri ve Akademik Takvimde yaklaşan önemli tarihleri kontrol eder (Uzak turuncu, Piazza mavi noktayla gösterilir); yenilik varsa Windows bildirimi gösterir ve (açıksa) okul adresine "[Ortam Sade · Bildirim]" konulu bir özet e-posta yollar. Uygulama kapalıyken kontrol yapılmaz. Hesap > Bildirimler\'den kapatabilirsin.'],
   ['İndirdiğim paketin bu koddan üretildiğini nasıl anlarım?', 'Sürüm paketleri elle yüklenmez: GitHub Actions bu depodaki koddan üretir ve imzalı kaynak kanıtı ekler. GitHub CLI kuruluysa indirdiğin dosyanın yanında şu komutu çalıştır: gh attestation verify OrtamSade-1.6.4-win-x64.zip --repo Soft-Coder-183/ortam-sade. Sürüm numarasını kendi dosyanınkiyle değiştir. "Verification succeeded" yazıyorsa dosya bu depodan ve bu iş akışından çıkmıştır.'],
   ['Otomatik silme e-postalarımı kalıcı olarak siler mi?', 'Hayır. Ayar açıksa okunmuş e-postalar seçtiğin süre (6 saat, 12 saat, 24 saat ya da 3 gün) sonra, uygulamanın bildirim e-postaları da (varsayılan) okunduktan 6 saat, okunmasa da gelişinden 12 saat sonra Çöp kutusuna taşınır; oradan geri alınabilir. Yıldızlı e-postalar ve "Otomatik silinmesin" düğmesine basılanlar taşınmaz. Ayar varsayılan olarak kapalıdır.'],

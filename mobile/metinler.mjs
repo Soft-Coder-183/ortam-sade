@@ -29,7 +29,7 @@ export const TELEFON = [
   ['<li>Uygulama yalnızca bu bilgisayardan (127.0.0.1) erişilebilir; ağdaki başka cihazlar bağlanamaz.</li>', ''],
   ['(kayıtlı bilgilerle ya da kayıtlı tarayıcı profiliyle;', '(kayıtlı bilgilerle;'],
   ['Giriş penceresi açıldı; bilgiler dolduruluyor…', 'Giriş sayfası açıldı; bilgiler dolduruluyor…'],
-  ["Piazza'ya (30 dakikada bir) ve Uzak'a (saatte bir) eklenen", "Piazza'ya ve Uzak'a (yaklaşık 30 dakikada bir) eklenen"],
+  ["Piazza'ya (10 dakikada bir) ve Uzak'a (saatte bir) eklenen", "Piazza'ya ve Uzak'a (yaklaşık 30 dakikada bir) eklenen"],
   ['Kontroller uygulama (sunucu) açıkken yapılır.', 'Kontroller uygulama kapalıyken de yapılır.'],
   ['Kontrol saatte bir, uygulama açıkken yapılır.', 'Kontrol uygulama açıkken saatte bir yapılır.'],
   ['Bilgisayarı başkalarıyla paylaşıyorsan işe yarar.', 'Telefonunu başkalarıyla paylaşıyorsan işe yarar.'],
