@@ -1,0 +1,5 @@
+{
+  "_not": "Okulun kadro sayfası e-posta ve ofis (oda) bilgisini yayımlamaz. Burada elle girilenler Akademik Kadro'da kişinin altında gösterilir. Anahtar: kişinin okul sitesindeki adı. Alanlar: email, oda.",
+  "Shadi Bikas": { "email": "shadi.bikas90@gmail.com" },
+  "Ahmet Murat Özbayoğlu": { "email": "mozbayoglu@etu.edu.tr" }
+}

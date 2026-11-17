@@ -103,6 +103,7 @@ notify.configure({
   every: { uzak: 30 },                                 // Android'de Uzak yarım saatte bir denetlenir
   defaults: { mail: false },                           // özet e-posta telefonda varsayılan kapalı: bildirim zaten telefona gelir
   brand: 'ETÜ Cep',
+  appLink: link => `etucep://ac${link || ''}`,         // e-postadaki bağlantı ETÜ Cep'i açar (AndroidManifest'te etucep şeması)
   toast: (title, body, link) => Native.notify(title, body, link || ''),
 });
 

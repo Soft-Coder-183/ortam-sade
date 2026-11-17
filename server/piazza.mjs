@@ -37,10 +37,26 @@ export async function classes() {
 const ROLE = { professor: 'Ders hocası', instructor: 'Ders hocası', ta: 'Ders asistanı' };
 async function staffOf(nid) {
   if (!networks.some(n => n.id === nid)) await classes();
-  return new Map((networks.find(n => n.id === nid)?.profs ?? []).map(p => [p.id, ROLE[p.role] || 'Ders hocası']));
+  return new Map((networks.find(n => n.id === nid)?.profs ?? []).map(p => [p.id, { role: ROLE[p.role] || 'Ders hocası', name: plain(p.name) }]));
 }
 // Anonim yazılmışsa öğrencidir (ders hocaları ve asistanlar anonim yazmaz). Ne kimlik ne anonimlik bilgisi varsa boş.
-const roleOf = (staff, uid, anon) => (uid ? staff.get(uid) || 'Öğrenci' : anon ? 'Öğrenci' : '');
+// Yazarın görünen adı: hoca/asistan listede adıyla; öğrenci kimliği açıksa Piazza'nın kullanıcı kaydından; anonimse "Anonim".
+// Adı bulunamazsa boş (bildirim rol etiketine döner).
+const names = new Map();                                   // kullanıcı kimliği -> ad (öğrenciler; oturum boyunca)
+async function nameOf(nid, staff, uid, anon) {
+  if (!uid) return anon ? 'Anonim' : '';
+  const s = staff.get(uid);
+  if (s) return s.name || '';
+  if (!names.has(uid)) {
+    try { const r = await api('network.get_users', { ids: [uid], nid }); names.set(uid, plain((Array.isArray(r) ? r[0] : r)?.name)); }
+    catch { names.set(uid, ''); }
+  }
+  return names.get(uid);
+}
+const roleOf = (staff, uid, anon) => (uid ? staff.get(uid)?.role || 'Öğrenci' : anon ? 'Öğrenci' : '');
+
+// Bildirim için gönderen adı (hoca/asistan adıyla, anonimse "Anonim"); bulunamazsa boş.
+export async function authorName(nid, uid, anon) { return nameOf(nid, await staffOf(nid), uid, anon); }
 
 // Sınıfın gönderi akışı (son güncellenenler; sabitlenmişler işaretli).
 export async function feed(nid) {
@@ -52,6 +68,7 @@ export async function feed(nid) {
       instructor: (p.tags ?? []).includes('instructor-note') || (p.tags ?? []).includes('instructor-question'),
       unanswered: !!p.no_answer, folders: p.folders ?? [],
       created: (c => Date.parse(c?.t || c?.when || '') || null)((p.log ?? []).find(l => l.n === 'create')),   // gönderinin açıldığı an
+      uid: (p.log ?? []).find(l => l.n === 'create')?.u || null,
       role: (c => (c ? roleOf(staff, c.u, !c.u) : ''))((p.log ?? []).find(l => l.n === 'create')) })),   // oluşturma kaydında kimlik yoksa anonim
   };
 }

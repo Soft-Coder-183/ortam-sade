@@ -497,7 +497,7 @@ $view.addEventListener('keydown', e => {
 });
 // Piazza gönderisinde ilk geçen "resources…" ya da "kaynaklar…" sözcüğü dersin Piazza kaynaklarına bağlanır (gönderide bağlantı
 // olmasa bile). Sözcük zaten Piazza'nın kaynak sayfasına bağlantıysa o bağlantı uygulamadaki kaynaklara çevrilir.
-const RES_WORD = /(?<![\p{L}])(resources|kaynaklar)\p{L}*/iu;
+const RES_WORD = /(?<![\p{L}])(res[ou]*r[cs]e?s?|kaynaklar)\p{L}*/iu;   // "Resourses" gibi yazım hataları da
 async function linkResources(box, nid) {
   const key = (await api('derslerim').catch(() => null))?.courses?.find(c => c.piazza?.id === nid)?.key;
   if (!key) return;
@@ -1650,6 +1650,7 @@ async function viewKadroBolum(r, ctx, f) {
       block('Eğitim', p.education.length ? `<ul>${p.education.map(e => `<li><b>${esc(e.degree)}</b>${e.year ? ` <span class="muted">${esc(e.year)}</span>` : ''}<br>${esc([e.school, e.field].filter(Boolean).join(' · '))}</li>`).join('')}</ul>` : '')}${
       block('Araştırma alanları', p.research.length ? `<ul>${p.research.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : '')}${
       block('İş deneyimi', p.experience.length ? `<ul>${p.experience.map(e => `<li><b>${esc(e.place)}</b>${e.role ? `<br>${esc(e.role)}` : ''}</li>`).join('')}</ul>` : '')}${
+      block('İletişim', p.email || p.office ? `<ul>${p.email ? `<li><a href="mailto:${esc(p.email)}">${esc(p.email)}</a></li>` : ''}${p.office ? `<li>Ofis: ${esc(p.office)}</li>` : ''}</ul>` : '')}${
       block('Bağlantı', p.links.length ? `<ul>${p.links.map(l => `<li>${l.href ? `<a href="${esc(l.href)}" target="_blank" rel="noopener">${esc(l.text)}</a>` : esc(l.text)}</li>`).join('')}</ul>` : '')}
     </div></details>`;
   return `<p class="k-back"><a href="#/ekstra/kadro">← Bütün bölümler</a></p>` + header(unit?.name || 'Akademik Kadro', `${d.people.length} kişi`) + kadroSearch() +

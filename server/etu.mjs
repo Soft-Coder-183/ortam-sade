@@ -1,10 +1,18 @@
 // Okulun herkese açık sitesi (www.etu.edu.tr): akademik takvim, fakülte/bölüm listesi ve akademik kadro dizini.
 // Giriş gerekmez; sayfalar seyrek değiştiği için uzun süre önbellekte tutulur (server.mjs STALE_MIN).
 import * as cheerio from 'cheerio';
+import fs from 'node:fs';
 
 const BASE = 'https://www.etu.edu.tr';
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36';
 const txt = s => (s ?? '').replace(/\s+/g, ' ').trim();
+// Elle girilen iletişim bilgileri (okulun sayfası e-posta/oda yayımlamıyor): data/kadro-iletisim.json
+let iletisim = null;
+const contactOf = name => {
+  if (!iletisim) try { iletisim = JSON.parse(fs.readFileSync(new URL('../data/kadro-iletisim.json', import.meta.url), 'utf8')); } catch { iletisim = {}; }
+  const c = iletisim[name];
+  return c ? { email: c.email || '', office: c.oda || '' } : { email: '', office: '' };
+};
 
 async function page(path) {
   const r = await fetch(BASE + path, { headers: { 'User-Agent': UA, 'Accept-Language': 'tr' } });
@@ -82,7 +90,7 @@ export async function staff(slug) {
     const contact = el.find('h4').filter((_, h) => /Bağlantı/.test($(h).text())).first().parent();
     return [{ id: el.attr('id') || '', name, title: txt(txt(h3.text()).replace(name, '').replace(/^\s*,\s*/, '')),
       role: txt(el.find('.user-list__item__content > span').first().text()),
-      photo: img ? new URL(img, BASE).href : null,
+      photo: img ? new URL(img, BASE).href : null, ...contactOf(name),
       education: el.find('.timeline__item').map((_, t) => ({ year: $(t).attr('data-year') || '', degree: txt($(t).find('h5').text()),
         school: txt($(t).find('strong').text()), field: txt($(t).find('span').first().text()) })).get().filter(e => e.degree || e.school),
       research: el.find('.user-list__detail__info__arastirma li').map((_, l) => txt($(l).text())).get().filter(Boolean),

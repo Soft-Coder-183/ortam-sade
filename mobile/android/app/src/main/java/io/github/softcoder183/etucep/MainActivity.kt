@@ -64,7 +64,13 @@ class MainActivity : Activity() {
             onBackInvokedDispatcher.registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT) { back() }
     }
 
-    private fun linkOf(i: Intent?) = i?.getStringExtra(Notifications.LINK)?.takeIf { it.startsWith("#/") } ?: ""
+    // Bildirimden ya da e-postadaki etucep://ac#/sayfa bağlantısından gelen sayfa ("#/..."); yoksa boş.
+    private fun linkOf(i: Intent?): String {
+        i?.getStringExtra(Notifications.LINK)?.takeIf { it.startsWith("#/") }?.let { return it }
+        val d = i?.data ?: return ""
+        if (d.scheme != "etucep" || d.host != "ac") return ""
+        return d.encodedFragment?.takeIf { it.startsWith("/") }?.let { "#$it" } ?: ""
+    }
 
     /** Bildirime basılınca ilgili sayfa açılır. */
     override fun onNewIntent(intent: Intent) {

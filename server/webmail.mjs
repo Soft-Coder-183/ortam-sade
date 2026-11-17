@@ -131,7 +131,7 @@ function cleanHtml($, el, pzKey = null) {
 
 // Piazza e-postasında ilk geçen "resources…" ya da "kaynaklar…" sözcüğü (bağlantı olmasa bile) dersin Piazza kaynaklarına bağlanır.
 // Sözcük Piazza'ya giden (uygulamaya çevrilmiş) bir bağlantının içindeyse o bağlantı kaynaklara yönlendirilir.
-const RES_WORD = /(?<![\p{L}])(resources|kaynaklar)\p{L}*/iu;
+const RES_WORD = /(?<![\p{L}])(res[ou]*r[cs]e?s?|kaynaklar)\p{L}*/iu;   // "Resourses" gibi yazım hataları da
 function linkResourcesWord($, el, key) {
   const href = `#/donem/derslerim/${encodeURIComponent(key)}/piazza/kaynaklar`;
   const walk = node => {

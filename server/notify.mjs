@@ -20,7 +20,8 @@ import * as vault from './vault.mjs';
 const FILE = '.cache/notify.json';
 const EVERY = { piazza: 30, uzak: 60, takvim: 180 };   // dakika (okul sunucularını yormamak için seyrek)
 // Platform ayarları: Android bildirimi kendi gösterir, Uzak'ı 30 dakikada bir denetler ve özet e-postayı varsayılan kapalı tutar.
-const platform = { toast: null, brand: 'Ortam Sade' };
+// appLink: e-postadaki "Aç:" bağlantısı (bildirimin sayfasını uygulamada açar). Windows'ta yerel adres, telefonda etucep:// bağlantısı.
+const platform = { toast: null, brand: 'Ortam Sade', appLink: link => `http://localhost:${process.env.PORT || 3000}/${link || ''}` };
 export function configure({ every, defaults, ...rest }) {
   Object.assign(EVERY, every);
   Object.assign(db.settings, defaults);
@@ -68,10 +69,11 @@ async function checkPiazza() {
     const top = Math.max(0, ...f.posts.map(p => p.nr || 0));
     db.seen[maxKey] = Math.max(max ?? 0, top);
     const fresh = max === undefined ? [] : f.posts.filter(p => p.nr > max).map(p => ({ p }));
+    for (const p of fresh) p.who = await piazza.authorName(n.id, p.p.uid, p.p.role === 'Öğrenci' && !p.p.uid).catch(() => '');
     for (const p of fresh) out.push({
       key: `piazza|${n.id}|${p.p.id}`, at: p.p.created || p.p.updated || null,
       source: 'piazza', course: key, courseName: `${n.code}`, title: `${n.code} · Piazza`,
-      text: p.p.subject + (p.p.role ? ` (${p.p.role})` : ''), link: `#/donem/derslerim/${encodeURIComponent(key)}/piazza/${encodeURIComponent(p.p.id)}`,
+      text: p.p.subject + ((p.who || p.p.role) ? ` (${p.who || p.p.role})` : ''), link: `#/donem/derslerim/${encodeURIComponent(key)}/piazza/${encodeURIComponent(p.p.id)}`,
     });
   }
   return out;
@@ -186,8 +188,8 @@ async function mail(items) {
   const to = credentials.get()?.email;
   if (!to) return null;
   const c = await webmail.compose({ mode: 'new' });
-  // Yalnızca başlık ve metin (bağlantı yok); alttaki tek satır e-postanın Ortam Sade'den geldiğini ve nasıl kapatılacağını söyler.
-  const lines = items.map(n => `• ${n.title}: ${n.text}`).join('\n');
+  // Başlık, metin ve sayfayı uygulamada açan bağlantı; alttaki tek satır e-postanın Ortam Sade'den geldiğini ve nasıl kapatılacağını söyler.
+  const lines = items.map(n => `• ${n.title}: ${n.text}${n.link ? `\n  Aç: ${platform.appLink(n.link)}` : ''}`).join('\n');
   const rule = '-'.repeat(40);
   return () => webmail.send({ id: c.id, from: c.from.find(f => f.selected)?.id ?? c.from[0]?.id, to,
     subject: `[${platform.brand} · Bildirim] ${items.length === 1 ? `${items[0].title}: ${items[0].text}` : `${items.length} yeni içerik`}`.slice(0, 180),
