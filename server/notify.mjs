@@ -20,8 +20,10 @@ import * as vault from './vault.mjs';
 const FILE = '.cache/notify.json';
 const EVERY = { piazza: 30, uzak: 60, takvim: 180 };   // dakika (okul sunucularını yormamak için seyrek)
 // Platform ayarları: Android bildirimi kendi gösterir, Uzak'ı 30 dakikada bir denetler ve özet e-postayı varsayılan kapalı tutar.
+// E-postadaki bağlantı her cihazda aynıdır (docs/ac.html, GitHub Pages): sayfa cihaza göre ETÜ Cep'i ya da Ortam Sade'yi açar, uygulama yoksa indirme sayfasına gider.
+const OPEN_URL = 'https://soft-coder-183.github.io/ortam-sade/ac.html';
 // appLink: e-postadaki "Aç:" bağlantısı (bildirimin sayfasını uygulamada açar). Windows'ta yerel adres, telefonda etucep:// bağlantısı.
-const platform = { toast: null, brand: 'Ortam Sade', appLink: link => `http://localhost:${process.env.PORT || 3000}/${link || ''}` };
+const platform = { toast: null, brand: 'Ortam Sade', appLink: link => `${OPEN_URL}${link || ''}` };
 export function configure({ every, defaults, ...rest }) {
   Object.assign(EVERY, every);
   Object.assign(db.settings, defaults);
@@ -187,12 +189,17 @@ function toast(title, body, link) {
 async function mail(items) {
   const to = credentials.get()?.email;
   if (!to) return null;
+  const tail = items.length === 1 ? `${items[0].title}: ${items[0].text}` : `${items.length} yeni içerik`;
+  // Aynı hesapta başka bir cihaz (telefon/bilgisayar) aynı bildirimi zaten e-postalamışsa gelen kutusunda aynı başlıklı e-posta durur: yinelenmez.
+  const same = s => s.replace(/^\[[^\]]*·\s*Bildirim\]\s*/, '').trim().slice(0, 150);
+  const box = await webmail.inbox('INBOX', 1).catch(() => null);
+  if (box?.messages?.some(m => /·\s*Bildirim\]/.test(m.subject || '') && same(m.subject) === same(tail))) return () => Promise.resolve();
   const c = await webmail.compose({ mode: 'new' });
   // Başlık, metin ve sayfayı uygulamada açan bağlantı; alttaki tek satır e-postanın Ortam Sade'den geldiğini ve nasıl kapatılacağını söyler.
   const lines = items.map(n => `• ${n.title}: ${n.text}${n.link ? `\n  Aç: ${platform.appLink(n.link)}` : ''}`).join('\n');
   const rule = '-'.repeat(40);
   return () => webmail.send({ id: c.id, from: c.from.find(f => f.selected)?.id ?? c.from[0]?.id, to,
-    subject: `[${platform.brand} · Bildirim] ${items.length === 1 ? `${items[0].title}: ${items[0].text}` : `${items.length} yeni içerik`}`.slice(0, 180),
+    subject: `[${platform.brand} · Bildirim] ${tail}`.slice(0, 180),
     text: `${platform.brand.toLocaleUpperCase('tr')} BİLDİRİMİ\n${rule}\n${lines}\n${rule}\n\n` +
       `Bu bildirim ${platform.brand} tarafından gönderildi; ${platform.brand} > Hesap > Bildirimler'den kapatılabilir.` });
 }

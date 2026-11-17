@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Ortam Sade · Aç</title>
+<style>
+  :root { --bg:#f4f5f7; --fg:#1c1f26; --mut:#5b6270; --card:#fff; --acc:#2f6fed; --line:#dfe2e8; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#121418; --fg:#e8eaee; --mut:#9aa1ad; --card:#1b1e25; --acc:#6a9bff; --line:#2b2f38; } }
+  * { box-sizing: border-box; }
+  body { margin:0; min-height:100vh; display:grid; place-items:center; padding:16px; background:var(--bg); color:var(--fg);
+         font:16px/1.5 system-ui, "Segoe UI", Roboto, sans-serif; }
+  main { width:100%; max-width:420px; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:24px; }
+  h1 { font-size:1.25rem; margin:0 0 4px; }
+  p { margin:0 0 16px; color:var(--mut); }
+  a.b { display:block; text-align:center; padding:12px 16px; margin-top:10px; border-radius:10px; text-decoration:none;
+        background:var(--acc); color:#fff; font-weight:600; }
+  a.b.alt { background:transparent; color:var(--acc); border:1px solid var(--line); }
+  [hidden] { display:none !important; }
+</style>
+</head>
+<body>
+<main>
+  <h1 id="t">Uygulama açılıyor…</h1>
+  <p id="d">Bildirimdeki sayfa Ortam Sade'de açılacak.</p>
+  <a class="b" id="open" href="#" hidden>Uygulamada aç</a>
+  <a class="b alt" id="dl" href="https://github.com/Soft-Coder-183/ortam-sade/releases/latest" hidden>Uygulamayı indir</a>
+  <a class="b alt" id="web" href="#" hidden>Tarayıcıda aç (localhost)</a>
+</main>
+<script>
+  // Tek bağlantı her cihazda çalışır: Android → ETÜ Cep, Windows → Ortam Sade; uygulama yoksa indirme sayfası.
+  const DL = 'https://github.com/Soft-Coder-183/ortam-sade/releases/latest';
+  const raw = location.hash;
+  const page = /^#\/[\w\-\/.%~]*$/.test(raw) ? raw : '#/';       // yalnızca uygulamanın kendi sayfa yolları
+  const ua = navigator.userAgent;
+  const $ = id => document.getElementById(id);
+  const show = (...ids) => ids.forEach(i => $(i).hidden = false);
+  const fail = msg => { $('t').textContent = 'Uygulama bulunamadı'; $('d').textContent = msg; show('dl'); };
+
+  if (/Android/i.test(ua)) {
+    const target = `intent://ac${page}#Intent;scheme=etucep;S.browser_fallback_url=${encodeURIComponent(DL)};end`;
+    $('open').href = target; show('open', 'dl');
+    $('d').textContent = 'ETÜ Cep yüklüyse açılır; değilse indirme sayfasına gidilir.';
+    location.href = target;
+  } else if (/Windows/i.test(ua)) {
+    const target = `ortamsade:${page}`;
+    $('open').href = target; show('open');
+    $('web').href = `http://localhost:3000/${page}`;
+    let left = false;
+    addEventListener('blur', () => left = true);
+    document.addEventListener('visibilitychange', () => left = true);
+    location.href = target;
+    setTimeout(() => { if (!left) { fail('Ortam Sade bu bilgisayarda yüklü görünmüyor.'); show('web'); } }, 2000);
+  } else {
+    fail('Ortam Sade Windows ve Android için hazırlandı.');
+  }
+</script>
+</body>
+</html>

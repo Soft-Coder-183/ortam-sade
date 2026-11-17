@@ -138,7 +138,9 @@ function create(site) {
   // Bağlantılar: aynı sitedeki etkinlik sayfaları uygulamada açılır (data-mpage), dosyalar dosya düğmesi olur (data-mfile).
   async function page(path) {
     if (!PAGE.test(path || '')) throw new Error('İzin verilmeyen sayfa');
-    const $ = cheerio.load(await getPage(site, path));
+    // Yoklama etkinliği varsayılan olarak yalnızca bir ayı gösterir; view=5 tüm dönemi getirir
+    const fetchPath = /^\/mod\/attendance\/view\.php\?id=\d+$/.test(path) ? `${path}&view=5` : path;
+    const $ = cheerio.load(await getPage(site, fetchPath));
     const main = $('[role=main]').first().length ? $('[role=main]').first() : $('#region-main');
     const title = txt($('.page-header-headings h1, h1').first().text()) || txt($('title').text());
     // Sınava başlama, ödev yükleme, foruma yazma gibi işlemler okulun sitesinde yapılır: düğme adları ve sayfanın
