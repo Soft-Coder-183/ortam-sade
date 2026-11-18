@@ -4,7 +4,7 @@ Ortam Sade, TOBB ETÜ'nün okul sitelerini (Ortam, UBS, Uzak, UZAKYDB, Webmail, 
 
 - **Sahibi:** TOBB ETÜ öğrencisi Eren Akyurt. Türkçe konuşur, uygulamayı arkadaşlarıyla paylaşır.
 - **Depo:** https://github.com/Soft-Coder-183/ortam-sade (herkese açık, MIT lisansı).
-- **Durum:** Yayımlanmış sürüm 1.8.0 (Windows kurulum dosyası, zip ve Android APK; 16 Kasım 2026; `notlar/v1.8.0.md`: giriş ekranı, tek tip "Giriş yap" düğmeleri, Webmail silme süreleri, Piazza'nın kendi e-postalarının anında silinmesi, kısa ve bağlantısız bildirim e-postası, bildirimlerde 24 saat sınırı ve yinelenmeme). İmza anahtarı GitHub gizli değişkenlerinde (`ETUCEP_KEY_B64`, `ETUCEP_KEY_PASSWORD`). Telefonda girişin gerçek cihazda doğrulanması bekliyor. GitHub hesabı `gh` ile bağlı. Sıradaki sürümün notu henüz yok. Tanıtım videosu (14 Kasım 2026): `npm run tanitim` ile üretilir, çıktı `dist/tanitim/OrtamSade-tanitim.mp4` (depoda değil); seslendirmenin okunuşu kulakla dinlenmedi, video henüz bir yere yüklenmedi.
+- **Durum:** Yayımlanmış sürüm 1.8.1 (Windows kurulum dosyası, zip ve Android APK; 18 Kasım 2026; `notlar/v1.8.1.md`: Windows güncellemesinden sonraki çökme düzeltmesi, Geri Bildirim sayfası, ETÜ Cep uygulama içi güncellemesinin PackageInstaller'a geçmesi, Uzak açıklamaları, Piazza bildirim ayrıntıları). İmza anahtarı GitHub gizli değişkenlerinde (`ETUCEP_KEY_B64`, `ETUCEP_KEY_PASSWORD`). ETÜ Cep'in yeni kurulum akışı gerçek cihazda denenmedi; kullanıcının telefonunda Play Protect kurulumu engelliyor (Android > Güncelleme). Telefonda girişin gerçek cihazda doğrulanması bekliyor. GitHub hesabı `gh` ile bağlı. Sıradaki sürümün notu henüz yok. Tanıtım videosu (14 Kasım 2026): `npm run tanitim` ile üretilir, çıktı `dist/tanitim/OrtamSade-tanitim.mp4` (depoda değil); seslendirmenin okunuşu kulakla dinlenmedi, video henüz bir yere yüklenmedi.
 - **Devam eden iş:** Android uygulaması "ETÜ Cep". Önce APK çıkacak; Play yayını ve geliştirici hesabı sonraya kaldı. Yalnızca Android hedefleniyor, Windows sürümü kalıyor.
 - **Kapsam notu:** Bu belge uygulamanın her parçasını saymaz. Kodda burada anlatılmayan bir bölüm görürsen değiştirmeden önce kullanıcıya sor.
 
@@ -136,6 +136,8 @@ Okulun siteleri ve mevzuat.gov.tr
 
 **Rezervasyon:** Okulun sistemi giriş istemez. Boş ve dolu saatler her açılışta alınır. Gönderimde öğrenci numarası, şifre ve katılımcı numaraları gider. Kayıtlı Ortam şifresi varsa şifre alanı dolu görünür: içindeki değer şifrenin kendisi değil, sabit bir yer tutucudur (`REZ_KAYITLI`); değiştirilmezse sunucu kayıtlı şifreyi ekler, şifre arayüze gelmez. Okulun sistemi `form-check` yanıtında `captcha|` derse güvenlik kodu görseli gösterilir, kodu kullanıcı yazar. Sonra önizleme gelir, kesinleştirme iki tıklama ister. Önizleme ve sonuç sayfalarından yalnızca `.container.rezervasyon` bölümü alınır (yan menü, sayfa yolu, adım çubuğu, düğmeler atılır) ve başlık / etiket-değer / metin satırlarına çevrilir (`lines()`); seçili kutular "✓ seçili" olur, seçilmemiş saat satırları atlanır. Kesinleştirme adımı gerçek bir rezervasyonla henüz denenmedi.
 
+**Geri bildirim (Hakkında > Geri Bildirim, `#/hakkinda/geri-bildirim`):** Tür (İstek, Şikâyet, Hata, Diğer) ve mesaj `POST /api/feedback` ile `webmail.feedback`'e gider; kullanıcının okul postasından geliştiriciye gönderilir, kopyası Gönderilmiş kutusunda kalır. Alıcı adresi arayüzde gösterilmez, kodda tersine çevrilmiş base64 olarak durur (`FEEDBACK_TO`); düz metin olarak hiçbir yere yazılmaz. 5–5000 karakter, iki gönderim arası en az 30 sn. "Sürüm ve cihaz türünü ekle" seçiliyse sona marka, sürüm ve Windows/Android satırı eklenir. Webmail oturumu kapalıysa giriş kutusu çıkar. Testte gerçek gönderim yapılmaz (`page.route`).
+
 **Bilinen veri sorunu:** mevzuat.gov.tr'deki Lisans Yönetmeliği metni 2011 hâlidir ve "bütünleme yok" der. Kullanıcı bütünlemenin yapıldığını doğruladı; hızlı yanıt bunu açıkça söyler.
 
 ## Arka plan işleri ve bildirimler
@@ -156,7 +158,7 @@ Uygulama açıkken (penceresi kapalı olsa da tepside) çalışır; tepsideki "K
 | Yeni sürüm denetimi | 6 saat |
 
 - O aralıkta siteye gerçek istek gittiyse oturum kontrolü atlanır (`usedAt`). Kullanıcı Hesap'tan açık tutmayı ve kendiliğinden yeniden girmeyi kapatabilir.
-- Bildirimler Windows bildirimi ve isteğe bağlı özet e-posta olarak gider. E-posta kullanıcının kendi adresinedir ve konusu `[Ortam Sade · Bildirim]` ile başlar. Metni yalnızca `• başlık: metin` satırları (bağlantı yok) ve tek satırlık alt not ("Bu bildirim Ortam Sade tarafından gönderildi; … Hesap > Bildirimler'den kapatılabilir").
+- Bildirimler Windows bildirimi ve isteğe bağlı özet e-posta olarak gider. E-posta kullanıcının kendi adresinedir ve konusu `[Ortam Sade · Bildirim]` ile başlar. Metni `• başlık: metin` satırları, her birinin altında `Aç: <docs/ac.html#sayfa>` bağlantısı (cihaza göre ETÜ Cep'i ya da Ortam Sade'yi o sayfada açar) ve tek satırlık alt nottur ("Bu bildirim Ortam Sade tarafından gönderildi; Ortam Sade ayarlarından kapatılabilir"; telefonda marka ETÜ Cep).
 - Taze haber kuralı (`notify.mjs` `deliver`/`flushMail`): içeriği 24 saatten eski bildirim (`at`: Piazza gönderisinin `log` create `t` zamanı; Uzak tarih vermediği için son başarılı Uzak kontrolü 24 saatten eskiyse o zaman) listeye okunmuş (`late`) girer, Windows bildirimi ve e-posta yok.
 - Yineleme yok: her bildirimin `key`'i (`piazza|nid|gönderi`, `uzak|ders|ad`) `db.sent`'te 30 gün tutulur, aynı içerik yeniden bildirilmez. E-posta en fazla bir kez gider: yazma sayfası açılamazsa giden kutusunda bekler (içeriği 24 saatten eskiyse atılır), açılınca öğeler göndermeden önce kutudan çıkarılıp `db.mailed`'e yazılır; gönderme hatası yinelenmez.
 - Renkler: Uzak kırmızımsı turuncu, Piazza mavi. Derslerim'deki Uzak etiketi Ortam işaretinin üç rengiyle (mavi, kırmızı, turuncu) sert geçişli, sabit (dönmeyen) çerçevedir; eski yumuşak geçişli dönen görünüm `.pill.src-uzak.yumusak` olarak saklıdır. Menüde sade nokta, derslerin üzerinde sayılı rozet görünür. Rozete (ve "Piazza · N yeni" etiketine) basınca o dersin en yeni bildirimi açılır.
@@ -213,6 +215,7 @@ Sürüm paketi GitHub Actions'ta üretilir; yerelde üretilen dosyalar yüklenme
 - Paketli ya da git'siz kurulum: zip indirilir, GitHub'ın SHA-256 özetiyle doğrulanır, dosyalar yedekli değiştirilir.
 - Git klasörü: sürüm etiketine ileri sarılır, gerekirse bağımlılıklar kurulur.
 - Sonra uygulama yeniden açılır ve `.cache` korunur.
+- Eski dosyalar `.cache/update/eski-<sürüm>-<zaman>` içine taşınır ve açılıştan 30 sn sonra `rmAll` ile silinir. Pencere (`OrtamSade.exe`) güncellemeden sonra yedekteki eski dosyadan çalışmaya devam eder ve kilitlidir: `rmAll` kilitli dosyayı atlar, sonraki açılışta siler. 1.8.0'a kadar buradaki `rmSync` hatası yakalanmıyordu ve sunucu güncellemeden 30 sn sonra çöküyordu.
 
 ## Tanıtım videosu (`tanitim/`)
 
