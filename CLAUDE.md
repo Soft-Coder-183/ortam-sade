@@ -51,6 +51,7 @@ Ayrıntılar `PROJE_DEVIR.md`'de; bir alana dokunmadan önce ilgili bölümünü
 - Her istek commit'le biter; yalnızca değişen dosyalar adıyla eklenir; push serbest; `main`'de çalışılır.
 - Sürüm numarasının tek kaynağı `package.json` (Android `versionCode` ondan türer). Yayımlanmamış değişiklikler sıradaki
   `notlar/vX.Y.Z.md`'de birikir; notlar kullanıcıya dönük, başta özet tablo, bölümlü ve sayılı.
+  Notlarda (GitHub ve uygulama içi) emoji kullanılmaz; başlık ve tablo düz metin.
 - **Yayın** (sürüm artırma, etiket ve yayın kullanıcı tarafından önceden onaylı): `package.json` sürümü → not tamam → commit →
   `git tag -a vX.Y.Z -m "Ortam Sade X.Y.Z"` → `git push origin vX.Y.Z`. `surum.yml` GitHub'ın Windows makinesinde kurulum exe'si,
   zip ve imzalı APK üretir (imza: `ETUCEP_KEY_B64`, `ETUCEP_KEY_PASSWORD` gizli değişkenleri), kaynak kanıtı ekler, yayımlar.
