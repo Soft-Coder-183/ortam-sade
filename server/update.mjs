@@ -30,10 +30,19 @@ const newer = (a, b) => {                        // a > b ? (1.10.0 > 1.9.3)
 };
 
 // Önceki güncellemeden kalan yedek ve geçici dosyalar: yeni sürüm açıldığına göre artık gerekmez (açılıştan 30 sn sonra silinir).
+// Güncellemeden hemen sonra pencere (OrtamSade.exe) hâlâ yedekteki eski dosyadan çalışır; kilitli dosyalar sonraki açılışa kalır.
+// Burada çıkan hata yakalanmazsa sunucu çöker (1.8.0'a güncellerken öyle oluyordu).
+// Silinebilen her şeyi siler, kilitli dosyayı (ve onu içeren klasörü) bırakır; hiçbir zaman hata atmaz.
+function rmAll(p) {
+  let st;
+  try { st = fs.lstatSync(p); } catch { return; }
+  if (st.isDirectory()) { try { for (const n of fs.readdirSync(p)) rmAll(path.join(p, n)); } catch {} }
+  try { fs.rmSync(p, { recursive: true, force: true }); } catch {}
+}
 setTimeout(() => {
   if (applying) return;
-  fs.rmSync(WORK, { recursive: true, force: true });
-  try { fs.rmSync(path.join(ROOT, 'runtime', 'node.old.exe'), { force: true }); } catch {}   // başlatıcı hâlâ kullanıyorsa sonraki açılışta
+  rmAll(WORK);
+  rmAll(path.join(ROOT, 'runtime', 'node.old.exe'));   // başlatıcı hâlâ kullanıyorsa sonraki açılışta
 }, 30_000).unref();
 
 let info = null, checkedAt = 0, pending = null;
@@ -76,7 +85,7 @@ async function doApply() {
   if (!a || !ok(a.download)) throw new Error('Sürümde Windows paketi bulunamadı.');
   if (!/^sha256:[0-9a-f]{64}$/.test(a.digest || '')) throw new Error('Sürüm dosyasının doğrulama özeti yok; güncelleme yapılmadı.');
 
-  fs.rmSync(WORK, { recursive: true, force: true });
+  rmAll(WORK);                                     // önceki yedekte çalışan eski pencere dosyası kilitli kalabilir
   fs.mkdirSync(WORK, { recursive: true });
   const res = await fetch(a.download, { headers: { 'User-Agent': 'ortam-sade-updater' }, redirect: 'follow', signal: AbortSignal.timeout(10 * 60_000) });
   if (!res.ok) throw new Error(`İndirme başarısız: ${res.status}`);
@@ -85,7 +94,7 @@ async function doApply() {
   if ('sha256:' + sha !== a.digest) throw new Error('İndirilen dosya doğrulanamadı (SHA-256 uyuşmuyor); güncelleme yapılmadı.');
   const zip = path.join(WORK, a.name);
   fs.writeFileSync(zip, buf);
-  const x = path.join(WORK, 'x');
+  const x = path.join(WORK, 'x-' + Date.now());
   fs.mkdirSync(x);
   execFileSync(path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'tar.exe'), ['-xf', zip, '-C', x], { windowsHide: true });
   const src = path.join(x, 'OrtamSade');
@@ -95,7 +104,7 @@ async function doApply() {
     if (!fs.existsSync(path.join(src, need))) throw new Error(`Paket eksik: ${need}`);
 
   // Değiştirme: eski klasör/dosya yedeğe taşınır, yenisi yerine taşınır (aynı disk: yalnızca yeniden adlandırma).
-  const old = path.join(WORK, `eski-${current}`);
+  const old = path.join(WORK, `eski-${current}-${Date.now()}`);
   fs.mkdirSync(old);
   const moved = [];
   try {
