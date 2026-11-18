@@ -2,9 +2,13 @@ package io.github.softcoder183.etucep
 
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.app.PendingIntent
+import android.content.BroadcastReceiver
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
+import android.content.pm.PackageInstaller
 import android.net.Uri
 import android.os.Environment
 import android.os.Handler
@@ -18,7 +22,8 @@ import android.webkit.JavascriptInterface
 import android.webkit.MimeTypeMap
 import android.webkit.WebView
 import android.widget.Toast
-import androidx.core.content.FileProvider
+import androidx.core.content.ContextCompat
+import androidx.core.content.IntentCompat
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -135,12 +140,24 @@ class Native(private val context: Context, private val onBackgroundDone: () -> U
     }.let { }
 
     // ---------- güncelleme ----------
-    /** APK indirilir, GitHub'ın SHA-256 özetiyle doğrulanır, sonra Android'in kurulum ekranı açılır. Kurulumu kullanıcı onaylar. */
+    /**
+     * APK indirilir, GitHub'ın SHA-256 özetiyle doğrulanır, sonra PackageInstaller oturumuyla Android'in onay ekranı açılır.
+     * Kurulumu kullanıcı onaylar. Bilinmeyen kaynak izni yoksa önce o ayar açılır ve {needPermission:true} döner.
+     * Kurulum başarılıysa uygulama yenisiyle değişir (yanıt gelmez); iptal ya da engel olursa nedeni hata olarak döner.
+     */
     @JavascriptInterface fun installApk(id: Int, url: String, sha256: String) = pool.execute {
         try {
             if (!url.startsWith("https://github.com/Soft-Coder-183/ortam-sade/releases/download/")) error("Beklenmeyen indirme adresi")
-            val dir = File(context.cacheDir, "guncelleme").apply { deleteRecursively(); mkdirs() }
+            if (!context.packageManager.canRequestPackageInstalls()) {
+                val ayar = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + context.packageName))
+                if (context !is Activity) ayar.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                main.post { runCatching { context.startActivity(ayar) } }
+                done(id, JSONObject().put("needPermission", true)); return@execute
+            }
+            val dir = File(context.cacheDir, "guncelleme").apply { mkdirs() }
             val apk = File(dir, "guncelleme.apk")
+            if (apk.isFile && sha256Of(apk) == sha256) { commitInstall(id, apk); return@execute }   // izin sonrası ikinci deneme
+            dir.listFiles()?.forEach { it.delete() }
             val digest = MessageDigest.getInstance("SHA-256")
             var next = URL(url)
             var conn: HttpURLConnection
@@ -160,13 +177,61 @@ class Native(private val context: Context, private val onBackgroundDone: () -> U
             } }
             val got = digest.digest().joinToString("") { "%02x".format(it) }
             if (got != sha256) { apk.delete(); error("Dosya doğrulanamadı, kurulum iptal edildi") }
-            if (!context.packageManager.canRequestPackageInstalls())
-                context.startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + context.packageName)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-            val uri = FileProvider.getUriForFile(context, context.packageName + ".dosya", apk)
-            context.startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(uri, "application/vnd.android.package-archive")
-                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK))
-            done(id, JSONObject().put("ok", true))
+            commitInstall(id, apk)
         } catch (e: Exception) { fail(id, e) }
+    }
+
+    private fun sha256Of(f: File): String {
+        val d = MessageDigest.getInstance("SHA-256")
+        f.inputStream().use { input -> val buf = ByteArray(64 * 1024); while (true) { val n = input.read(buf); if (n < 0) break; d.update(buf, 0, n) } }
+        return d.digest().joinToString("") { "%02x".format(it) }
+    }
+
+    /** APK'yı kurulum oturumuna yazar; Android'in onay ekranını açar ve sonucu (iptal, Play Protect engeli, imza çakışması) bildirir. */
+    private fun commitInstall(id: Int, apk: File) {
+        val installer = context.packageManager.packageInstaller
+        val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
+            setAppPackageName(context.packageName); setSize(apk.length())
+        }
+        val sid = installer.createSession(params)
+        val action = context.packageName + ".KURULUM_SONUCU." + sid
+        val app = context.applicationContext
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(c: Context, i: Intent) {
+                val st = i.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE)
+                val detail = i.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE)
+                android.util.Log.w("EtuCep", "kurulum durumu $st: $detail")
+                if (st == PackageInstaller.STATUS_PENDING_USER_ACTION) {
+                    val confirm = IntentCompat.getParcelableExtra(i, Intent.EXTRA_INTENT, Intent::class.java) ?: return
+                    if (context !is Activity) confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    runCatching { context.startActivity(confirm) }.onFailure { app.unregisterReceiver(this); fail(id, it) }
+                    return
+                }
+                runCatching { app.unregisterReceiver(this) }
+                if (st == PackageInstaller.STATUS_SUCCESS) { done(id, JSONObject().put("ok", true)); return }
+                val why = when (st) {
+                    PackageInstaller.STATUS_FAILURE_ABORTED -> "Kurulum tamamlanmadı: iptal edildi ya da Play Protect durdurdu."
+                    PackageInstaller.STATUS_FAILURE_BLOCKED -> "Kurulumu telefon engelledi (Google Play Protect ya da cihaz yönetimi)."
+                    PackageInstaller.STATUS_FAILURE_CONFLICT -> "Yüklü ETÜ Cep başka bir imzayla kurulmuş, bu sürüm üstüne kurulamıyor."
+                    PackageInstaller.STATUS_FAILURE_INCOMPATIBLE -> "Bu sürüm telefonla uyumlu değil."
+                    PackageInstaller.STATUS_FAILURE_STORAGE -> "Telefonda yeterli yer yok."
+                    else -> "Kurulum yapılamadı."
+                }
+                fail(id, Exception(if (detail.isNullOrBlank()) why else "$why ($detail)"))
+            }
+        }
+        ContextCompat.registerReceiver(app, receiver, IntentFilter(action), ContextCompat.RECEIVER_NOT_EXPORTED)
+        try {
+            installer.openSession(sid).use { s ->
+                s.openWrite("etucep.apk", 0, apk.length()).use { out -> apk.inputStream().use { it.copyTo(out) }; s.fsync(out) }
+                val pi = PendingIntent.getBroadcast(app, sid, Intent(action).setPackage(context.packageName),
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE)
+                s.commit(pi.intentSender)
+            }
+        } catch (e: Exception) {
+            runCatching { app.unregisterReceiver(receiver) }; runCatching { installer.abandonSession(sid) }
+            throw e
+        }
     }
 
     companion object { private val pool = Executors.newFixedThreadPool(6) }

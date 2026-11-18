@@ -3327,10 +3327,22 @@ document.addEventListener('click', async e => {
   const j = r ? await r.json().catch(() => ({})) : {};
   if (!r?.ok) {
     msg.textContent = j.error || 'Güncelleme yapılamadı.';
+    // Telefonda kurulumu Play Protect durdurabilir; o zaman APK sürüm sayfasından elle indirilip kurulabilir
+    if (window.Native) msg.insertAdjacentHTML('beforeend', ` Play Protect engelliyorsa APK'yı <a href="${esc(updateInfo?.url || 'https://github.com/Soft-Coder-183/ortam-sade/releases/latest')}" target="_blank" rel="noopener">sürüm sayfasından</a> indirip dosyayı açarak kurabilirsin.`);
     card.querySelectorAll('button').forEach(b => { b.disabled = false; });
     return;
   }
-  if (j.installer) { msg.textContent = 'Android kurulum ekranı açıldı. Kurulumu oradan onayla.'; return; }
+  if (j.needPermission) {
+    // İzin ayarından dönülünce kurulum kendiliğinden yeniden denenir
+    msg.textContent = 'Açılan ayarda "Bu kaynaktan izin ver"i aç ve geri dön; kurulum sürecek.';
+    card.querySelectorAll('button').forEach(b => { b.disabled = false; });
+    if (card.dataset.izin) return;                    // bir kez kendiliğinden; izin verilmeden dönülürse ayar tekrar tekrar açılmaz
+    card.dataset.izin = '1';
+    const back = () => { if (document.hidden) return; document.removeEventListener('visibilitychange', back); if (document.getElementById('upd') === card) go.click(); };
+    document.addEventListener('visibilitychange', back);
+    return;
+  }
+  if (j.installer) { msg.textContent = 'Kurulum tamamlanıyor…'; return; }
   msg.textContent = `${j.version} kuruldu. Uygulama yeniden başlatılıyor…`;
   // Sunucu yeni sürümle açılınca sayfa yenilenir
   const t0 = Date.now();

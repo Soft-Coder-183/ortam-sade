@@ -38,7 +38,9 @@ async function doApply() {
   const a = info.asset, m = /^sha256:([0-9a-f]{64})$/i.exec(a.digest || '');
   if (!m) throw new Error('Sürüm dosyasının özeti GitHub\'da yok, güvenle kurulamıyor.');
   if (!/^https:\/\/github\.com\/Soft-Coder-183\/ortam-sade\/releases\/download\//.test(a.download)) throw new Error('Beklenmeyen indirme adresi.');
-  await globalThis.__call(id => globalThis.Native.installApk(id, a.download, m[1].toLowerCase()));
+  // Yanıt ya izin ayarı açıldığında hemen gelir ya da kurulum ekranı kapanınca (iptal/engel hata olarak döner)
+  const r = await globalThis.__call(id => globalThis.Native.installApk(id, a.download, m[1].toLowerCase()));
+  if (r.needPermission) return { ok: true, version: info.latest, needPermission: true };
   return { ok: true, version: info.latest, installer: true };
 }
 export function apply() {
