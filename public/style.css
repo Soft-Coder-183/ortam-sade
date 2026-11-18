@@ -764,6 +764,19 @@ a.inapp { color: var(--accent); font-weight: 600; }
 .about p, .about li { line-height: 1.6; }
 .about ul { margin: 0; padding-left: 20px; }
 .about li + li { margin-top: 6px; }
+.fb-form { display: grid; gap: 10px; }
+.fb-kinds { display: flex; flex-wrap: wrap; gap: 8px; }
+.fb-kinds .chip { cursor: pointer; }
+.fb-kinds .chip:has(input:checked) { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.fb-kinds input { accent-color: var(--accent); margin: 0; }
+.fb-l { font-weight: 600; }
+.fb-form textarea { width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line-2);
+  background: var(--bg); color: var(--ink); font: inherit; resize: vertical; min-height: 140px; }
+.fb-c { display: flex; gap: 8px; align-items: center; }
+.fb-form p { margin: 0; }
+.fb-ok, .fb-err { padding: 10px 12px; border-radius: 10px; }
+.fb-ok { background: var(--ok-soft); color: var(--ok); }
+.fb-err { background: var(--bad-soft); color: var(--bad); }
 .faq summary { cursor: pointer; font-weight: 600; }
 .faq p { margin: 10px 0 0; line-height: 1.6; color: var(--ink); }
 .home-more { margin-top: 12px; }

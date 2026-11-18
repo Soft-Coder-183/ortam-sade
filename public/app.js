@@ -17,7 +17,7 @@ const NAV = [
     ['acilan', 'Açılan Dersler'], ['rezervasyon', 'Rezervasyon'], ['takvim', 'Akademik Takvim'], ['kadro', 'Akademik Kadro'], ['yabanci-diller', 'Yabancı Diller'],
     ['mevzuat', 'Mevzuat'], ['duyurular', 'Öğrenci İşleri Duyuruları'], ['cap', 'ÇAP/YAP - Başvurular']] },
   { id: 'hakkinda', label: 'Hakkında ve SSS', short: 'Hakkında', icon: 'help', bottom: true, rare: true, side: true, items: [
-    ['hakkimizda', 'Hakkımızda'], ['siteler', 'Okulun Siteleri'], ['sss', 'Sık Sorulan Sorular'], ['sorumluluk', 'Sorumluluk Reddi']] },
+    ['hakkimizda', 'Hakkımızda'], ['siteler', 'Okulun Siteleri'], ['sss', 'Sık Sorulan Sorular'], ['sorumluluk', 'Sorumluluk Reddi'], ['geri-bildirim', 'Geri Bildirim']] },
   { id: 'hesap', label: 'Hesap', short: 'Hesap', icon: 'settings', bottom: true, side: true },
 ];
 
@@ -2596,7 +2596,7 @@ async function viewHakkimizda() {
     aboutCard('Sürüm', `<div class="row" style="justify-content:space-between;gap:12px;flex-wrap:wrap"><p style="margin:0">Ortam Sade <b id="app-ver">${esc(updateInfo?.current || '…')}</b>.
       Yeni sürüm çıkınca uygulama sorar; onaylamadan hiçbir şey indirilmez ya da kurulmaz.</p>
       <button type="button" class="btn" data-upd-check>${icon('download')}Güncellemeleri denetle</button></div>`) +
-    `<p class="muted small">Sorular için: <a href="#/hakkinda/sss">Sık Sorulan Sorular</a> · Önemli: <a href="#/hakkinda/sorumluluk">Sorumluluk Reddi</a></p>`;
+    `<p class="muted small">Sorular için: <a href="#/hakkinda/sss">Sık Sorulan Sorular</a> · İstek ya da sorun: <a href="#/hakkinda/geri-bildirim">Geri Bildirim</a> · Önemli: <a href="#/hakkinda/sorumluluk">Sorumluluk Reddi</a></p>`;
 }
 const SSS = [
   ['Bu, okulun resmî uygulaması mı?', 'Hayır. Ortam Sade bağımsız bir öğrenci projesidir; TOBB ETÜ tarafından geliştirilmemiş, onaylanmamış ya da desteklenmemektedir. Ayrıntılar Sorumluluk Reddi sayfasında.'],
@@ -2664,6 +2664,37 @@ const viewSorumluluk = () => header('Sorumluluk Reddi') + aboutCard('Lütfen oku
   <li><b>İşlemler senin onayınla yapılır.</b> Form gönderme, e-posta gönderme/silme gibi işlemler yalnızca senin tıklamanla ya da açtığın bir ayarla okulun sistemine iletilir ve oradaki işlemle aynı sonucu doğurur.</li>
   <li><b>Kullanım sorumluluğu kullanıcıdadır.</b> Uygulamayı okulun bilgi işlem kurallarına uygun kullanmak kullanıcının sorumluluğundadır. Uygulama doğrulama (CAPTCHA) ve güvenlik önlemlerini aşmaz.</li>
   <li><b>Garanti verilmez.</b> Uygulama "olduğu gibi" sunulur; kullanımından doğabilecek veri kaybı, gecikme ya da kaçırılan işlemlerden geliştirici sorumlu tutulamaz.</li></ul>`);
+
+// ---------- Hakkında > Geri Bildirim ----------
+// İstek, şikâyet ya da hata bildirimi kullanıcının okul postasından (Webmail) geliştiriciye gider (POST /api/feedback).
+// Alıcı adresi arayüzde gösterilmez; gönderilen e-postanın kopyası Webmail'de Gönderilmiş kutusunda kalır.
+const FEEDBACK_KINDS = [['istek', 'İstek'], ['sikayet', 'Şikâyet'], ['hata', 'Hata'], ['diger', 'Diğer']];
+const viewGeriBildirim = () => header('Geri Bildirim', 'İstek, şikâyet ya da hata bildir') +
+  `<section class="card about"><form id="fb-form" class="fb-form">
+    <div class="fb-kinds" role="radiogroup" aria-label="Tür">${FEEDBACK_KINDS.map(([id, label], i) =>
+      `<label class="chip"><input type="radio" name="kind" value="${id}"${i === 0 ? ' checked' : ''}> ${esc(label)}</label>`).join('')}</div>
+    <label class="fb-l" for="fb-text">Mesajın</label>
+    <textarea id="fb-text" name="text" rows="7" maxlength="5000" required minlength="5"
+      placeholder="Ne olmasını isterdin, ne çalışmadı? Hata ise hangi sayfada ve ne yaptığında oldu?"></textarea>
+    <label class="fb-c"><input type="checkbox" name="info" checked> Sürüm ve cihaz türünü ekle (ör. Windows ya da Android)</label>
+    <p class="muted small">Okul e-posta adresinden (Webmail) gönderilir; yanıt da o adrese gelir. Şifre, TC kimlik numarası gibi kişisel bilgileri yazma.</p>
+    <div class="row"><button type="submit" class="btn primary">${icon('mail')}Gönder</button></div>
+    <div id="fb-out" aria-live="polite"></div>
+  </form></section>`;
+$view.addEventListener('submit', async e => {
+  if (e.target.id !== 'fb-form') return;
+  e.preventDefault();
+  const f = e.target, btn = f.querySelector('button[type=submit]'), out = document.getElementById('fb-out'), d = new FormData(f);
+  btn.disabled = true;
+  out.innerHTML = `<p class="muted small">${icon('loader', 'spin')} Gönderiliyor…</p>`;
+  const r = await post('/api/feedback', { kind: d.get('kind'), text: d.get('text'), info: d.get('info') === 'on' }).catch(() => null);
+  const j = r ? await r.json().catch(() => ({})) : { error: 'Uygulamaya ulaşılamadı' };
+  btn.disabled = false;
+  if (r?.status === 401) { out.innerHTML = loginGate(j.site, j.siteName, true); return; }
+  if (!r?.ok) { out.innerHTML = `<p class="fb-err">${esc(j.error || 'Gönderilemedi.')}</p>`; return; }
+  f.querySelector('textarea').value = '';
+  out.innerHTML = `<p class="fb-ok">Teşekkürler, geri bildirimin gönderildi. Kopyası Webmail'de Gönderilmiş kutusunda.</p>`;
+});
 
 // ---------- Mevzuat ----------
 // Okulun Mevzuat sayfasındaki kanun, yönetmelik ve yönergeler uygulamanın içinde madde madde okunur ve aranır.
@@ -3060,7 +3091,7 @@ const views = {
   'ekstra/cap': viewBasvuru,
   ubs: viewUbs, uzakydb: viewUzakydb, webmail: viewWebmail, piazza: viewPiazza, hesap: viewHesap,
   'ekstra/mevzuat': viewMevzuat, 'ekstra/duyurular': viewMvDuyurular,
-  'hakkinda/hakkimizda': viewHakkimizda, 'hakkinda/siteler': viewSiteler, 'hakkinda/sss': viewSss, 'hakkinda/sorumluluk': viewSorumluluk,
+  'hakkinda/hakkimizda': viewHakkimizda, 'hakkinda/siteler': viewSiteler, 'hakkinda/sss': viewSss, 'hakkinda/sorumluluk': viewSorumluluk, 'hakkinda/geri-bildirim': viewGeriBildirim,
 };
 
 // #/grup[/alt][/parametre…]: alt menüsü olan gruplarda alt sayfadan sonrası (ör. #/donem/derslerim/BIL214/uzak),

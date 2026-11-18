@@ -24,6 +24,7 @@ const EVERY = { piazza: 10, uzak: 60, takvim: 180 };   // dakika (okul sunucular
 const OPEN_URL = 'https://soft-coder-183.github.io/ortam-sade/ac.html';
 // appLink: e-postadaki "Aç:" bağlantısı (bildirimin sayfasını uygulamada açar). Windows'ta yerel adres, telefonda etucep:// bağlantısı.
 const platform = { toast: null, brand: 'Ortam Sade', appLink: link => `${OPEN_URL}${link || ''}` };
+export const brand = () => platform.brand;
 export function configure({ every, defaults, ...rest }) {
   Object.assign(EVERY, every);
   Object.assign(db.settings, defaults);

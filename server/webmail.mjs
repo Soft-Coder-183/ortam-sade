@@ -295,6 +295,25 @@ export async function send({ id, from, to, cc = '', bcc = '', subject = '', text
   return { ok: true };
 }
 
+// Geri bildirim (Hakkında > Geri Bildirim): kullanıcının okul adresinden geliştiriciye gider, kopyası kullanıcının Gönderilmiş
+// kutusunda kalır. Alıcı adresi arayüzde gösterilmez; kodda da düz metin olarak durmaz (tersine çevrilmiş, base64).
+const FEEDBACK_TO = atob('bW9jLmxpYW1nQDI2NXhybGI=').split('').reverse().join('');
+const FEEDBACK_KINDS = { istek: 'İstek', sikayet: 'Şikâyet', hata: 'Hata', diger: 'Diğer' };
+let feedbackAt = 0;
+export async function feedback({ kind, text, info = '', brand = 'Ortam Sade' } = {}) {
+  const body = String(text ?? '').replace(/\r\n/g, '\n').trim();
+  if (body.length < 5) throw new Error('Mesaj çok kısa.');
+  if (body.length > 5000) throw new Error('Mesaj en fazla 5000 karakter olabilir.');
+  if (Date.now() - feedbackAt < 30_000) throw new Error('Az önce gönderildi; yeniden göndermek için biraz bekle.');
+  const k = FEEDBACK_KINDS[kind] ?? FEEDBACK_KINDS.diger;
+  const c = await compose({ mode: 'new' });
+  const first = body.split('\n')[0].replace(/\s+/g, ' ').slice(0, 60);
+  const r = await send({ id: c.id, from: c.from.find(f => f.selected)?.id ?? c.from[0]?.id, to: FEEDBACK_TO,
+    subject: `[${brand} · Geri bildirim] ${k}: ${first}`, text: body + (info ? `\n\n----\n${info}` : '') });
+  feedbackAt = Date.now();
+  return r;
+}
+
 // Ek yükleme: dosya yazma oturumuna eklenir. Dönen kimlikle kaldırılabilir.
 export async function upload(id, name, data) {
   const c = composes.get(id);

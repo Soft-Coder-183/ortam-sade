@@ -301,6 +301,21 @@ export async function handleApi(req) {
     }
   }
 
+  // Geri bildirim: kullanıcının okul postasından geliştiriciye (yalnızca "Gönder"e basınca)
+  if (name === 'feedback' && req.method === 'POST') {
+    try {
+      const b = await readJson(req, 40_000);
+      const info = b.info ? `${notify.brand()} ${update.current} · ${globalThis.Native ? 'Android' : process.platform === 'win32' ? 'Windows' : process.platform}` : '';
+      const r = await webmail.feedback({ kind: b.kind, text: b.text, info, brand: notify.brand() });
+      await invalidate('webmail');
+      return send(200, r);
+    } catch (e) {
+      if (e instanceof LoginRequired) { needLogin.add('webmail'); return send(401, { error: e.message, site: 'webmail', siteName: 'Webmail' }); }
+      console.error('feedback', e.message);
+      return send(502, { error: e.message });
+    }
+  }
+
   // Tek giriş: e-posta + şifre bir kez girilir, doğrudan girilebilen sitelere paralel giriş yapılır.
   if (name === 'account' && req.method === 'GET') return send(200, await accountStatus());
 
