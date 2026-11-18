@@ -216,7 +216,7 @@ async function mail(items) {
   return () => webmail.send({ id: c.id, from: c.from.find(f => f.selected)?.id ?? c.from[0]?.id, to,
     subject: `[${platform.brand} · Bildirim] ${tail}`.slice(0, 180),
     text: `${platform.brand.toLocaleUpperCase('tr')} BİLDİRİMİ\n${rule}\n${lines}\n${rule}\n\n` +
-      `Bu bildirim ${platform.brand} tarafından gönderildi; ${platform.brand} > Hesap > Bildirimler'den kapatılabilir.` });
+      `Bu bildirim ${platform.brand} tarafından gönderildi; ${platform.brand} ayarlarından kapatılabilir.` });
 }
 
 // Gönderilemeyen bildirim e-postaları (yazma sayfası açılamadı, hesap yok) giden kutusunda (outbox) bekler, her kontrol turunda
