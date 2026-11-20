@@ -14,6 +14,7 @@ Ayrıntılar `PROJE_DEVIR.md`'de; bir alana dokunmadan önce ilgili bölümünü
 - Sözdizimi: `node --check public/app.js` (ve değişen `.mjs`)
 - **Tanıtım videosu:** `npm run tanitim` → `dist\tanitim\OrtamSade-tanitim.mp4` (sahte veri, 3100 portu; ffmpeg ve uv gerekir).
   Tek sahne: `node tanitim/yap.mjs kayit 04-dersler`, sonra `node tanitim/yap.mjs birlestir`
+- **README ekran görüntüleri:** `node tanitim/ekran.mjs` → `docs/ekran/*.png` (sahte veri, sunucu açılmaz). Arayüz değişince yenile.
 - **Deneme:** Kullanıcının kurulu kopyası (`%LOCALAPPDATA%\Programs\Ortam Sade`) 3000 portunu tutar ve depodaki kodu göstermez;
   onu durdurma. Depodaki sürümü `PORT=3100 node server/server.mjs` ile aç, başsız Chrome (`playwright-core`, `channel: 'chrome'`)
   ile `tools/` altındaki betiklerle dene (tools/ gitignore'da). Okula giden geri alınamaz istekleri `page.route` ile sahte yanıtla
@@ -41,6 +42,10 @@ Ayrıntılar `PROJE_DEVIR.md`'de; bir alana dokunmadan önce ilgili bölümünü
 - `local.txt` asla okunmaz. Şifre hiçbir forma yazılmaz; CAPTCHA/doğrulama çözülmez ya da atlatılmaz (kodu kullanıcı yazar).
 - Testte gerçek giriş, e-posta gönderme/silme, form/başvuru, rezervasyon yok; gerekiyorsa önce sor.
 - Kişisel bilgiler (TC, adres, telefon) uygulamada gösterilir; testte değerleri yazdırma, ekran görüntüsüne ve commit'e koyma.
+- UZAKYDB'ye yalnızca kullanıcı ekranını açınca girilir (`SITES.uzakydb.onDemand`; her giriş "New sign in" e-postası doğurur);
+  arka plan işi ya da Ana Sayfa kartı UZAKYDB'ye giriş yaptırmamalı.
+- Depodaki `.cache`'te gerçek kayıtlı bilgi var: depodaki sunucuyu açmak arka planda gerçek giriş yaptırabilir. Yalnızca arayüz
+  deneniyorsa sunucusuz dene (`public/` dosyalarını ve `/api/*`'yi `page.route` ile ver; örnek `tanitim/ekran.mjs`).
 - Okul sunucularını yorma: yalnızca açılan ekranın verisini çek. Derslik boş/dolu durumu hiçbir yerde gösterilmez.
 - Sayısal ya da hukuki bilgi kaynaksız yazılmaz; Mevzuat yanıtları maddeden alıntıya dayanır.
 - Görünmez güncelleme yok: uygulamada hiçbir şey kullanıcı onayı olmadan kurulmaz.
@@ -55,6 +60,8 @@ Ayrıntılar `PROJE_DEVIR.md`'de; bir alana dokunmadan önce ilgili bölümünü
 - **Yayın** (sürüm artırma, etiket ve yayın kullanıcı tarafından önceden onaylı): `package.json` sürümü → not tamam → commit →
   `git tag -a vX.Y.Z -m "Ortam Sade X.Y.Z"` → `git push origin vX.Y.Z`. `surum.yml` GitHub'ın Windows makinesinde kurulum exe'si,
   zip ve imzalı APK üretir (imza: `ETUCEP_KEY_B64`, `ETUCEP_KEY_PASSWORD` gizli değişkenleri), kaynak kanıtı ekler, yayımlar.
+  Yayın dosyaları sürüm numarasız adlarla çıkar (`OrtamSade-kurulum.exe`, `OrtamSade-win-x64.zip`, `EtuCep.apk`); README'deki
+  `releases/latest/download/…` bağlantıları bu adlara dayanır.
 - Yayımlanmış etiket taşınmaz; hata çıkarsa yeni PATCH. Zorla gönderme ve kalıcı silme izin denetimine takılır: komutu hazırla,
   kullanıcı `!` ile çalıştırır.
 - Her işten sonra bu dosya ve `PROJE_DEVIR.md` güncellenir (`devret` skill'i). Kullanıcıya Türkçe, kısa rapor: ne yapıldı,
