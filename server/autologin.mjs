@@ -68,6 +68,9 @@ const lastTry = new Map();                // site -> son otomatik deneme zamanı
 const pending = new Map();                // site -> devam eden giriş
 
 export const supports = site => !!ADAPTERS[site];
+// Başarılı girişten sonra çağrılır (api.mjs: UZAKYDB girişinden sonra gelen "New sign in" e-postası hemen silinir)
+let afterLogin = () => {};
+export const setAfterLogin = fn => { afterLogin = fn; };
 
 // Sonuç: { ok: true } | { ok: false, rejected: true } (şifre kabul edilmedi) | { ok: false, error, captcha? }
 export function loginSite(site, creds) {
@@ -81,6 +84,7 @@ export function loginSite(site, creds) {
         if (!(await isAlive(site, jar))) { blocked.add(site); return { ok: false, rejected: true }; }
         commitJar(site, jar);
         blocked.delete(site);
+        try { afterLogin(site); } catch {}
         return { ok: true };
       } catch (e) {
         return { ok: false, error: e.message, ...(e.captcha ? { captcha: true } : {}) };
@@ -92,10 +96,12 @@ export function loginSite(site, creds) {
 
 // Giriş ekranından: doğrudan girilebilen tüm sitelere paralel giriş. Bilgiler en az bir sitede
 // kabul edildiyse (ya da hiçbir yerde açıkça reddedilmediyse) kaydedilir.
+// Yalnızca kullanılınca girilen siteler (UZAKYDB) burada denenmez: sonuçta { later: true } görünür, ekranı açılınca girilir.
 export async function loginAll(creds, remember) {
   blocked.clear();
-  const sites = Object.keys(ADAPTERS);
+  const sites = Object.keys(ADAPTERS).filter(s => !SITES[s].onDemand);
   const results = Object.fromEntries(await Promise.all(sites.map(async s => [s, await loginSite(s, creds)])));
+  for (const s of Object.keys(ADAPTERS)) if (SITES[s].onDemand) results[s] = { ok: false, later: true };
   const accepted = sites.some(s => results[s].ok);
   const allRejected = sites.every(s => results[s].rejected);
   if (accepted || !allRejected) await credentials.save(creds, remember);

@@ -3,7 +3,7 @@
 // Daha önce açılmış bir ekranın son verisi anında döner, yenisi arka planda çekilir (X-Refreshing başlığı).
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { SITES, LoginRequired, login, keepAlive, getPage, isAlive, logout, sessionInfo, openPage } from './session.mjs';
+import { SITES, LoginRequired, login, keepAlive, getPage, isAlive, logout, sessionInfo, openPage, want } from './session.mjs';
 import * as vault from './vault.mjs';
 import * as settings from './settings.mjs';
 import crypto from 'node:crypto';
@@ -24,7 +24,7 @@ import * as program from './program.mjs';
 import * as rez from './rezervasyon.mjs';
 
 const CACHE_DIR = '.cache/api';
-const CACHE_VER = 17;            // ayrıştırıcıların çıktısı değişince artır: eski kayıtlar açılışta silinir
+const CACHE_VER = 18;            // ayrıştırıcıların çıktısı değişince artır: eski kayıtlar açılışta silinir
 const STALE_AFTER = 20_000;      // varsayılan: kayıtlı veri hemen gösterilir, bu süreden eskiyse arka planda yenilenir
 // Seyrek değişen bilgiler okulun sunucusuna her açılışta sorulmaz (dakika cinsinden).
 const STALE_MIN = { exams: 10, schedule: 30, courses: 30, course: 360, derslerim: 10, mufredat: 60, bilgilerim: 60, notlar: 10,
@@ -418,6 +418,7 @@ export async function handleApi(req) {
   if (name.startsWith('file/')) {
     const fn = files[name.slice(5)];
     if (!fn) return send(404, { error: 'Bilinmeyen dosya türü' });
+    if (name === 'file/moodle' && SITES[url.searchParams.get('site')]?.onDemand) want(url.searchParams.get('site'));   // kullanıcı dosyayı açtı
     try {
       const f = await fn(url.searchParams);
       const inline = INLINE_TYPES.test(f.type) && !url.searchParams.has('download');
@@ -440,6 +441,8 @@ export async function handleApi(req) {
   if (!fn) return send(404, { error: 'Bilinmeyen uç nokta' });
   const key = name + url.search;
   const run = () => fn(url.searchParams);
+  // Yalnızca kullanılınca girilen site (UZAKYDB): ekranının istekleri gerekirse kayıtlı bilgiyle girer; Ana Sayfa'daki ek içerik kartı girmez
+  if (SITES[site]?.onDemand && name !== `${site}-ek`) want(site);
   try {
     const hit = await cached(key);
     if (hit) {
@@ -464,7 +467,8 @@ const ping = site => keepAlive(site)
     if (alive === 'off') return;
     lastPing[site] = Date.now();
     if (alive) return needLogin.delete(site);
-    if (alive === false && !(settings.get().autoRelogin && await autologin.relogin(site))) needLogin.add(site);
+    // Yalnızca kullanılınca girilen site (UZAKYDB) arka planda yeniden girilmez: ekranı açılınca girilir
+    if (alive === false && !(settings.get().autoRelogin && !SITES[site].onDemand && await autologin.relogin(site))) needLogin.add(site);
     else if (alive === false) needLogin.delete(site);
   })
   .catch(() => {});
@@ -476,6 +480,9 @@ export async function prepare() {
     if (f.endsWith('.json') && !f.startsWith(`v${CACHE_VER}-`)) await fs.rm(path.join(CACHE_DIR, f), { force: true });
   await credentials.load();
 }
+// UZAKYDB'ye her girişte Yabancı Diller "New sign in to your … account" e-postası gönderir: girişten sonra gelen kutusu
+// birkaç kez kontrol edilir ve e-posta gelir gelmez Çöp'e taşınır (Webmail > anında silme açıksa).
+autologin.setAfterLogin(site => { if (SITES[site].onDemand) webmail.sweepInstantSoon(); });
 export async function startBackground() {
   await prepare();
   notify.start();                  // Piazza/Uzak yenilik kontrolü (ilk turda yalnızca mevcut durum kaydedilir)

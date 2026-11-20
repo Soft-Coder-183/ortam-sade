@@ -22,7 +22,9 @@ export const SITES = {
   ubs: { name: 'UBS', base: 'https://ubs.etu.edu.tr', home: '/', ping: { every: 15 },                                 // ASP.NET varsayılanı 20 dk
     loginRedirect: /login\.aspx/i, loginPage: /name="txtPassword"/, passwordField: 'input[name="txtPassword"]', user: 'email',
     userField: 'input[name="txtLogin"]', submit: '#btnLogin', captchaField: '#pnlCaptcha input, #pnlCaptcha img' },
-  uzakydb: { name: 'UZAKYDB', base: 'https://uzakydb.etu.edu.tr', home: '/my/', ping: { method: 'HEAD', path: '/my/', every: 180 }, // 4 sa
+  // onDemand: kayıtlı bilgiyle yalnızca kullanıcı UZAKYDB ekranını açınca girilir (açılışta, canlı tutmada ya da Ana Sayfa'da girilmez):
+  // Yabancı Diller her girişte "New sign in to your … account" e-postası gönderiyor.
+  uzakydb: { name: 'UZAKYDB', base: 'https://uzakydb.etu.edu.tr', home: '/my/', ping: { method: 'HEAD', path: '/my/', every: 180 }, onDemand: true, // 4 sa
     loginRedirect: /\/login\/index\.php/, loginPage: /<form[^>]+id="login"|"errorcode":"(servicerequireslogin|requireloginerror)"/,
     passwordField: 'input[name="password"]', user: 'local' },
   webmail: { name: 'Webmail', base: 'https://webmail.etu.edu.tr', home: '/roundcube/?_task=mail', ping: { every: 150 }, // 3 sa
@@ -174,6 +176,10 @@ async function rawRequest(site, path, opts = {}, hops = 0) {
 // olmazsa kayıtlı Chrome profilinden sessizce oturum alınır.
 let relogin = async () => false;
 export const setRelogin = fn => { relogin = fn; };
+// onDemand siteler: kullanıcının açtığı ekranın isteği (api.mjs want() çağırır) 1 dakika boyunca kendiliğinden girişe izin verir.
+const WANT_MS = 60_000;
+export function want(site) { if (state[site]) state[site].wantAt = Date.now(); }
+const mayRelogin = site => !SITES[site].onDemand || Date.now() - (state[site].wantAt ?? 0) < WANT_MS;
 
 async function authed(site, path, opts) {
   const st = state[site];
@@ -181,7 +187,7 @@ async function authed(site, path, opts) {
   const recentlyFailed = Date.now() - st.failedAt < 15_000;
   let r = st.jar.size ? await rawRequest(site, path, opts) : null;
   // Ayar kapalıysa oturum düşünce kendiliğinden yeniden girilmez; kullanıcı Giriş yap'a basar
-  if (r === null && !recentlyFailed && settings.get().autoRelogin) {
+  if (r === null && !recentlyFailed && settings.get().autoRelogin && mayRelogin(site)) {
     if (await relogin(site).catch(() => false)) r = await rawRequest(site, path, opts);
     if (r === null) {
       await seed(site);

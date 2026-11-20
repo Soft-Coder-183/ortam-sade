@@ -83,17 +83,61 @@ function clean(html) {
     const p = local($(el).attr('src') || '');
     if (p) $(el).attr('src', `/api/file/piazza?path=${encodeURIComponent(p)}`); else $(el).remove();
   });
+  linkifyText($, r);
   r.find('a').each((_, el) => {
     const href = $(el).attr('href') || '';
     const p = local(href);
+    const post = postLink(href);
     if (p) $(el).replaceWith($('<button class="att"></button>').attr('data-pfile', p).html($(el).html()));
+    else if (post) {
+      // Hocanın yapıştırdığı Piazza gönderisi bağlantısı: uygulamada o dersin o gönderisi açılır (Piazza'ya gidilmez).
+      // Bağlantının metni adresin kendisiyse "Piazza gönderisi @12" gibi okunur bir ada çevrilir.
+      $(el).attr('href', `#/piazza/${post.nid}`).attr('class', 'inapp').attr('data-pz-nid', post.nid).removeAttr('target').removeAttr('rel');
+      if (post.post) $(el).attr('data-pz-post', post.post);
+      if (/^\s*(https?:\/\/)?(www\.)?piazza\.com\//i.test($(el).text())) $(el).text(post.post ? `Piazza gönderisi ${/^\d+$/.test(post.post) ? '@' + post.post : ''}`.trim() : 'Piazza sınıfı');
+    }
     else if (/^https?:\/\//i.test(href)) $(el).attr('target', '_blank').attr('rel', 'noopener noreferrer');
     else $(el).replaceWith($(el).html() ?? '');
   });
   r.find('*').each((_, el) => {
-    for (const a of Object.keys(el.attribs || {})) if (!/^(href|src|target|rel|colspan|rowspan|data-pfile|class)$/.test(a) || (a === 'class' && el.attribs.class !== 'att')) $(el).removeAttr(a);
+    for (const a of Object.keys(el.attribs || {})) if (!/^(href|src|target|rel|colspan|rowspan|data-pfile|data-pz-nid|data-pz-post|class)$/.test(a) || (a === 'class' && !/^(att|inapp)$/.test(el.attribs.class))) $(el).removeAttr(a);
   });
   return r.html() || '';
+}
+
+// Piazza gönderisi/sınıfı adresi -> { nid, post? }. Biçimler: /class/<sınıf>/post/<numara|kimlik>, /class/<sınıf>?cid=<gönderi>,
+// /class?nid=<sınıf>&cid=<gönderi>, /class/<sınıf>. Dosya, ayar ve hesap adresleri dönmez (olduğu gibi kalır).
+function postLink(href) {
+  let u;
+  try { u = new URL(href, BASE); } catch { return null; }
+  if (!/(^|\.)piazza\.com$/i.test(u.hostname)) return null;
+  const m = u.pathname.match(/^\/class(?:\/([a-z0-9]+))?(?:\/post\/([a-z0-9]+))?\/?$/i);
+  if (!m) return null;
+  const nid = m[1] || u.searchParams.get('nid');
+  if (!nid || !NID.test(nid)) return null;
+  const post = m[2] || u.searchParams.get('cid');
+  return { nid, post: post && /^[a-z0-9]{1,20}$/i.test(post) ? post : null };
+}
+
+// Gönderi metninde bağlantı olmadan yazılmış adresler (hoca adresi düz metin olarak yapıştırmış) bağlantıya çevrilir;
+// sonra yukarıdaki kural Piazza adreslerini uygulamaya, diğerlerini yeni pencereye yönlendirir. Kod blokları ellenmez.
+const URL_TEXT = /https?:\/\/[^\s<>"']+/g;
+function linkifyText($, root) {
+  const walk = node => {
+    for (const n of [...(node.children || [])]) {
+      if (n.type === 'tag' && !/^(a|code|pre|button)$/i.test(n.name)) walk(n);
+      if (n.type !== 'text' || !URL_TEXT.test(n.data)) continue;
+      URL_TEXT.lastIndex = 0;
+      const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+      const html = esc(n.data).replace(URL_TEXT, u => {
+        const tail = u.match(/[.,;:!?)]+$/)?.[0] ?? '';
+        const a = u.slice(0, u.length - tail.length);
+        return `<a href="${a}">${a}</a>${tail}`;
+      });
+      $(n).replaceWith(html);
+    }
+  };
+  walk(root[0]);
 }
 
 // Tek gönderi: içerik, öğrenci/hoca yanıtları ve takip tartışmaları.

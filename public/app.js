@@ -7,8 +7,8 @@ const NAV = [
     ['ortak', 'Ortak Eğitim Bilgilerim'], ['yabanci-dil', 'İkinci Yabancı Dil Bilgilerim'], ['odeme', 'Ödeme Bilgilerim'], ['adres', 'Adres ve İletişim Bilgilerim']] },
   { id: 'anasayfa', label: 'Ana Sayfa', short: 'Anasayfa', icon: 'home' },
   { id: 'donem', label: 'Dönem Bilgilerim', short: 'Dönem', icon: 'calendar', items: [['derslerim', 'Derslerim'], ['program', 'Ders Programım']] },
-  { id: 'sinav', label: 'Sınav Takvimi', short: 'Sınav', icon: 'clipboard' },
-  { id: 'webmail', label: 'Webmail', short: 'Posta', icon: 'mail' },
+  { id: 'sinav', label: 'Sınav Takvimi', short: 'Sınavlar', icon: 'clipboard' },
+  { id: 'webmail', label: 'Webmail', short: 'Webmail', icon: 'mail' },
   { id: 'piazza', label: 'Piazza', short: 'Piazza', icon: 'message' },
   { id: 'ubs', label: 'UBS', short: 'UBS', icon: 'landmark', side: true },
   { id: 'uzakydb', label: 'UZAKYDB', short: 'YDB', icon: 'globe', side: true },
@@ -727,7 +727,9 @@ $view.addEventListener('click', async e => {
   e.preventDefault();
   const n = (await api('piazza').catch(() => [])).find(x => x.id === a.dataset.pzNid);
   const key = n && courseKey(n.code);
-  location.hash = key && key !== n.code ? `#/donem/derslerim/${encodeURIComponent(key)}/piazza` : a.getAttribute('href');
+  // Gönderi bağlantısıysa (gönderide yapıştırılmış Piazza adresi) o gönderi yanıtlarıyla açık gelir
+  const post = a.dataset.pzPost ? '/' + encodeURIComponent(a.dataset.pzPost) : '';
+  location.hash = key && key !== n.code ? `#/donem/derslerim/${encodeURIComponent(key)}/piazza${post}` : a.getAttribute('href');
 });
 // ---------- Piazza (ana menü) sonu ----------
 
@@ -2506,7 +2508,7 @@ async function viewHesap(r, ctx) {
   const resultText = site => {
     const x = lastLogin?.results?.[site];
     if (!x) return '';
-    return x.ok ? '<span class="pill ok">giriş yapıldı</span>' : x.rejected ? '<span class="pill bad">şifre kabul edilmedi</span>' : `<span class="pill warn">${esc(x.error)}</span>`;
+    return x.ok ? '<span class="pill ok">giriş yapıldı</span>' : x.later ? '<span class="pill gray">açınca girilir</span>' : x.rejected ? '<span class="pill bad">şifre kabul edilmedi</span>' : `<span class="pill warn">${esc(x.error)}</span>`;
   };
   const rows = Object.keys(a.sessions).map(site => ({ site, alive: a.sessions[site], direct: a.direct.includes(site), blocked: a.blocked.includes(site) }));
   return header('Hesap', 'Tek giriş: e-posta ve şifreyi bir kez girin, uygulama sitelere kendisi girsin') + banner +
@@ -2604,7 +2606,7 @@ const SSS = [
   ['Şifrelerim her sitede aynı değil, ne yapmalıyım?', 'Hesap sayfasında "Siteye özel şifreler" bölümünü aç; farklı olan sitenin şifresini oraya yaz. Boş bıraktığın siteler ana şifreni kullanır.'],
   ['Okulun sunucularını yorar mı?', 'Hayır, normal kullanıma yakındır. Yalnızca açtığın ekran okuldan istenir ve kısa süre önbellekte tutulur. Arka planda oturumu açık tutmak için seyrek kontroller yapılır; siteye zaten bir istek gittiyse o kontrol atlanır. Bildirimler için Piazza 10 dakikada, Uzak saatte bir sorulur.'],
   ['Bildirimler nasıl geliyor?', 'Uygulama açıkken Piazza ve Uzak\'taki yeni içerikleri ve Akademik Takvimde yaklaşan önemli tarihleri kontrol eder (Uzak turuncu, Piazza mavi noktayla gösterilir); yenilik varsa Windows bildirimi gösterir ve (açıksa) okul adresine "[Ortam Sade · Bildirim]" konulu bir özet e-posta yollar. Uygulama kapalıyken kontrol yapılmaz. Hesap > Bildirimler\'den kapatabilirsin.'],
-  ['İndirdiğim paketin bu koddan üretildiğini nasıl anlarım?', 'Sürüm paketleri elle yüklenmez: GitHub Actions bu depodaki koddan üretir ve imzalı kaynak kanıtı ekler. GitHub CLI kuruluysa indirdiğin dosyanın yanında şu komutu çalıştır: gh attestation verify OrtamSade-1.6.4-win-x64.zip --repo Soft-Coder-183/ortam-sade. Sürüm numarasını kendi dosyanınkiyle değiştir. "Verification succeeded" yazıyorsa dosya bu depodan ve bu iş akışından çıkmıştır.'],
+  ['İndirdiğim paketin bu koddan üretildiğini nasıl anlarım?', 'Sürüm paketleri elle yüklenmez: GitHub Actions bu depodaki koddan üretir ve imzalı kaynak kanıtı ekler. GitHub CLI kuruluysa indirdiğin dosyanın yanında şu komutu çalıştır: gh attestation verify OrtamSade-win-x64.zip --repo Soft-Coder-183/ortam-sade (kurulum dosyası için OrtamSade-kurulum.exe, telefon için EtuCep.apk). "Verification succeeded" yazıyorsa dosya bu depodan ve bu iş akışından çıkmıştır.'],
   ['Otomatik silme e-postalarımı kalıcı olarak siler mi?', 'Hayır. Ayar açıksa okunmuş e-postalar seçtiğin süre (6 saat, 12 saat, 24 saat ya da 3 gün) sonra, uygulamanın bildirim e-postaları da (varsayılan) okunduktan 6 saat, okunmasa da gelişinden 12 saat sonra Çöp kutusuna taşınır; oradan geri alınabilir. Yıldızlı e-postalar ve "Otomatik silinmesin" düğmesine basılanlar taşınmaz. Ayar varsayılan olarak kapalıdır.'],
   ['Bazı bilgiler neden yok (ör. açılan derslerin şube ve saatleri)?', 'Ortam bu bilgileri yalnızca doğrulamalı (reCAPTCHA) aramayla veriyor. Uygulama doğrulamaları aşmadığı için bu bilgiler için okulun sayfasına bağlantı verilir.'],
   ['Uzak\'ta sınav, ödev yükleme ya da Safe Exam Browser isteyen içerik olursa?', 'İçeriğin kendisi (açıklama, dosyalar, bağlantılar, Safe Exam Browser indirme bağlantısı ve yapılandırma dosyası) uygulamada görünür. Sınava başlama, ödev yükleme, foruma yazma gibi işlemler okulun sitesinde yapılır; sayfanın üstünde "Sitede aç" bağlantısı çıkar.'],
@@ -3483,11 +3485,11 @@ $view.addEventListener('submit', async e => {
   const ortamWait = phone ? 'giriş sayfası açılacak' : 'giriş penceresi açılacak';
   btn.disabled = true;
   btn.innerHTML = icon('loader', 'spin') + 'Bütün sitelere giriş yapılıyor…';
-  show(s => (s === 'ortam' ? pill('gray', ortamWait) : pill('gray', 'giriş yapılıyor…')));
+  show(s => (s === 'ortam' ? pill('gray', ortamWait) : s === 'uzakydb' ? pill('gray', 'açınca girilir') : pill('gray', 'giriş yapılıyor…')));
   const r = await post('/api/account/login', { email: d.get('email'), password: d.get('password'), sites: {}, remember: phone || d.get('remember') === 'on' }).catch(() => null);
   const j = r ? await r.json().catch(() => ({})) : { error: 'Uygulamaya ulaşılamadı' };
   const res = j.results || {};
-  const line = s => (res[s] ? (res[s].ok ? pill('ok', 'girildi') : res[s].rejected ? pill('bad', 'şifre kabul edilmedi') : pill('warn', res[s].error || 'girilemedi')) : '');
+  const line = s => (res[s] ? (res[s].ok ? pill('ok', 'girildi') : res[s].later ? pill('gray', 'açınca girilir') : res[s].rejected ? pill('bad', 'şifre kabul edilmedi') : pill('warn', res[s].error || 'girilemedi')) : '');
   if (!r?.ok || !Object.values(res).some(x => x.ok)) {
     btn.disabled = false;
     btn.innerHTML = (phone ? '' : icon('login')) + 'Giriş yap';

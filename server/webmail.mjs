@@ -104,7 +104,8 @@ export function piazzaRoute(href, key = null) {
   if (!m) return null;
   const nid = m[1] || u.searchParams.get('nid');
   if (!nid || !PZ_ID.test(nid)) return null;
-  return { to: `#/piazza/${nid}`, nid };
+  const post = u.searchParams.get('cid') || m[2];
+  return { to: `#/piazza/${nid}`, nid, ...(post && /^[a-z0-9]{1,20}$/i.test(post) ? { post } : {}) };
 }
 
 // E-posta HTML'ini gösterilecek hale getirir: script/stil/olay öznitelikleri ve uzak görseller (izleme pikselleri) silinir.
@@ -117,12 +118,18 @@ function cleanHtml($, el, pzKey = null) {
     }
   });
   el.find('a[href]').attr('target', '_blank').attr('rel', 'noopener noreferrer');
+  // Ortam Sade / ETÜ Cep bildirim e-postasındaki "Aç:" bağlantısı (…github.io/ortam-sade/ac.html#/sayfa) uygulamanın içinde açılır
+  el.find('a[href]').each((_, a) => {
+    const m = /^https:\/\/soft-coder-183\.github\.io\/ortam-sade\/ac\.html(#\/[\w\-\/.%~]*)$/i.exec($(a).attr('href') || '');
+    if (m) $(a).attr('href', m[1]).removeAttr('target').removeAttr('rel').attr('class', 'inapp');
+  });
   // Piazza bildirimlerindeki bağlantılar uygulamadaki dersin Piazza sekmesinde açılır (Piazza'ya gitmez)
   el.find('a[href]').each((_, a) => {
     const r = piazzaRoute($(a).attr('href'), pzKey);
     if (!r) return;
     $(a).attr('href', r.to).removeAttr('target').removeAttr('rel').attr('class', 'inapp');
     if (r.nid) $(a).attr('data-pz-nid', r.nid);
+    if (r.post) $(a).attr('data-pz-post', r.post);
   });
   el.find('img').remove();
   if (pzKey) linkResourcesWord($, el, pzKey);
@@ -274,6 +281,14 @@ export async function compose({ mode = 'new', uid, mbox = 'INBOX' } = {}) {
 }
 
 const escHtml = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+// HTML olarak giden e-postada (okulun Webmail'i yazma kipini HTML'e ayarlıysa) metindeki adresler tıklanabilir bağlantı olur;
+// yoksa bildirim e-postasındaki "Aç:" adresi düz metin kalıyor, posta uygulamaları da onu her zaman bağlantıya çevirmiyor.
+// Girdi escHtml'den geçmiş metindir (adresin içinde tırnak ya da < kalmaz).
+const linkify = html => html.replace(/https?:\/\/[^\s<>"']+/g, u => {
+  const tail = u.match(/[.,;:!?)]+$/)?.[0] ?? '';
+  const a = u.slice(0, u.length - tail.length);
+  return `<a href="${a}">${a}</a>${tail}`;
+});
 
 export async function send({ id, from, to, cc = '', bcc = '', subject = '', text = '', includeQuote = true } = {}) {
   const c = composes.get(id);
@@ -283,7 +298,7 @@ export async function send({ id, from, to, cc = '', bcc = '', subject = '', text
   if (!includeQuote) for (const f of c.inline) await removeAttachment(id, f).catch(() => {});
   const quote = includeQuote && c.quote ? c.quote : '';
   const message = c.isHtml
-    ? `<div>${escHtml(text).replace(/\r?\n/g, '<br>')}</div>${quote ? '<br>' + quote : ''}`
+    ? `<div>${linkify(escHtml(text)).replace(/\r?\n/g, '<br>')}</div>${quote ? '<br>' + quote : ''}`
     : `${text}${quote ? '\n\n' + quote : ''}`;
   const body = new URLSearchParams({ _token: c.token, _task: 'mail', _action: 'send', _id: id, _attachments: '',
     _from: from || '', _to: to, _cc: cc, _bcc: bcc, _replyto: '', _followupto: '', _subject: subject,
@@ -550,6 +565,15 @@ export async function runAuto({ dryRun = false } = {}) {
   auto.totalMoved += info.length;
   await saveAuto();
   return { dryRun: false, moved: info, checked };
+}
+
+// UZAKYDB girişinden sonra: "New sign in" e-postası birkaç saniye ile birkaç dakika içinde gelir. Gelen kutusunun ilk sayfası
+// 20 sn, 1, 3 ve 8 dakika sonra kontrol edilir (listeleme taşımayı kendisi yapar). Yeni giriş eski sırayı iptal edip baştan başlar.
+const SWEEP_AT = [20_000, 60_000, 3 * 60_000, 8 * 60_000];
+let sweepTimers = [];
+export function sweepInstantSoon() {
+  sweepTimers.forEach(clearTimeout);
+  sweepTimers = SWEEP_AT.map(ms => setTimeout(() => { if (auto.instant.enabled) inbox('INBOX', 1).catch(() => {}); }, ms));
 }
 
 let autoTimer = null, instantTimer = null;

@@ -1,7 +1,6 @@
 // Ortam (ortam.etu.edu.tr) ayrıştırıcıları. Her fonksiyon okulun TEK bir sayfasını çeker ve JSON'a çevirir;
 // arayüz yalnızca kullanıcının açtığı ekranın sayfasını ister (maske mantığı).
 import * as cheerio from 'cheerio';
-import fs from 'node:fs';
 import { getPage } from './session.mjs';
 
 const txt = s => (s ?? '').replace(/\s+/g, ' ').trim();
@@ -181,38 +180,39 @@ const EXAMS = [
   { kind: 'final', label: 'Final', path: '/final-takvimim' },
   { kind: 'butunleme', label: 'Bütünleme', path: '/butunleme-takvimim' },
 ];
-// Açık olan sınav dönemi diske de yazılır: uygulama yeniden açılınca üç takvim sayfası yerine yalnızca o sayfa sorulur.
-const STATE_FILE = '.cache/state.json';
-let lastKind = (() => { try { return JSON.parse(fs.readFileSync(STATE_FILE, 'utf8')).examKind ?? null; } catch { return null; } })();
-function rememberKind(kind) {
-  if (kind === lastKind) return;
-  lastKind = kind;
-  let s = {};
-  try { s = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8')); } catch {}
-  try { fs.writeFileSync(STATE_FILE, JSON.stringify({ ...s, examKind: kind })); } catch {}
-}
-
 async function tryExam(e) {
   const $ = await load(e.path);
-  return !accessLimited($) && $('#kt_content table').length ? { e, $ } : null;
+  if (accessLimited($)) return null;
+  const t = $('#kt_content table').first();
+  if (!t.length) return null;
+  const rows = t.find('tbody tr').filter((_, tr) => $(tr).find('td').length > 1);
+  const last = Math.max(0, ...rows.map((_, tr) => Number($(tr).find('td[data-sort]').attr('data-sort')) || 0).get()) * 1000;
+  return { e, $, rows: rows.length, last };
 }
 
-// Önce en son açık olan takvimi dener; kapalıysa diğerlerine bakar. Açık olanı döndürür.
+// Birden çok takvim aynı anda açık kalabiliyor (finaller başlayınca ara sınav takvimi de açık duruyor). Sondan başa denenir:
+// Bütünleme → Final → Ara Sınav; son sınavı 14 günden eski olmayan ilk takvim gösterilir (yeni dönemde geçen dönemin
+// bütünlemesi açık kalsa da öne geçmez). Böylesi yoksa satırı olan ilk takvim, o da yoksa açık olan en son takvim (boş liste).
+const LATEST_FIRST = [...EXAMS].reverse();
+const RECENT = 14 * 86_400_000;
 export async function exams() {
-  const order = [...EXAMS].sort((a, b) => (b.kind === lastKind) - (a.kind === lastKind));
-  let open = null;
-  if (lastKind) open = await tryExam(order[0]);
-  if (!open) open = (await Promise.all(order.slice(lastKind ? 1 : 0).map(tryExam))).find(Boolean) ?? null;
-  if (!open) { rememberKind(null); return { active: null, message: 'Şu an dönemi açık bir sınav takvimi yok.', exams: [] }; }
+  let open = null, filled = null, empty = null;
+  for (const e of LATEST_FIRST) {
+    const x = await tryExam(e);
+    if (x?.rows && (!x.last || x.last >= Date.now() - RECENT)) { open = x; break; }
+    if (x?.rows) filled ??= x; else empty ??= x;
+  }
+  open ??= filled ?? empty;
+  if (!open) return { active: null, message: 'Şu an dönemi açık bir sınav takvimi yok.', exams: [] };
   const { e, $ } = open;
-  rememberKind(e.kind);
   const t = $('#kt_content table').first();
   const stamps = t.find('tbody tr').map((_, tr) => Number($(tr).find('td[data-sort]').attr('data-sort')) || 0).get();
   const pick = (r, ...keys) => { const k = Object.keys(r).find(h => keys.some(x => h.includes(x))); return k ? r[k] : ''; };
   const list = tableRows($, t).map((r, i) => ({
     code: pick(r, 'Ders Kodu'), name: pick(r, 'Ders Adı'), dateText: pick(r, 'Tarih'), ts: stamps[i] * 1000,
     room: pick(r, 'Derslik'), start: pick(r, 'Başlangıç'), end: pick(r, 'Bitiş'), type: pick(r, 'Türü'), proctor: pick(r, 'Gözetmen'),
-  })).sort((a, b) => a.ts - b.ts);
+  })).filter(x => x.name || x.dateText)          // "Kayıt bulunamadı" gibi tek hücreli satır sınav değildir
+    .sort((a, b) => a.ts - b.ts);
   return { active: { kind: e.kind, label: e.label }, exams: list };
 }
 
