@@ -1,7 +1,10 @@
 # Sürüm paketi: "vX.Y.Z" etiketi gönderilince Windows paketi GitHub'ın kendi sunucusunda, depodaki koddan üretilir ve
 # sürüm olarak yayımlanır. Paket elle yüklenmez; kimin, hangi commit'ten, hangi iş akışıyla ürettiği GitHub'ın imzalı
 # kaynak kanıtıyla (build provenance) doğrulanabilir:
-#   gh attestation verify OrtamSade-X.Y.Z-win-x64.zip --repo Soft-Coder-183/ortam-sade
+#   gh attestation verify OrtamSade-win-x64.zip --repo Soft-Coder-183/ortam-sade
+# Yayımlanan dosyaların adı sürüm numarası taşımaz (OrtamSade-kurulum.exe, OrtamSade-win-x64.zip, EtuCep.apk): README'deki
+# .../releases/latest/download/<ad> bağlantıları her zaman son sürümü indirir. Uygulamaların güncelleyicileri dosyayı adın
+# sonuna göre bulur (-win-x64.zip, .apk), sürüm numarasını etiketten alır.
 # Sürüm notu depodaki notlar/vX.Y.Z.md dosyasından gelir.
 name: Sürüm paketi
 
@@ -71,22 +74,31 @@ jobs:
           cp mobile/android/app/build/outputs/apk/release/app-release.apk "dist/EtuCep-$v.apk"
           rm -f "$RUNNER_TEMP/etucep.keystore"
 
+      - name: Yayın dosyaları (sürüm numarasız adlar)
+        shell: bash
+        run: |
+          mkdir -p dist/yayin
+          cp dist/OrtamSade-*-kurulum.exe dist/yayin/OrtamSade-kurulum.exe
+          cp dist/OrtamSade-*-win-x64.zip dist/yayin/OrtamSade-win-x64.zip
+          cp dist/EtuCep-*.apk dist/yayin/EtuCep.apk
+
       - name: Kaynak kanıtı (provenance)
         uses: actions/attest-build-provenance@v2
         with:
           subject-path: |
-            dist/OrtamSade-*-win-x64.zip
-            dist/OrtamSade-*-kurulum.exe
-            dist/EtuCep-*.apk
+            dist/yayin/OrtamSade-kurulum.exe
+            dist/yayin/OrtamSade-win-x64.zip
+            dist/yayin/EtuCep.apk
 
       - name: Sürümü yayımla
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          zip=$(ls dist/OrtamSade-*-win-x64.zip)
-          apk=$(ls dist/EtuCep-*.apk)
-          exe=$(ls dist/OrtamSade-*-kurulum.exe)
+          zip=dist/yayin/OrtamSade-win-x64.zip
+          apk=dist/yayin/EtuCep.apk
+          exe=dist/yayin/OrtamSade-kurulum.exe
+          v="${GITHUB_REF_NAME#v}"
           # Her sürümün notuna doğrulama komutu eklenir
           { cat "notlar/$GITHUB_REF_NAME.md"
             printf '\n## Doğrulama\n\nBu paket GitHub Actions'"'"'ta bu depodaki koddan üretildi. Kendin doğrulamak için:\n\n'
@@ -94,5 +106,5 @@ jobs:
             for f in "$exe" "$zip" "$apk"; do printf 'gh attestation verify %s --repo %s\n' "$(basename "$f")" "$GITHUB_REPOSITORY"; done
             printf '```\n'
           } > surum-notu.md
-          gh release create "$GITHUB_REF_NAME" "$exe#Windows · kurulum dosyası, önerilen ($(basename "$exe"))" "$zip#Windows · kurulumsuz, açıp çalıştır ($(basename "$zip"))" "$apk#ETÜ Cep · Android telefon uygulaması ($(basename "$apk"))" --title "Ortam Sade ${GITHUB_REF_NAME#v}" --notes-file surum-notu.md --verify-tag
+          gh release create "$GITHUB_REF_NAME" "$exe#Windows · kurulum dosyası, önerilen (Ortam Sade $v)" "$zip#Windows · kurulumsuz, açıp çalıştır (Ortam Sade $v)" "$apk#Android · ETÜ Cep telefon uygulaması ($v)" --title "Ortam Sade ${GITHUB_REF_NAME#v}" --notes-file surum-notu.md --verify-tag
           sha256sum "$exe" "$zip" "$apk" >> "$GITHUB_STEP_SUMMARY"
