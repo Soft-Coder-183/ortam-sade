@@ -3242,8 +3242,15 @@ async function doLogin(btn, { stay = false } = {}) {
   btn.insertAdjacentHTML('afterend', `<div class="muted">${esc(j.error || 'Giriş tamamlanmadı')}${j.rejected || j.account ? ' <a href="#/hesap">Hesap</a>' : ''}</div>`);
 }
 
-// PDF'ler uygulamanın içindeki görüntüleyicide açılır (görüntüleyici ilk kullanımda yüklenir).
+// PDF'ler uygulamanın içindeki görüntüleyicide açılır (görüntüleyici ilk kullanımda yüklenir). Normal tarayıcıda (web sürümü;
+// masaüstü penceresi WebView2 ve telefon değil) tarayıcının kendi PDF görüntüleyicisiyle yeni sekmede açılır: sekmeler arasında
+// geçmek, yakınlaştırmak ve kaydetmek daha kolay. Sekme açılamazsa (açılır pencere engeli) uygulamanın görüntüleyicisine düşülür.
+const IN_BROWSER = !window.Native && !window.chrome?.webview;
 async function showPdf(src, title) {
+  if (IN_BROWSER && src.startsWith('/api/file/')) {
+    const w = window.open(src, '_blank');
+    if (w) { w.opener = null; return; }              // null: açılır pencere engellendi
+  }
   const { openPdf } = await import('./pdfview.js');
   openPdf(src, title);
 }
