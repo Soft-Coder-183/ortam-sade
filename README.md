@@ -3,7 +3,7 @@
 TOBB ETÜ'nün okul sitelerini (**Ortam, UBS, Uzak, UZAKYDB, Webmail, Piazza**) tek, sade bir uygulamada toplar.
 Bilgisayarda **Ortam Sade** (Windows), telefonda **ETÜ Cep** (Android) adıyla çalışır. Ücretsiz ve açık kaynaklı bir öğrenci projesidir.
 
-**[İndir: Windows](#indir) · [İndir: Android](#indir) · [Ekran görüntüleri](#ekran-görüntüleri)**
+**[Tanıtım ve indirme sayfası](https://soft-coder-183.github.io/ortam-sade/) · [İndir: Windows](#indir) · [İndir: Android](#indir) · [Ekran görüntüleri](#ekran-görüntüleri)**
 
 > **Resmî değildir.** TOBB ETÜ tarafından geliştirilmemiş, onaylanmamış ve desteklenmemektedir. Ders kaydı, not, sınav yeri,
 > başvuru gibi resmî konularda her zaman okulun kendi sistemleri esastır.
@@ -134,6 +134,13 @@ Yalnızca açtığın ekranın sayfası okuldan istenir ve kısa süre önbellek
 | Mevzuat metinleri | yalnızca Mevzuat açılınca; her belge haftada en fazla bir kez |
 
 O aralıkta siteye zaten bir istek gittiyse oturum kontrolü atlanır. Windows'ta uygulama kapalıyken hiçbir istek yapılmaz.
+
+- **Kendini tanıtır:** istekler tarayıcı kimliğinin sonunda uygulamanın adını, sürümünü ve bu deponun adresini taşır
+  (`OrtamSade/1.8.4 (+https://github.com/Soft-Coder-183/ortam-sade)`, telefonda `EtuCep/…`). Okulun sistem yöneticisi isteklerin
+  nereden geldiğini görebilir.
+- **Hata freni:** bir site üst üste hata verirse (bağlantı hatası, 5xx, 429) uygulama o siteye bir süre istek göndermez; süre her
+  hatada ikiye katlanır (15 sn'den 30 dk'ya kadar), ilk başarılı yanıtta sıfırlanır. Ayrıca bir siteye dakikada 120'den çok istek
+  gönderilmez; bir hata döngüye girse de sunucu sürekli istek almaz ([`server/istemci.mjs`](server/istemci.mjs)).
 
 ## Geliştirme
 

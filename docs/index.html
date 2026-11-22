@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ortam Sade · ETÜ Cep: TOBB ETÜ siteleri tek uygulamada</title>
+<meta name="description" content="TOBB ETÜ'nün Ortam, UBS, Uzak, UZAKYDB, Webmail ve Piazza sitelerini tek, sade bir uygulamada toplayan açık kaynaklı öğrenci projesi. Şifren yalnızca kendi cihazında kalır.">
+<meta property="og:title" content="Ortam Sade · ETÜ Cep">
+<meta property="og:description" content="TOBB ETÜ siteleri tek uygulamada. Uzak ve Piazza bildirimleri, Açılan Dersler planlayıcısı. Şifren yalnızca kendi cihazında.">
+<meta property="og:image" content="https://soft-coder-183.github.io/ortam-sade/ekran/windows-anasayfa.png">
+<style>
+  :root { --bg:#f4f5f7; --fg:#1c1f26; --mut:#5b6270; --card:#fff; --line:#e1e4ea; --acc:#1d4aa8; --acc2:#c8202f; --acc3:#f08921; --ok:#1f7a4a; --soft:#eaf0fb; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#121418; --fg:#e8eaee; --mut:#9aa1ad; --card:#1b1e25; --line:#2b2f38; --acc:#7aa2ff; --soft:#1d2433; --ok:#5cc28d; } }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:17px/1.6 system-ui, "Segoe UI", Roboto, sans-serif; }
+  a { color:var(--acc); }
+  .wrap { max-width:1060px; margin:0 auto; padding:0 20px; }
+  header.hero { padding:56px 0 32px; }
+  .bar { width:64px; height:5px; border-radius:3px; background:linear-gradient(90deg,var(--acc) 0 33%,var(--acc2) 33% 66%,var(--acc3) 66%); margin:14px 0 22px; }
+  h1 { font-size:clamp(1.9rem,4.5vw,2.8rem); line-height:1.15; margin:0; color:var(--acc); }
+  .lead { font-size:1.2rem; color:var(--mut); max-width:720px; margin:0 0 26px; }
+  .dl { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:14px; margin:0 0 12px; }
+  .dl a { display:block; text-decoration:none; color:inherit; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px 18px; transition:border-color .15s, transform .15s; }
+  .dl a:hover { border-color:var(--acc); transform:translateY(-1px); }
+  .dl a.main { background:var(--acc); border-color:var(--acc); color:#fff; }
+  .dl b { display:block; font-size:1.1rem; }
+  .dl span { font-size:.92rem; opacity:.85; }
+  .note { font-size:.9rem; color:var(--mut); margin:0; }
+  section { padding:30px 0; }
+  h2 { font-size:1.55rem; margin:0 0 16px; }
+  .grid3 { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:14px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px 20px; }
+  .card h3 { margin:0 0 6px; font-size:1.08rem; }
+  .card p { margin:0; color:var(--mut); font-size:.97rem; }
+  .num { display:inline-grid; place-items:center; width:28px; height:28px; border-radius:50%; background:var(--soft); color:var(--acc); font-weight:700; font-size:.9rem; margin-bottom:8px; }
+  ol.feat { list-style:none; padding:0; margin:0; display:grid; gap:12px; }
+  ol.feat li { background:var(--card); border:1px solid var(--line); border-left:4px solid var(--acc); border-radius:12px; padding:14px 18px; }
+  ol.feat li:nth-child(1) { border-left-color:var(--acc3); }
+  ol.feat b { display:block; }
+  ol.feat span { color:var(--mut); font-size:.97rem; }
+  .shots { display:grid; grid-template-columns:3fr 1fr; gap:16px; align-items:start; }
+  .shots img, .wide img { width:100%; height:auto; border-radius:12px; border:1px solid var(--line); display:block; }
+  figure { margin:0; }
+  figcaption { font-size:.88rem; color:var(--mut); margin-top:6px; }
+  .wide { margin-top:16px; }
+  code { background:var(--soft); padding:1px 6px; border-radius:6px; font-size:.9em; }
+  pre { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px 14px; overflow-x:auto; font-size:.85rem; }
+  .why p { margin:0 0 10px; }
+  footer { padding:30px 0 50px; color:var(--mut); font-size:.9rem; border-top:1px solid var(--line); margin-top:20px; }
+  @media (max-width:700px) { .shots { grid-template-columns:1fr; } .shots figure:last-child { max-width:300px; } }
+</style>
+</head>
+<body>
+<header class="hero wrap">
+  <h1>Ortam Sade · ETÜ Cep</h1>
+  <div class="bar"></div>
+  <p class="lead">TOBB ETÜ'nün Ortam, UBS, Uzak, UZAKYDB, Webmail ve Piazza sitelerini tek, sade bir uygulamada toplar.
+    Bilgisayarda <b>Ortam Sade</b>, telefonda <b>ETÜ Cep</b>. Ücretsiz, açık kaynaklı bir öğrenci projesi.</p>
+  <div class="dl" id="indir">
+    <a class="main" id="dl-win" href="https://github.com/Soft-Coder-183/ortam-sade/releases/latest/download/OrtamSade-kurulum.exe">
+      <b>Windows için indir</b><span>Kurulum dosyası · çift tıkla, kurulsun</span></a>
+    <a id="dl-apk" href="https://github.com/Soft-Coder-183/ortam-sade/releases/latest/download/EtuCep.apk">
+      <b>Android için indir</b><span>ETÜ Cep · Android 10 ve üzeri</span></a>
+    <a href="https://github.com/Soft-Coder-183/ortam-sade/releases/latest/download/OrtamSade-win-x64.zip">
+      <b>Windows, kurulumsuz</b><span>Zip'i aç, OrtamSade.exe'ye çift tıkla</span></a>
+  </div>
+  <p class="note">Bağlantılar her zaman son sürümü indirir. Uyarı çıkarsa ne yapacağın <a href="#uyari">aşağıda</a>.
+    Resmî değildir: TOBB ETÜ tarafından geliştirilmemiş ve onaylanmamıştır.</p>
+</header>
+
+<main class="wrap">
+  <section>
+    <h2>Şifren nerede, kod ne yapıyor?</h2>
+    <div class="grid3">
+      <div class="card"><div class="num">1</div><h3>Şifren yalnızca senin cihazında</h3>
+        <p>Uygulamanın bir sunucusu yok. Okulun sitelerine doğrudan senin cihazından bağlanır; şifren yalnızca okulun kendi giriş
+          sayfalarına gider. Kaydedersen cihazında şifreli durur (Windows DPAPI, Android Keystore).</p></div>
+      <div class="card"><div class="num">2</div><h3>Kodun tamamı açık</h3>
+        <p>Her satır <a href="https://github.com/Soft-Coder-183/ortam-sade">GitHub'da</a>. Kendin okuyabilir ya da bir yapay zekâya
+          inceletebilirsin: "Bu uygulama şifremi okulun siteleri dışında bir yere gönderiyor mu?"</p></div>
+      <div class="card"><div class="num">3</div><h3>Dosya tam olarak bu koddan</h3>
+        <p>İndirdiğin dosyaları kimse elle yüklemez; GitHub kendi sunucusunda bu koddan derler ve imzalı bir
+          <a href="https://github.com/Soft-Coder-183/ortam-sade/attestations">kaynak kanıtı</a> ekler. Dosya bir bayt bile
+          değişse doğrulama başarısız olur.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Neler var?</h2>
+    <ol class="feat">
+      <li><b>Bildirimler: Uzak'a yeni içerik eklenince haber verir</b><span>Uzak'ın kendi bildirimi yok; yeni dosya, ödev ya da duyuru eklenince, Piazza'ya yeni gönderi gelince bildirim gelir. Basınca içerik açılır. Sınavdan bir gün önce ve kayıt, ekle-sil gibi tarihler yaklaşınca da hatırlatır.</span></li>
+      <li><b>Bütün siteler bir arada, tek girişle</b><span>E-posta ve şifreni bir kez girersin; altı site aynı menüde, her biri tek tıkla. Bir dersin Ortam, Uzak ve Piazza içeriği tek sayfada.</span></li>
+      <li><b>Açılan Dersler ve haftalık plan</b><span>Dersi ya da hocayı ara, plana ekle; şubeler haftalık takvimde, çakışmalar işaretli. Çakışmayan en iyi beş programı kendisi bulur.</span></li>
+      <li><b>Sade ve düzenli</b><span>Gereksiz menüler ve kalabalık ayıklandı. Sınav takvimi tek satır tek sınav; Webmail'de gereksiz otomatik e-postalar kendiliğinden temizlenir. Açık ve koyu tema, telefonda da düzgün.</span></li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>Ekran görüntüleri</h2>
+    <div class="shots">
+      <figure><img src="ekran/windows-anasayfa.png" alt="Ortam Sade, Windows ana sayfa" loading="lazy" width="1440" height="900"><figcaption>Windows · Ana Sayfa</figcaption></figure>
+      <figure><img src="ekran/telefon-anasayfa.png" alt="ETÜ Cep, telefon ana sayfa" loading="lazy" width="390" height="844"><figcaption>Android · ETÜ Cep</figcaption></figure>
+    </div>
+    <figure class="wide"><img src="ekran/acilan-dersler.png" alt="Açılan Dersler: haftalık takvim, seçili şubeler ve çakışmalar" loading="lazy" width="1440" height="1000"><figcaption>Açılan Dersler ve haftalık plan</figcaption></figure>
+    <p class="note">Görüntülerdeki öğrenci ve veriler uydurmadır.</p>
+  </section>
+
+  <section id="uyari">
+    <h2>Uyarı çıkarsa</h2>
+    <div class="grid3">
+      <div class="card"><h3>Windows: "bilgisayarınızı korudu"</h3><p><b>Ek bilgi → Yine de çalıştır.</b> Dosya imzasız: Windows'un tanıdığı kod imzalama sertifikası yıllık ücretli. Dosyanın bu koddan çıktığını kaynak kanıtıyla doğrulayabilirsin.</p></div>
+      <div class="card"><h3>Android: bilinmeyen kaynak</h3><p>Tarayıcına bu dosya için izin ver. Play Protect uyarırsa "Yine de yükle"yi seç; çıkmazsa Play Store → Play Protect → Ayarlar'dan taramayı kurulum süresince kapat.</p></div>
+      <div class="card"><h3>Kendin doğrula</h3><p><a href="https://cli.github.com/">GitHub CLI</a> ile, dosyanın indiği klasörde:</p>
+        <pre>gh attestation verify OrtamSade-kurulum.exe --repo Soft-Coder-183/ortam-sade</pre></div>
+    </div>
+  </section>
+
+  <section class="why">
+    <h2>Neden böyle?</h2>
+    <p><b>Neden web sitesi değil?</b> Web sitesi olsaydı şifren o sitenin sunucusundan geçerdi ve orada hangi kodun çalıştığını göremezdin. Uygulama senin cihazında çalışır; çalışan kod tam olarak açık olan koddur.</p>
+    <p><b>Neden Play Store değil?</b> Mağazadaki bir uygulamanın hangi koddan üretildiğini kullanıcı denetleyemez. Burada her dosyanın açık koddan üretildiği herkesçe doğrulanabilir.</p>
+    <p><b>Neden üç dosya?</b> Kurulum dosyası komut satırı gerektirmesin diye; zip, bilgisayarına bir şey kurmak istemeyenler için; APK, bildirimler en çok telefonda işe yaradığı için.</p>
+    <p><b>Okulun sunucularını yorar mı?</b> Yalnızca açtığın ekranın sayfası istenir. Bildirim kontrolleri seyrektir (Uzak saatte bir). Uygulama okula kendini adıyla tanıtır; site hata verirse istekleri kendiliğinden yavaşlatır.</p>
+  </section>
+</main>
+
+<footer class="wrap">
+  <p>Ortam Sade · ETÜ Cep, bir TOBB ETÜ öğrencisinin açık kaynaklı projesidir (MIT lisansı). TOBB ETÜ tarafından geliştirilmemiş,
+    onaylanmamış ve desteklenmemektedir; resmî konularda okulun kendi sistemleri esastır.</p>
+  <p><a href="https://github.com/Soft-Coder-183/ortam-sade">Kaynak kod</a> · <a href="https://github.com/Soft-Coder-183/ortam-sade/releases">Bütün sürümler ve notlar</a> · <a href="https://github.com/Soft-Coder-183/ortam-sade/issues">Sorun bildir</a></p>
+</footer>
+<script>
+  // Android'de telefon uygulaması öne çıkar
+  if (/Android/i.test(navigator.userAgent)) {
+    const a = document.getElementById('dl-apk'), w = document.getElementById('dl-win');
+    a.classList.add('main'); w.classList.remove('main'); a.parentNode.insertBefore(a, w);
+  }
+</script>
+</body>
+</html>
