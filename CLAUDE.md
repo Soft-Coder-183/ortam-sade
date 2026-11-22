@@ -14,6 +14,7 @@ Ayrıntılar `PROJE_DEVIR.md`'de; bir alana dokunmadan önce ilgili bölümünü
 - Sözdizimi: `node --check public/app.js` (ve değişen `.mjs`)
 - **Tanıtım videosu:** `npm run tanitim` → `dist\tanitim\OrtamSade-tanitim.mp4` (sahte veri, 3100 portu; ffmpeg ve uv gerekir).
   Tek sahne: `node tanitim/yap.mjs kayit 04-dersler`, sonra `node tanitim/yap.mjs birlestir`
+- **Tanıtım sayfası:** `docs/index.html` (GitHub Pages, soft-coder-183.github.io/ortam-sade); README ile aynı içerik, kısa hâli.
 - **README ekran görüntüleri:** `node tanitim/ekran.mjs` → `docs/ekran/*.png` (sahte veri, sunucu açılmaz). Arayüz değişince yenile.
 - **Deneme:** Kullanıcının kurulu kopyası (`%LOCALAPPDATA%\Programs\Ortam Sade`) 3000 portunu tutar ve depodaki kodu göstermez;
   onu durdurma. Depodaki sürümü `PORT=3100 node server/server.mjs` ile aç, başsız Chrome (`playwright-core`, `channel: 'chrome'`)
@@ -46,6 +47,7 @@ Ayrıntılar `PROJE_DEVIR.md`'de; bir alana dokunmadan önce ilgili bölümünü
   arka plan işi ya da Ana Sayfa kartı UZAKYDB'ye giriş yaptırmamalı.
 - Depodaki `.cache`'te gerçek kayıtlı bilgi var: depodaki sunucuyu açmak arka planda gerçek giriş yaptırabilir. Yalnızca arayüz
   deneniyorsa sunucusuz dene (`public/` dosyalarını ve `/api/*`'yi `page.route` ile ver; örnek `tanitim/ekran.mjs`).
+- Okul sitelerine istek yalnızca `server/istemci.mjs` `guardedFetch` (ya da onu kullanan `session.rawFetch`) ile: uygulama kimliği ve hata freni orada.
 - Okul sunucularını yorma: yalnızca açılan ekranın verisini çek. Derslik boş/dolu durumu hiçbir yerde gösterilmez.
 - Sayısal ya da hukuki bilgi kaynaksız yazılmaz; Mevzuat yanıtları maddeden alıntıya dayanır.
 - Görünmez güncelleme yok: uygulamada hiçbir şey kullanıcı onayı olmadan kurulmaz.
