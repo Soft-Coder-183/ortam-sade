@@ -10,7 +10,7 @@ import { ANSWERS } from './mevzuat-yanitlar.mjs';
 
 const ETU = 'https://www.etu.edu.tr';
 const MG = 'https://www.mevzuat.gov.tr';
-const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36';
+import { UA } from './istemci.mjs';                      // uygulamanın kimliği (OrtamSade/sürüm)
 const DIR = path.join('.cache', 'mevzuat');
 const DOC_VER = 2;                         // ayrıştırıcı değişince artır: eski kayıtlar yeniden işlenir
 const FRESH = 7 * 24 * 3600_000;           // belge metni haftada bir yenilenir

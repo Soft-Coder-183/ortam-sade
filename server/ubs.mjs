@@ -8,6 +8,7 @@
 import * as cheerio from 'cheerio';
 import { getPage, getFile, rawFetch, fileName, ExternalRedirect } from './session.mjs';
 import { htmlToPdf } from './pdf.mjs';
+import { guardedFetch } from './istemci.mjs';
 
 const BASE = 'https://ubs.etu.edu.tr';
 const FORM = { 'Content-Type': 'application/x-www-form-urlencoded' };
@@ -371,7 +372,7 @@ async function registration(path) {
   const r = await rawFetch('ubs', path);
   const oturumNo = (/oturumNo=([\w-]+)/.exec(r.location || '') || [])[1];
   if (!oturumNo) { await getPage('ubs', path); throw new Error('Ders kayıtlanma sayfası açılamadı'); }   // oturum kapalıysa getPage girişe yönlendirir
-  const res = await fetch('https://obs.etu.edu.tr/Services/DersKayitlanma/DersKayitlanmaSrvc.asmx/KayitlanmaKontrolleriYap', {
+  const res = await guardedFetch('https://obs.etu.edu.tr/Services/DersKayitlanma/DersKayitlanmaSrvc.asmx/KayitlanmaKontrolleriYap', {
     method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8', Origin: BASE, Referer: BASE + '/' },
     body: new URLSearchParams({ oturumNo }).toString() });
   const body = (/<string[^>]*>([\s\S]*)<\/string>/.exec(await res.text()) || [])[1] || '';

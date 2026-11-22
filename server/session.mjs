@@ -5,8 +5,8 @@ import fs from 'node:fs';
 import * as browser from './browser.mjs';
 import * as vault from './vault.mjs';
 import * as settings from './settings.mjs';
+import { guardedFetch } from './istemci.mjs';   // kimlik (User-Agent) ve hata freni
 
-const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36';
 const TTL = 10_000;                       // aynı sayfayı bu süre içinde tekrar çekme
 const JARS_FILE = '.cache/jars.enc';      // çerez kutuları: AES-256-GCM ile şifreli (vault.mjs)
 
@@ -112,8 +112,8 @@ function absorbSetCookie(jar, res) {
 // binary: gövde metin yerine Buffer olarak döner (PDF, ek dosyalar).
 export async function rawFetch(site, path, { method = 'GET', headers = {}, body, binary = false } = {}, jar = state[site].jar) {
   const s = SITES[site];
-  const res = await fetch(s.base + path, { method, body, redirect: 'manual',
-    headers: { Cookie: cookieHeader(jar), 'User-Agent': UA, 'Accept-Language': 'tr', ...headers } });
+  const res = await guardedFetch(s.base + path, { method, body, redirect: 'manual',
+    headers: { Cookie: cookieHeader(jar), 'Accept-Language': 'tr', ...headers } });
   absorbSetCookie(jar, res);
   const out = { status: res.status, location: res.headers.get('location'),
     type: res.headers.get('content-type') || '', disposition: res.headers.get('content-disposition') || '' };

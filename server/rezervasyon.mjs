@@ -5,9 +5,9 @@
 // kullanıcının tıklamasıyla yapılır. Çerezler (okulun oturumu) yalnızca bellekte tutulur.
 import * as cheerio from 'cheerio';
 import * as credentials from './credentials.mjs';
+import { guardedFetch } from './istemci.mjs';
 
 const BASE = 'https://www.etu.edu.tr';
-const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36';
 export const KINDS = { kutuphane: 'Kütüphane', 'muzik-studyosu': 'Müzik Stüdyosu' };
 const txt = s => (s ?? '').replace(/\s+/g, ' ').trim();
 const jar = new Map();
@@ -15,8 +15,8 @@ const pages = new Map();          // tür -> { date, token, action, tip, slots: 
 let preview = null;               // { action, fields } — önizlemedeki onay formu
 
 async function req(path, { method = 'GET', body = null, headers = {} } = {}, hops = 0) {
-  const r = await fetch(BASE + path, { method, body, redirect: 'manual',
-    headers: { Cookie: [...jar].map(([k, v]) => `${k}=${v}`).join('; '), 'User-Agent': UA, 'Accept-Language': 'tr', ...headers } });
+  const r = await guardedFetch(BASE + path, { method, body, redirect: 'manual',
+    headers: { Cookie: [...jar].map(([k, v]) => `${k}=${v}`).join('; '), 'Accept-Language': 'tr', ...headers } });
   for (const line of r.headers.getSetCookie?.() ?? []) {
     const [pair] = line.split(';'), i = pair.indexOf('=');
     jar.set(pair.slice(0, i).trim(), pair.slice(i + 1).trim());

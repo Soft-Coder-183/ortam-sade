@@ -2,9 +2,9 @@
 // Giriş gerekmez; sayfalar seyrek değiştiği için uzun süre önbellekte tutulur (server.mjs STALE_MIN).
 import * as cheerio from 'cheerio';
 import fs from 'node:fs';
+import { guardedFetch } from './istemci.mjs';
 
 const BASE = 'https://www.etu.edu.tr';
-const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36';
 const txt = s => (s ?? '').replace(/\s+/g, ' ').trim();
 // Elle girilen iletişim bilgileri (okulun sayfası e-posta/oda yayımlamıyor): data/kadro-iletisim.json
 let iletisim = null;
@@ -15,7 +15,7 @@ const contactOf = name => {
 };
 
 async function page(path) {
-  const r = await fetch(BASE + path, { headers: { 'User-Agent': UA, 'Accept-Language': 'tr' } });
+  const r = await guardedFetch(BASE + path, { headers: { 'Accept-Language': 'tr' } });
   if (!r.ok) throw new Error(`Okulun sitesi yanıt vermedi (${r.status})`);
   return cheerio.load(await r.text());
 }
