@@ -154,6 +154,35 @@ Kurulum dosyası, zip ve Android APK'yı tek komutla üretmek için: [DERLE.md](
 Yapı: `server/` (her site için bir modül: `ortam`, `ubs`, `moodle` (Uzak/UZAKYDB), `webmail`, `piazza`, `mevzuat` …),
 `public/` (tek sayfalık arayüz), `mobile/` (Android). Sunucu her ekran için okulun tek sayfasını açıp sadeleştirilmiş JSON döndürür.
 
+## Code signing policy
+
+*(English, for code signing reviewers.)* Windows releases (`OrtamSade-kurulum.exe`, `OrtamSade.exe` in `OrtamSade-win-x64.zip`)
+are built only by the [GitHub Actions release workflow](.github/workflows/surum.yml) from this repository; every release file
+carries a GitHub build provenance attestation. **Signing status:** an application for free code signing by
+[SignPath Foundation](https://signpath.org) is pending; until it is approved, release files are unsigned.
+
+- **Committers and reviewers:** Eren Akyurt ([@Soft-Coder-183](https://github.com/Soft-Coder-183)). Changes from anyone else
+  (pull requests) are reviewed before merging.
+- **Approvers:** Eren Akyurt ([@Soft-Coder-183](https://github.com/Soft-Coder-183)). Every release is approved manually.
+
+### Privacy policy
+
+The program runs entirely on the user's device; it has no server of its own and collects no telemetry. It connects only to:
+
+- **The school's sites** (`*.etu.edu.tr`) and **piazza.com**, with the user's own account, after the user signs in. The password
+  is sent only to these sites' login pages and is stored, if the user chooses "remember me", encrypted on the device
+  (Windows DPAPI / Android Keystore).
+- **Legislation sources** (`mevzuat.gov.tr`, Resmî Gazete), only when the user opens the legislation screen.
+- **GitHub** (`api.github.com`, `github.com`), to check for a new release every 6 hours. No personal data is sent. Updates are
+  downloaded and installed only when the user clicks "Update".
+- **The user's own school e-mail account**: optional notification summaries are sent from the user's address to the same address
+  (can be turned off in settings); the feedback form sends a message to the developer only when the user clicks "Send".
+
+System changes, all announced and reversible: the installer installs per user (no administrator rights), adds Start menu and
+optional desktop shortcuts, an optional start-at-login entry (a checkbox in the installer) and registers the `ortamsade:` link
+type under the current user. The uninstaller removes all of these and asks before deleting the user's saved data. The portable zip version installs
+nothing; it only registers the `ortamsade:` link type for the current user when first started.
+
 ## Lisans
 
 [MIT](LICENSE). Pakette Node.js çalışma ortamı ve bağımlılıklar (cheerio, pdf.js, playwright-core) kendi lisanslarıyla gelir.

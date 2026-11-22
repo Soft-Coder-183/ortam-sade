@@ -60,6 +60,14 @@ execFileSync('dotnet', ['publish', path.join(ROOT, 'masaustu', 'OrtamSade.csproj
 for (const f of ['OrtamSade.exe', 'OrtamSade.exe.config', 'Microsoft.Web.WebView2.Core.dll', 'Microsoft.Web.WebView2.WinForms.dll', 'WebView2Loader.dll'])
   fs.copyFileSync(path.join(EXE_OUT, f), path.join(OUT, f));
 fs.rmSync(EXE_OUT, { recursive: true, force: true });
+// WebView2 SDK DLL'leri BSD-3 lisanslı: ikili dağıtımda lisans metni de pakette olmalı (NuGet önbelleğinden).
+{
+  const ver = (/Microsoft\.Web\.WebView2" Version="([^"]+)"/.exec(fs.readFileSync(path.join(ROOT, 'masaustu', 'OrtamSade.csproj'), 'utf8')) || [])[1];
+  const nuget = process.env.NUGET_PACKAGES || path.join(process.env.USERPROFILE || process.env.HOME || '', '.nuget', 'packages');
+  const lic = path.join(nuget, 'microsoft.web.webview2', ver || '', 'LICENSE.txt');
+  if (!ver || !fs.existsSync(lic)) throw new Error('WebView2 lisans dosyası bulunamadı: ' + lic);
+  fs.copyFileSync(lic, path.join(OUT, 'WebView2-LICENSE.txt'));
+}
 
 // Windows'un kendi tar'ı zip yazabilir (bsdtar).
 execFileSync(path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'tar.exe'), ['-a', '-cf', ZIP, '-C', DIST, NAME], { stdio: 'inherit' });
