@@ -3521,6 +3521,15 @@ async function firstRun() {
 }
 
 window.addEventListener('hashchange', () => render());
+// Bulunulan sayfaya giden bağlantı (ör. bildirimden açılan dersteki "Yeni" kutusunda aynı gönderinin "Piazza" bağlantısı):
+// adres değişmediği için hashchange gelmez, bağlantı ölü görünürdü. Sayfa yeniden çizilir, gönderi yeniden açılıp gösterilir.
+document.addEventListener('click', e => {
+  const a = e.target.closest?.('a[href^="#/"]');
+  if (!a || e.defaultPrevented || a.target || e.ctrlKey || e.metaKey || e.shiftKey) return;
+  if (a.getAttribute('href') !== location.hash) return;
+  e.preventDefault();
+  render();
+});
 checkLock();
 await firstRun();
 render();
