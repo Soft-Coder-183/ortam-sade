@@ -51,6 +51,8 @@ Ayrıntılar `PROJE_DEVIR.md`'de; bir alana dokunmadan önce ilgili bölümünü
 - Okul sunucularını yorma: yalnızca açılan ekranın verisini çek. Derslik boş/dolu durumu hiçbir yerde gösterilmez.
 - Sayısal ya da hukuki bilgi kaynaksız yazılmaz; Mevzuat yanıtları maddeden alıntıya dayanır.
 - Görünmez güncelleme yok: uygulamada hiçbir şey kullanıcı onayı olmadan kurulmaz.
+- README'deki "Code signing policy" ve "Privacy policy" (İngilizce) SignPath koşuludur: uygulama yeni bir adrese bağlanırsa ya da
+  kurulum sistemde yeni bir şey değiştirirse oraya yaz.
 - Görünür tarayıcı penceresi yalnızca giriş ve okulun sitesinde yapılması gereken işler (ör. Ortam anketi) için açılır.
 - `.cache`, `.profile`, `dump`, `tools`, `yeni`, `arsiv`, `mobile/android/imza/` yayımlanmaz (gitignore).
 
