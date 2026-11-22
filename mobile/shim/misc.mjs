@@ -4,5 +4,6 @@ import { inflateSync } from 'fflate';
 
 export const fileURLToPath = u => String(u).replace(/^file:\/\//, '');          // node:url
 export const execFile = () => { throw new Error('Android\'de kullanılamaz'); };  // node:child_process
+export const execFileSync = execFile;
 export const inflateRawSync = data => Buffer.from(inflateSync(new Uint8Array(data)));   // node:zlib
-export default { inflateRawSync, fileURLToPath, execFile };
+export default { inflateRawSync, fileURLToPath, execFile, execFileSync };

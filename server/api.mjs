@@ -22,6 +22,7 @@ import * as update from './update.mjs';
 import * as mevzuat from './mevzuat.mjs';
 import * as program from './program.mjs';
 import * as rez from './rezervasyon.mjs';
+import * as toplu from './toplu.mjs';
 
 const CACHE_DIR = '.cache/api';
 const CACHE_VER = 19;            // ayrıştırıcıların çıktısı değişince artır: eski kayıtlar açılışta silinir
@@ -46,6 +47,8 @@ const files = {
     return moodle(q.get('site')).file({ cm: q.get('cm'), path: q.get('path') });
   },
   'piazza': q => piazza.file({ nid: q.get('nid'), rid: q.get('rid'), path: q.get('path') }),
+  // Piazza kaynaklarının bir bölümü tek zip'te (ayikla=1: bölümdeki zipler açılmış)
+  'piazza-zip': q => toplu.zip({ nid: q.get('nid'), s: q.get('s'), ayikla: q.get('ayikla') === '1' }),
   'rez-kod': () => rez.captcha(),                           // rezervasyon güvenlik kodu görseli (kodu kullanıcı yazar)
 };
 
@@ -297,6 +300,18 @@ export async function handleApi(req) {
     } catch (e) {
       if (e instanceof LoginRequired) { needLogin.add('webmail'); return send(401, { error: e.message, site: 'webmail', siteName: 'Webmail' }); }
       console.error('webmail/' + act, e.message);
+      return send(502, { error: e.message });
+    }
+  }
+
+  // Piazza kaynaklarının bir bölümünü İndirilenler'de bir klasöre yazar (yalnızca Windows; ayikla: zipler açılır)
+  if (name === 'piazza-klasor' && req.method === 'POST') {
+    try {
+      const b = await readJson(req);
+      return send(200, await toplu.folder({ nid: String(b.nid || ''), s: b.s, ayikla: !!b.ayikla }));
+    } catch (e) {
+      if (e instanceof LoginRequired) return send(401, { error: e.message, site: 'piazza', siteName: 'Piazza' });
+      console.error('piazza-klasor', e.message);
       return send(502, { error: e.message });
     }
   }

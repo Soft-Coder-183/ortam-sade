@@ -32,6 +32,12 @@ export async function classes() {
   }));
 }
 
+// Sınıfın ders kodu (ör. "BİL 214"): toplu indirmede klasör/zip adı için
+export async function codeOf(nid) {
+  if (!networks.some(n => n.id === nid)) await classes();
+  return networks.find(n => n.id === nid)?.course_number || 'Piazza';
+}
+
 // Yazarın sınıftaki rolü: sınıfın hoca/asistan listesinde ise "Ders hocası" / "Ders asistanı", değilse "Öğrenci".
 // Kimliği görünmeyen (anonim) yazarlarda boş: belirleyemediğimiz rolü yazmıyoruz.
 const ROLE = { professor: 'Ders hocası', instructor: 'Ders hocası', ta: 'Ders asistanı' };

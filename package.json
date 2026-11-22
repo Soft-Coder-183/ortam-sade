@@ -1,6 +1,6 @@
 {
   "name": "ortam-sade",
-  "version": "1.8.5",
+  "version": "1.8.6",
   "description": "TOBB ETÜ okul sitelerini (Ortam, UBS, Uzak, UZAKYDB, Webmail, Piazza) tek ve sade bir arayüzde toplayan, bilgisayarında çalışan bağımsız öğrenci projesi.",
   "license": "MIT",
   "private": true,
@@ -21,13 +21,13 @@
   },
   "dependencies": {
     "cheerio": "^1.0.0",
+    "fflate": "^0.8.3",
     "pdfjs-dist": "6.4.299",
     "playwright-core": "^1.50.0"
   },
   "devDependencies": {
     "buffer": "^6.0.3",
     "esbuild": "^0.28.2",
-    "fflate": "^0.8.3",
     "path-browserify": "^1.0.1",
     "scrypt-js": "^3.0.1"
   }

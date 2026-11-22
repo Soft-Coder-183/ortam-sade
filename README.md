@@ -52,7 +52,8 @@ e-posta gönderme/silme) yalnızca senin tıklamanla ya da açtığın bir ayarl
    açık ve koyu temayla, telefonda da düzgün görünür. Sınav takvimi tek satır tek sınav; Webmail'de okulun gereksiz e-postaları
    (Piazza bildirimleri, Yabancı Diller giriş uyarıları) kendiliğinden temizlenir.
 
-Ayrıca: ortalama ve ders planı hesabı, yönetmelikler arasında arama ve maddeye dayalı hızlı yanıtlar, kütüphane odası
+Ayrıca: Piazza kaynaklarını bölüm bölüm tek tuşla indirme (klasöre, zip olarak ya da içindeki zipler açılmış),
+ortalama ve ders planı hesabı, yönetmelikler arasında arama ve maddeye dayalı hızlı yanıtlar, kütüphane odası
 rezervasyonu, akademik takvim ve kadro.
 
 ## Ekran görüntüleri
@@ -181,7 +182,9 @@ The program runs entirely on the user's device; it has no server of its own and 
 System changes, all announced and reversible: the installer installs per user (no administrator rights), adds Start menu and
 optional desktop shortcuts, an optional start-at-login entry (a checkbox in the installer) and registers the `ortamsade:` link
 type under the current user. The uninstaller removes all of these and asks before deleting the user's saved data. The portable zip version installs
-nothing; it only registers the `ortamsade:` link type for the current user when first started.
+nothing; it only registers the `ortamsade:` link type for the current user when first started. Downloaded files are written only
+when the user asks: to the user's Downloads folder (a bulk Piazza download "to a folder" creates a new subfolder there and opens it
+in Explorer).
 
 ## Lisans
 

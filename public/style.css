@@ -266,7 +266,10 @@ a.chip { text-decoration: none; }
 /* Piazza kaynakları: bölüm başlığı + dosya blokları (ad satıra sığar, seçilebilir; türü renkli etiketle) */
 .res-sec + .res-sec { margin-top: 18px; }
 .res-sec:first-child { margin-top: 12px; }
-.res-sec h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font-size: 1rem; }
+.res-sec h3 { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 10px; font-size: 1rem; }
+.res-dl { margin-left: auto; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 2px; font-weight: 400; }
+.res-dl .btn { min-height: 28px; margin: 0; padding: 2px 9px; font-size: .8rem; }
+.res-dl .btn svg { width: 15px; height: 15px; }
 .res-count { min-width: 22px; padding: 1px 7px; border-radius: 999px; background: var(--card-2); color: var(--muted); font-size: .75rem; font-weight: 650; text-align: center; }
 .res-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 8px; }
 .res-item { --k: var(--muted); display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto; column-gap: 10px; row-gap: 5px;

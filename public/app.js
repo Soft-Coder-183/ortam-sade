@@ -483,7 +483,18 @@ function resItem(r, i) {
   if (i.type === 'link') return /^https?:\/\//i.test(i.url || '') ? `<a class="res-item k-${kind}" href="${esc(i.url)}" target="_blank" rel="noopener" title="${esc(i.name)} · ${esc(i.url)}">${icon('link', 'res-ic')}${body}</a>` : '';
   return `<div class="res-item k-${kind}" role="button" tabindex="0" title="${esc(i.name)}" data-file="/api/file/piazza?nid=${esc(r.nid)}&amp;rid=${esc(i.id)}" data-title="${esc(i.name)}">${icon(kind === 'pdf' || kind === 'belge' ? 'file-text' : kind === 'slayt' ? 'presentation' : kind === 'arsiv' ? 'archive' : kind === 'tablo' ? 'table' : kind === 'resim' ? 'image' : kind === 'video' ? 'video' : 'paperclip', 'res-ic')}${body}</div>`;
 }
-const resView = r => (r.sections.length ? r.sections.map(s => `<section class="res-sec"><h3>${esc(s.title)} <span class="res-count">${s.items.length}</span></h3>
+// Bölümün toplu indirme düğmeleri (iki ve daha çok dosyada): Windows'ta klasöre, her yerde zip olarak; bölümde zip varsa
+// "Zipleri açarak" (Windows'ta klasöre, telefonda açılmış içerikli tek zip). İş sunucuda yapılır (server/toplu.mjs).
+function resBulk(r, s, i) {
+  const files = s.items.filter(x => x.type !== 'link');
+  if (files.length < 2) return '';
+  const b = (mode, label, title) => `<button type="button" class="btn ghost" data-res-dl="${mode}" data-nid="${esc(r.nid)}" data-s="${i}" title="${esc(title)}">${icon('download')}${label}</button>`;
+  const zips = files.some(x => /\.zip$/i.test(x.name));
+  return `<span class="res-dl">${window.Native ? '' : b('klasor', 'Klasöre indir', `${files.length} dosya İndirilenler'de yeni bir klasöre iner`)}${
+    b('zip', 'Zip olarak', `${files.length} dosya tek zip dosyasında`)}${
+    zips ? b('ayikla', 'Zipleri açarak', window.Native ? 'Bölümdeki zipler açılmış hâlde, tek zip dosyasında' : 'Bölümdeki zipler açılmış hâlde, klasörleriyle İndirilenler\'de yeni bir klasöre') : ''}</span>`;
+}
+const resView = r => (r.sections.length ? r.sections.map((s, i) => `<section class="res-sec"><h3>${esc(s.title)} <span class="res-count">${s.items.length}</span>${resBulk(r, s, i)}</h3>
   <div class="res-grid">${s.items.map(i => resItem(r, i)).join('')}</div></section>`).join('')
   : '<p class="muted">Bu sınıfta kaynak yok.</p>');
 
@@ -494,6 +505,39 @@ const lazy = (key, summary, cls = 'card', extra = '') => `<details class="${cls}
   <div class="lz rich">${panels[key] ?? '<p class="muted">Yükleniyor…</p>'}</div></details>`;
 $view.addEventListener('keydown', e => {
   if ((e.key === 'Enter' || e.key === ' ') && e.target.matches?.('.res-item[data-file]')) { e.preventDefault(); e.target.click(); }
+});
+// Kaynak bölümünü toplu indirme: klasöre (Windows: sunucu İndirilenler'e yazar, Gezgin açılır) ya da zip (tarayıcıya iner;
+// telefonda core.mjs İndirilenler'e kaydeder). Dosyalar sırayla indirildiği için birkaç saniye ile birkaç dakika sürebilir.
+$view.addEventListener('click', async e => {
+  const b = e.target.closest('[data-res-dl]');
+  if (!b || b.disabled) return;
+  e.preventDefault();
+  const { resDl: mode, nid, s } = b.dataset;
+  const label = b.innerHTML;
+  b.disabled = true;
+  b.innerHTML = icon('loader', 'spin') + 'İndiriliyor…';
+  try {
+    if (mode === 'klasor' || (mode === 'ayikla' && !window.Native)) {
+      const r = await post('/api/piazza-klasor', { nid, s: Number(s), ayikla: mode === 'ayikla' });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || 'İndirilemedi');
+      toast(`${j.count} dosya indirildi: ${j.dir}${j.failed ? ` (${j.failed} dosya indirilemedi, klasördeki listeye bak)` : ''}`);
+    } else {
+      const r = await fetch(`/api/file/piazza-zip?nid=${encodeURIComponent(nid)}&s=${encodeURIComponent(s)}${mode === 'ayikla' ? '&ayikla=1' : ''}`);
+      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'İndirilemedi');
+      const name = decodeURIComponent(r.headers.get('X-File-Name') || '') || 'piazza.zip';
+      const url = URL.createObjectURL(await r.blob());
+      const a = Object.assign(document.createElement('a'), { href: url, download: name });
+      document.body.append(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 120_000);
+    }
+  } catch (err) {
+    toast(err.message);
+  }
+  b.disabled = false;
+  b.innerHTML = label;
 });
 // Piazza gönderisinde ilk geçen "resources…" ya da "kaynaklar…" sözcüğü dersin Piazza kaynaklarına bağlanır (gönderide bağlantı
 // olmasa bile). Sözcük zaten Piazza'nın kaynak sayfasına bağlantıysa o bağlantı uygulamadaki kaynaklara çevrilir.
