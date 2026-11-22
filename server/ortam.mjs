@@ -180,13 +180,24 @@ const EXAMS = [
   { kind: 'final', label: 'Final', path: '/final-takvimim' },
   { kind: 'butunleme', label: 'Bütünleme', path: '/butunleme-takvimim' },
 ];
+// Sınav günü (İstanbul gece yarısı, ms). Ara sınav sayfasında tarih hücresinde data-sort (Unix saniye) var; final sayfasında
+// yok: o zaman hücredeki "GG.AA.YYYY" metninden hesaplanır (yoksa 0 sayılıp "20779 gün önce" görünüyordu).
+function rowDay($, tr) {
+  const ds = Number($(tr).find('td[data-sort]').attr('data-sort'));
+  if (ds > 1e9) return ds * 1000;
+  for (const td of $(tr).find('td').get()) {
+    const m = /(\d{1,2})[./](\d{1,2})[./](\d{4})/.exec($(td).text());
+    if (m) return Date.UTC(+m[3], +m[2] - 1, +m[1]) - 3 * 3600_000;
+  }
+  return 0;
+}
 async function tryExam(e) {
   const $ = await load(e.path);
   if (accessLimited($)) return null;
   const t = $('#kt_content table').first();
   if (!t.length) return null;
   const rows = t.find('tbody tr').filter((_, tr) => $(tr).find('td').length > 1);
-  const last = Math.max(0, ...rows.map((_, tr) => Number($(tr).find('td[data-sort]').attr('data-sort')) || 0).get()) * 1000;
+  const last = Math.max(0, ...rows.map((_, tr) => rowDay($, tr)).get());
   return { e, $, rows: rows.length, last };
 }
 
@@ -206,10 +217,10 @@ export async function exams() {
   if (!open) return { active: null, message: 'Şu an dönemi açık bir sınav takvimi yok.', exams: [] };
   const { e, $ } = open;
   const t = $('#kt_content table').first();
-  const stamps = t.find('tbody tr').map((_, tr) => Number($(tr).find('td[data-sort]').attr('data-sort')) || 0).get();
+  const stamps = t.find('tbody tr').map((_, tr) => rowDay($, tr)).get();
   const pick = (r, ...keys) => { const k = Object.keys(r).find(h => keys.some(x => h.includes(x))); return k ? r[k] : ''; };
   const list = tableRows($, t).map((r, i) => ({
-    code: pick(r, 'Ders Kodu'), name: pick(r, 'Ders Adı'), dateText: pick(r, 'Tarih'), ts: stamps[i] * 1000,
+    code: pick(r, 'Ders Kodu'), name: pick(r, 'Ders Adı'), dateText: pick(r, 'Tarih'), ts: stamps[i],
     room: pick(r, 'Derslik'), start: pick(r, 'Başlangıç'), end: pick(r, 'Bitiş'), type: pick(r, 'Türü'), proctor: pick(r, 'Gözetmen'),
   })).filter(x => x.name || x.dateText)          // "Kayıt bulunamadı" gibi tek hücreli satır sınav değildir
     .sort((a, b) => a.ts - b.ts);
