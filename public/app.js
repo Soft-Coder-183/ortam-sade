@@ -3426,7 +3426,8 @@ document.addEventListener('click', async e => {
     document.addEventListener('visibilitychange', back);
     return;
   }
-  if (j.installer) { msg.textContent = 'Kurulum tamamlanıyor…'; return; }
+  // Android kurulumdan önce Play Protect taraması önerebilir; tarama uzun sürer ya da kurulumu durdurur
+  if (j.installer) { msg.textContent = 'Kurulum tamamlanıyor… Play Protect uygulamayı taramak isterse "Taramadan yükle"ye bas.'; return; }
   msg.textContent = `${j.version} kuruldu. Uygulama yeniden başlatılıyor…`;
   // Sunucu yeni sürümle açılınca sayfa yenilenir
   const t0 = Date.now();

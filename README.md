@@ -83,7 +83,8 @@ Bütün sürümler ve sürüm notları: [Sürümler sayfası](https://github.com
 **Uyarı çıkarsa:**
 - **Windows "Windows bilgisayarınızı korudu" derse:** *Ek bilgi → Yine de çalıştır.* Dosya imzasızdır: Windows'un tanıdığı bir
   kod imzalama sertifikası yıllık ücretlidir. Dosyanın bu koddan çıktığını yukarıdaki kanıtla doğrulayabilirsin.
-- **Android "bilinmeyen kaynak" izni isterse:** tarayıcına bu dosya için izin ver. **Play Protect** uyarırsa "Yine de yükle"yi seç;
+- **Android "bilinmeyen kaynak" izni isterse:** tarayıcına bu dosya için izin ver. **Play Protect** uygulamayı taramak isterse (güncellemede de)
+  "Taramadan yükle"ye, uyarırsa "Yine de yükle"ye bas;
   seçenek çıkmazsa Play Store → Play Protect → Ayarlar'dan taramayı kurulum süresince kapatabilirsin.
 - Windows'ta Google Chrome ya da Microsoft Edge kurulu olmalıdır (Ortam girişi ve PDF için). Node.js kurmana gerek yok.
 

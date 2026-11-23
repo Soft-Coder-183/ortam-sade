@@ -1067,6 +1067,7 @@ body.lgs main { padding: 0; max-width: none; }
 .gate.mini .gate-t { flex: 1 1 130px; } .gate.mini .gate-t b { font-size: .95rem; }
 .srv-state { display: flex; align-items: center; margin: 2px 0 0; padding: 1px 12px; gap: 6px; color: var(--muted); font-size: .7rem; font-weight: 500; text-decoration: none; }
 .srv-state i { flex: none; width: 6px; height: 6px; margin-inline: 7px 2px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 20%, transparent); }
+.srv-state:not(.down) { display: none; }          /* yalnızca uygulama kapanınca görünür */
 .srv-state.down { color: var(--bad); font-weight: 650; }
 .srv-state.down i { background: var(--bad); box-shadow: 0 0 0 3px color-mix(in srgb, var(--bad) 20%, transparent); }
 @media (max-width: 800px) { .srv-state { display: none; } }
