@@ -70,8 +70,8 @@ Okulun siteleri ve mevzuat.gov.tr
 | `scripts/paketle.mjs` | Windows paketi üretir (`npm run paketle`) |
 | `.github/workflows/surum.yml` | Etiketle tetiklenen sürüm üretimi |
 | `notlar/vX.Y.Z.md` | Sürüm notları |
-| `CLAUDE.md` | Her oturumda yüklenen özet, komutlar, kurallar (devret sistemi, katman 1) |
-| `DERLE.md`, `derle.ps1` | Tek komutla kurulum exe'si, zip ve APK üretimi |
+| `CLAUDE.md` | Her oturumda yüklenen özet, komutlar, kurallar (handoff sistemi, katman 1) |
+| `BUILD.md`, `build.ps1` | Tek komutla kurulum exe'si, zip ve APK üretimi |
 | `docs/` | GitHub Pages (`main` + `/docs`): `index.html` herkese açık tanıtım ve indirme sayfası (soft-coder-183.github.io/ortam-sade), `ac.html` bildirim bağlantısı, `ekran/` README ve sayfa görselleri |
 | `tanitim/` | Tanıtım videosu üretimi: `yap.mjs` (seslendirme → kayıt → birleştirme), `sahneler.mjs` (senaryo), `kayit.mjs` (ekran kaydı), `veri.mjs` (sahte öğrenci verisi), `kartlar.html` (tam ekran kartlar). Pakete ve APK'ya girmez |
 | `masaustu/` | Masaüstü penceresi `OrtamSade.exe` (C#, .NET Framework 4.8, WinForms + WebView2) |
@@ -214,11 +214,11 @@ Uygulama açıkken (penceresi kapalı olsa da tepside) çalışır; tepsideki "K
 
 ## Sürüm, paketleme ve güncelleme
 
-Sürüm paketi GitHub Actions'ta üretilir; yerelde üretilen dosyalar yüklenmez. Yayın adımları `CLAUDE.md`'de, yerel derleme `DERLE.md`'de (`derle.ps1`). `surum.yml` kurulum dosyası, zip ve APK'ya imzalı kaynak kanıtı ekler; sürüm notuna doğrulama komutları kendiliğinden eklenir.
+Sürüm paketi GitHub Actions'ta üretilir; yerelde üretilen dosyalar yüklenmez. Yayın adımları `CLAUDE.md`'de, yerel derleme `BUILD.md`'de (`build.ps1`). `surum.yml` kurulum dosyası, zip ve APK'ya imzalı kaynak kanıtı ekler; sürüm notuna doğrulama komutları kendiliğinden eklenir.
 
 **Yayın dosya adları (1.8.2'den beri):** `surum.yml` yerel adlı dosyaları (`OrtamSade-X.Y.Z-…`, `EtuCep-X.Y.Z.apk`) `dist/yayin/` altına sürüm numarasız adlarla kopyalar ve onları kanıtlar/yayımlar: `OrtamSade-kurulum.exe`, `OrtamSade-win-x64.zip`, `EtuCep.apk`. README'deki `releases/latest/download/<ad>` bağlantıları buna dayanır; adları değiştirme. Güncelleyiciler dosyayı ad sonuyla bulur (`-win-x64.zip`, `.apk`). README ekran görüntüleri `node tanitim/ekran.mjs` ile sahte veriyle yeniden üretilir (`docs/ekran/`).
 
-**Kurulum dosyası:** `kurulum/OrtamSade.iss` (Inno Setup) `dist/OrtamSade` klasöründen `OrtamSade-X.Y.Z-kurulum.exe` üretir. Kurulum yönetici izni istemez, `%LOCALAPPDATA%\Programs\Ortam Sade` klasörüne kurar. Başlat menüsüne kısayol koyar; isteğe bağlı olarak masaüstü kısayolu ve açılışta başlatma (`OrtamSade.exe --arka`: yalnızca tepsi; varsayılan olarak işaretli) ekler. Kısayollar `OrtamSade.exe`'yi açar; `ortamsade:` bağlantı türü HKCU'ya yazılır ve kaldırınca silinir; kaldırmadan önce açık uygulama `taskkill` ile kapatılır. Güncellemede (`PrepareToInstall`) açık uygulama önce `/api/shutdown` ile düzgün kapatılır, kalan olursa `taskkill` ile; uygulama X'te tepsiye indiği için Windows'un yeniden başlatma yöneticisi onu kapatamaz (sessiz kurulum 5 koduyla vazgeçiyordu). Kaldırırken `.cache` ve `.profile` yalnızca kullanıcı onaylarsa silinir. Uygulamanın kendi güncellemesi kurulum klasöründe de çalışır. Simge `kurulum/simge.ico`'dur. Paket yalnızca üretimde kullanılan bağımlılıkları içerir (package-lock'ta `dev` olanlar girmez). Inno Setup'ı Git Bash'ten çağırma: `/Q` gibi seçenekleri yola çevirir; PowerShell kullan (`derle.ps1` öyle yapar).
+**Kurulum dosyası:** `kurulum/OrtamSade.iss` (Inno Setup) `dist/OrtamSade` klasöründen `OrtamSade-X.Y.Z-kurulum.exe` üretir. Kurulum yönetici izni istemez, `%LOCALAPPDATA%\Programs\Ortam Sade` klasörüne kurar. Başlat menüsüne kısayol koyar; isteğe bağlı olarak masaüstü kısayolu ve açılışta başlatma (`OrtamSade.exe --arka`: yalnızca tepsi; varsayılan olarak işaretli) ekler. Kısayollar `OrtamSade.exe`'yi açar; `ortamsade:` bağlantı türü HKCU'ya yazılır ve kaldırınca silinir; kaldırmadan önce açık uygulama `taskkill` ile kapatılır. Güncellemede (`PrepareToInstall`) açık uygulama önce `/api/shutdown` ile düzgün kapatılır, kalan olursa `taskkill` ile; uygulama X'te tepsiye indiği için Windows'un yeniden başlatma yöneticisi onu kapatamaz (sessiz kurulum 5 koduyla vazgeçiyordu). Kaldırırken `.cache` ve `.profile` yalnızca kullanıcı onaylarsa silinir. Uygulamanın kendi güncellemesi kurulum klasöründe de çalışır. Simge `kurulum/simge.ico`'dur. Paket yalnızca üretimde kullanılan bağımlılıkları içerir (package-lock'ta `dev` olanlar girmez). Inno Setup'ı Git Bash'ten çağırma: `/Q` gibi seçenekleri yola çevirir; PowerShell kullan (`build.ps1` öyle yapar).
 
 `npm run paketle` yalnızca yerel deneme içindir. Paket `dist/OrtamSade-X.Y.Z-win-x64.zip` adıyla çıkar ve `runtime/node.exe` içerir. Yeni bir kök klasör pakete girecekse `scripts/paketle.mjs` listesine eklenmelidir.
 

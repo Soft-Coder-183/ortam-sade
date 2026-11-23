@@ -3,11 +3,11 @@
 TOBB ETÜ'nün okul sitelerini (Ortam, UBS, Uzak, UZAKYDB, Webmail, Piazza) tek sade arayüzde toplayan açık kaynak uygulama.
 Windows'ta **Ortam Sade** (yerel Node sunucusu + `OrtamSade.exe` WebView2 penceresi), Android'de **ETÜ Cep** (aynı `server/` kodu
 WebView içinde). Sahibi Eren Akyurt; Türkçe konuşulur. Depo herkese açık (MIT): https://github.com/Soft-Coder-183/ortam-sade
-Ayrıntılar `PROJE_DEVIR.md`'de; bir alana dokunmadan önce ilgili bölümünü oku (en altta liste).
+Ayrıntılar `HANDOFF.md`'de; bir alana dokunmadan önce ilgili bölümünü oku (en altta liste).
 
 ## Komutlar
 - Kurulum: `npm install` · Geliştirme: `npm run dev` (server/ değişince yeniden başlar) · `npm start`
-- **Derleme (hepsi):** `powershell -ExecutionPolicy Bypass -File .\derle.ps1` → `dist\` (kurulum exe, zip, APK). Ayrıntı: `DERLE.md`
+- **Derleme (hepsi):** `powershell -ExecutionPolicy Bypass -File .\build.ps1` → `dist\` (kurulum exe, zip, APK). Ayrıntı: `BUILD.md`
 - Parça parça: `npm run paketle` (zip + exe) · Inno Setup için PowerShell'de
   `& "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe" /Q "/DSurum=X.Y.Z" kurulum\OrtamSade.iss` ·
   `npm run mobil` + `mobile/android` içinde `gradlew :app:assembleRelease` (JAVA_HOME = Android Studio `jbr`)
@@ -68,10 +68,10 @@ Ayrıntılar `PROJE_DEVIR.md`'de; bir alana dokunmadan önce ilgili bölümünü
   `releases/latest/download/…` bağlantıları bu adlara dayanır.
 - Yayımlanmış etiket taşınmaz; hata çıkarsa yeni PATCH. Zorla gönderme ve kalıcı silme izin denetimine takılır: komutu hazırla,
   kullanıcı `!` ile çalıştırır.
-- Her işten sonra bu dosya ve `PROJE_DEVIR.md` güncellenir (`devret` skill'i). Kullanıcıya Türkçe, kısa rapor: ne yapıldı,
+- Her işten sonra bu dosya ve `HANDOFF.md` güncellenir (`handoff` skill'i). Kullanıcıya Türkçe, kısa rapor: ne yapıldı,
   neyin gerçekten denendiği, neyin denenmediği.
 
-## PROJE_DEVIR.md'de
+## HANDOFF.md'de
 - **Mimari, Dosya haritası:** yeni modül ya da uç eklerken
 - **Özellikler:** bir ekranı değiştirmeden önce o ekranın paragrafı (planlayıcı, rezervasyon, webmail, masaüstü, ilk açılış…)
 - **Arka plan işleri ve bildirimler:** zamanlayıcı, bildirim, otomatik silme işlerinde

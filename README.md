@@ -151,7 +151,7 @@ npm run dev        # sunucu dosyaları değişince kendini yeniden başlatır
 npm start          # normal çalıştırma
 ```
 
-Kurulum dosyası, zip ve Android APK'yı tek komutla üretmek için: [DERLE.md](DERLE.md) (`derle.ps1`).
+Kurulum dosyası, zip ve Android APK'yı tek komutla üretmek için: [BUILD.md](BUILD.md) (`build.ps1`).
 Yapı: `server/` (her site için bir modül: `ortam`, `ubs`, `moodle` (Uzak/UZAKYDB), `webmail`, `piazza`, `mevzuat` …),
 `public/` (tek sayfalık arayüz), `mobile/` (Android). Sunucu her ekran için okulun tek sayfasını açıp sadeleştirilmiş JSON döndürür.
 

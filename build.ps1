@@ -1,7 +1,7 @@
 ﻿# Ortam Sade / ETÜ Cep: Windows kurulum dosyası, Windows zip'i ve Android APK'yı tek seferde üretir. Çıktılar dist\ altına gelir.
-# Kullanım (proje kökünde): powershell -ExecutionPolicy Bypass -File .\derle.ps1          (hepsi)
-#                           powershell -ExecutionPolicy Bypass -File .\derle.ps1 -AndroidYok  (APK'sız)
-# Ayrıntı ve gerekenler: DERLE.md
+# Kullanım (proje kökünde): powershell -ExecutionPolicy Bypass -File .\build.ps1          (hepsi)
+#                           powershell -ExecutionPolicy Bypass -File .\build.ps1 -AndroidYok  (APK'sız)
+# Ayrıntı ve gerekenler: BUILD.md
 param([switch]$AndroidYok)
 $ErrorActionPreference = 'Stop'
 Set-Location $PSScriptRoot
