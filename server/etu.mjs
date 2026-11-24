@@ -6,7 +6,7 @@ import { guardedFetch } from './istemci.mjs';
 
 const BASE = 'https://www.etu.edu.tr';
 const txt = s => (s ?? '').replace(/\s+/g, ' ').trim();
-// Elle girilen iletişim bilgileri (okulun sayfası e-posta/oda yayımlamıyor): data/kadro-iletisim.json
+// Elle girilen iletişim bilgileri (okulun sayfasında e-posta/ofis boşsa kullanılır): data/kadro-iletisim.json
 let iletisim = null;
 const contactOf = name => {
   if (!iletisim) try { iletisim = JSON.parse(fs.readFileSync(new URL('../data/kadro-iletisim.json', import.meta.url), 'utf8')); } catch { iletisim = {}; }
@@ -88,9 +88,14 @@ export async function staff(slug) {
     if (!name) return [];
     const img = el.find('.user-list__item__content img').attr('src');
     const contact = el.find('h4').filter((_, h) => /Bağlantı/.test($(h).text())).first().parent();
+    // "Bağlantıya Geçin" kutusu: ofis (.ofisWrap), dahili telefon (tel:) ve e-posta (mailto:); boşsa elle girilen bilgi kullanılır
+    const manual = contactOf(name);
+    const mail = (contact.find('a[href^="mailto:"]').first().attr('href') || '').replace(/^mailto:/i, '').trim();
     return [{ id: el.attr('id') || '', name, title: txt(txt(h3.text()).replace(name, '').replace(/^\s*,\s*/, '')),
       role: txt(el.find('.user-list__item__content > span').first().text()),
-      photo: img ? new URL(img, BASE).href : null, ...contactOf(name),
+      photo: img ? new URL(img, BASE).href : null,
+      email: mail || manual.email, office: txt(contact.find('.ofisWrap strong').first().text()) || manual.office,
+      phone: txt(contact.find('a[href^="tel:"]').first().text()),
       education: el.find('.timeline__item').map((_, t) => ({ year: $(t).attr('data-year') || '', degree: txt($(t).find('h5').text()),
         school: txt($(t).find('strong').text()), field: txt($(t).find('span').first().text()) })).get().filter(e => e.degree || e.school),
       research: el.find('.user-list__detail__info__arastirma li').map((_, l) => txt($(l).text())).get().filter(Boolean),
@@ -116,6 +121,7 @@ export async function staffIndex() {
         const name = txt(h3.find('strong').text());
         if (!name) return;
         people.push({ name, title: txt(txt(h3.text()).replace(name, '').replace(/^\s*,\s*/, '')), role: txt($(a).find('.user-list__item__content > span').first().text()),
+          office: txt($(a).find('.ofisWrap strong').first().text()) || contactOf(name).office,
           unit: u.name, faculty: u.faculty, url: `${u.staffUrl}#${$(a).attr('id') || ''}` });
       });
     }));

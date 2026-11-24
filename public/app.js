@@ -1695,12 +1695,12 @@ async function viewKadroBolum(r, ctx, f) {
   const block = (title, html) => (html ? `<div class="k-block"><h3>${title}</h3>${html}</div>` : '');
   const person = p => `<details class="card k-person" id="k-${esc(p.id)}" data-keep="k-${esc(p.id)}"${p.id === pick ? ' open' : ''}>
     <summary>${p.photo ? `<img src="${esc(p.photo)}" alt="" loading="lazy">` : `<span class="k-nophoto">${icon('user')}</span>`}
-      <span class="k-id"><b>${esc(p.name)}</b><span class="muted">${esc(p.title)}</span>${p.role ? `<small class="muted">${esc(p.role)}</small>` : ''}</span></summary>
+      <span class="k-id"><b>${esc(p.name)}</b><span class="muted">${esc(p.title)}</span>${p.role ? `<small class="muted">${esc(p.role)}</small>` : ''}${p.office ? `<small class="k-office">Ofis: ${esc(p.office)}</small>` : ''}</span></summary>
     <div class="k-body">${
       block('Eğitim', p.education.length ? `<ul>${p.education.map(e => `<li><b>${esc(e.degree)}</b>${e.year ? ` <span class="muted">${esc(e.year)}</span>` : ''}<br>${esc([e.school, e.field].filter(Boolean).join(' · '))}</li>`).join('')}</ul>` : '')}${
       block('Araştırma alanları', p.research.length ? `<ul>${p.research.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : '')}${
       block('İş deneyimi', p.experience.length ? `<ul>${p.experience.map(e => `<li><b>${esc(e.place)}</b>${e.role ? `<br>${esc(e.role)}` : ''}</li>`).join('')}</ul>` : '')}${
-      block('İletişim', p.email || p.office ? `<ul>${p.email ? `<li><a href="mailto:${esc(p.email)}">${esc(p.email)}</a></li>` : ''}${p.office ? `<li>Ofis: ${esc(p.office)}</li>` : ''}</ul>` : '')}${
+      block('İletişim', p.email || p.office || p.phone ? `<ul>${p.office ? `<li>Ofis: ${esc(p.office)}</li>` : ''}${p.phone ? `<li>Telefon (dahili): ${esc(p.phone)}</li>` : ''}${p.email ? `<li><a href="mailto:${esc(p.email)}">${esc(p.email)}</a></li>` : ''}</ul>` : '')}${
       block('Bağlantı', p.links.length ? `<ul>${p.links.map(l => `<li>${l.href ? `<a href="${esc(l.href)}" target="_blank" rel="noopener">${esc(l.text)}</a>` : esc(l.text)}</li>`).join('')}</ul>` : '')}
     </div></details>`;
   return `<p class="k-back"><a href="#/ekstra/kadro">← Bütün bölümler</a></p>` + header(unit?.name || 'Akademik Kadro', `${d.people.length} kişi`) + kadroSearch() +
@@ -1719,7 +1719,7 @@ function kadroHits() {
   }
   const hits = kadroIndex.people.filter(p => trFold(p.name).includes(q));
   if (!hits.length) return '<p class="muted">Bu adla kimse bulunamadı.</p>';
-  return `<div class="ac-rows">${hits.slice(0, 30).map(p => `<div class="ac-row"><span><b>${esc(p.name)}</b> <span class="muted">${esc([p.title, p.unit].filter(Boolean).join(' · '))}</span></span>
+  return `<div class="ac-rows">${hits.slice(0, 30).map(p => `<div class="ac-row"><span><b>${esc(p.name)}</b> <span class="muted">${esc([p.title, p.unit, p.office && `Ofis ${p.office}`].filter(Boolean).join(' · '))}</span></span>
     <a class="btn" href="${esc(kadroHref(p))}">${icon('user')}Profil</a></div>`).join('')}</div>`;
 }
 

@@ -1209,6 +1209,7 @@ body.lgs main { padding: 0; max-width: none; }
 .k-person img, .k-nophoto { flex: none; width: 54px; height: 54px; border-radius: 50%; object-fit: cover; background: var(--card-2); }
 .k-nophoto { display: inline-flex; align-items: center; justify-content: center; color: var(--muted); }
 .k-id { display: flex; flex-direction: column; min-width: 0; line-height: 1.35; }
+.k-office { color: var(--ink); font-weight: 600; }
 .k-body { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 4px 20px; padding: 0 14px 12px; }
 .k-block h3 { margin: 8px 0 4px; font-size: .9rem; }
 .k-block ul { margin: 0; padding-left: 16px; font-size: .9rem; line-height: 1.45; overflow-wrap: anywhere; }
