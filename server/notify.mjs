@@ -61,10 +61,48 @@ function diff(key, items) {
   return before ? items.filter(x => !old.has(x.id)) : [];
 }
 
+// ---------- Okundu eşitlemesi (Piazza) ----------
+// Uygulamanın kendi sunucusu olmadığı için bilgisayar ve telefon okundu bilgisini Piazza'nın kendisinden alır: Piazza, açılan
+// gönderiyi hesapta okundu sayar (akıştaki is_new düşer). Bir cihazda okunan bildirimin gönderisi Piazza'da okundu yapılır
+// (gönderi bir kez açılır), diğer cihaz akışta bunu görünce kendi bildirimini okundu yapar. piazza.com'da okunanlar da sayılır.
+// Uzak'ın okundu bilgisi yok; Uzak bildirimleri cihazlar arasında eşitlenmez.
+const pzKey = n => (n.source === 'piazza' && n.key ? n.key.split('|') : null);   // ['piazza', nid, gönderi]
+function applyPiazzaSeen(nid, posts) {
+  const byId = new Map(posts.map(p => [p.id, p]));
+  let changed = 0;
+  for (const n of db.items) {
+    const k = pzKey(n);
+    if (n.read || !k || k[1] !== nid) continue;
+    const p = byId.get(k[2]);
+    if (p && !p.isNew) { n.read = true; changed++; }
+  }
+  return changed;
+}
+// Açılışta ve listeye bakılınca (en sık 5 dakikada bir): okunmamış Piazza bildirimi olan sınıfların akışı denetlenir.
+let syncing = null, syncAt = 0;
+function syncPiazzaRead() {
+  const nids = [...new Set(db.items.filter(n => !n.read).map(pzKey).filter(Boolean).map(k => k[1]))];
+  if (!nids.length || syncing || Date.now() - syncAt < 300_000) return syncing;
+  syncAt = Date.now();
+  syncing = (async () => {
+    let changed = 0;
+    for (const nid of nids) changed += applyPiazzaSeen(nid, (await piazza.feed(nid)).posts);
+    if (changed) await save();
+  })().catch(e => console.error('okundu eşitlemesi:', e.message)).finally(() => { syncing = null; });
+  return syncing;
+}
+// Bu cihazda okunan Piazza bildirimlerinin gönderileri Piazza'da da okundu olsun (sırayla, arka planda).
+function pushPiazzaRead(items) {
+  const keys = items.map(pzKey).filter(Boolean);
+  if (!keys.length) return;
+  (async () => { for (const [, nid, cid] of keys) await piazza.post(nid, cid).catch(() => {}); })();
+}
+
 async function checkPiazza() {
   const out = [];
   for (const n of (await piazza.classes()).filter(c => c.active)) {
     const f = await piazza.feed(n.id);
+    applyPiazzaSeen(n.id, f.posts);                   // başka cihazda ya da piazza.com'da okunanlar
     const key = courseKey(n.code) || n.code;
     // Akış "son güncellenen"e göre sıralı: eski gönderiye yorum gelince başa döner. Yeni gönderi = numarası (@nr) en büyük görülenden büyük.
     const maxKey = `piazza-nr:${n.id}`;
@@ -319,6 +357,8 @@ export async function start() {
 
 export async function list() {
   await load();
+  // En çok 2,5 saniye beklenir; uzarsa arka planda sürer, sonuç sonraki listede (uygulama dakikada bir sorar) görünür
+  await Promise.race([syncPiazzaRead(), new Promise(r => setTimeout(r, 2500))]);
   const unread = db.items.filter(n => !n.read);
   // Kaynağa göre sayılar: menüde ve derslerin üzerinde Uzak (turuncu) ve Piazza (mavi) ayrı noktalarla gösterilir
   const byCourse = {}, bySource = {}, byCourseSrc = {};
@@ -335,8 +375,10 @@ export async function list() {
 // Bir dersin (ya da hepsinin) bildirimlerini okundu yapar.
 export async function markRead(course) {
   await load();
-  for (const n of db.items) if (!course || n.course === course) n.read = true;
+  const now = db.items.filter(n => !n.read && (!course || n.course === course));
+  for (const n of now) n.read = true;
   await save();
+  pushPiazzaRead(now);
   return list();
 }
 
