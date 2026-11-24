@@ -1653,18 +1653,22 @@ $view.addEventListener('click', e => {
 // ---------- Ekstra: Akademik Takvim, Akademik Kadro, Yabancı Diller ----------
 // Okulun herkese açık sitesinden (www.etu.edu.tr); giriş gerekmez, sunucuda bir gün önbellekte tutulur.
 let takvimTab = 0;
-async function viewTakvim() {
+async function viewTakvim(r, ctx) {
   const c = await api('etu-takvim');
   const now = Date.now();
   const tab = c.tabs[takvimTab] ?? c.tabs[0];
   const all = tab.terms.flatMap(t => t.items);
   const upcoming = all.filter(i => i.end && i.end >= now).sort((a, b) => a.start - b.start).slice(0, 4);
   const cls = i => (!i.end ? '' : i.end < now ? 'past' : i.start <= now ? 'now' : '');
+  // "Bugün" çizgisi: geçmiş satırlardan sonra, süren ya da ilk gelecek satırın önünde (sayfada bir kez); sayfa oraya kayar
+  const firstOpen = all.find(i => i.end && i.end >= now);
+  const today = `<li class="tk-today" id="tk-today"><span>Bugün · ${esc(new Date(now).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric', weekday: 'long' }))}</span></li>`;
+  if (ctx && firstOpen) ctx.after = () => document.getElementById('tk-today')?.scrollIntoView({ block: 'center' });
   return header('Akademik Takvim', tab.title) +
     `<div class="tabs">${c.tabs.map((t, i) => `<button type="button" data-takvim="${i}" class="${t === tab ? 'on' : ''}">${esc(t.title.replace(/^\d{4}\s*[–-]\s*\d{4}\s*/, ''))}</button>`).join('')}</div>` +
     (upcoming.length ? `<div class="card tk-next"><b>Sıradaki</b><ul>${upcoming.map(i => `<li class="${cls(i)}"><span class="tk-when">${esc(i.when)}</span> ${esc(i.what)}</li>`).join('')}</ul></div>` : '') +
     tab.terms.map(t => `<h2>${esc(t.title)}</h2><div class="card"><ul class="tk-list">${t.items.map(i =>
-      `<li class="${cls(i)}"><span class="tk-when">${esc(i.when)}</span><span>${esc(i.what)}</span></li>`).join('')}</ul></div>`).join('') +
+      `${i === firstOpen ? today : ''}<li class="${cls(i)}"><span class="tk-when">${esc(i.when)}</span><span>${esc(i.what)}</span></li>`).join('')}</ul></div>`).join('') +
     `<p class="muted small">Kaynak: <a href="${esc(c.source)}" target="_blank" rel="noopener">etu.edu.tr akademik takvim</a></p>`;
 }
 

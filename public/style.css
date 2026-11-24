@@ -755,6 +755,12 @@ a.inapp { color: var(--accent); font-weight: 600; }
 .tk-list li.past { opacity: .5; }
 .tk-list li.now, .tk-next li.now { box-shadow: inset 3px 0 0 var(--red, var(--bad)); padding-left: 10px; }
 .tk-list li.now .tk-when, .tk-next li.now .tk-when { color: var(--red, var(--bad)); }
+.tk-list li.now { background: color-mix(in srgb, var(--red) 7%, transparent); }
+/* Bugün çizgisi: geçmişle gelecek arasında; açılışta sayfa buraya kayar */
+.tk-list li.tk-today { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 0; color: var(--red); font-size: .8rem; font-weight: 700; scroll-margin: 90px; }
+.tk-list li.tk-today::before, .tk-list li.tk-today::after { content: ""; height: 2px; background: var(--red); border-radius: 2px; }
+.tk-list li.tk-today::before { flex: 0 0 14px; }
+.tk-list li.tk-today::after { flex: 1; }
 .tk-next { border-left: 4px solid var(--accent); margin-bottom: 8px; }
 .tk-next ul { margin-top: 6px; }
 .tk-next li { padding: 4px 0; }
