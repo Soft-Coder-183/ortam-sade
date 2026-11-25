@@ -20,7 +20,8 @@ export const moodle = site => (instances[site] ??= create(site));
 
 // Etkinlik simgesinden dosya türü: .../f/pdf-24 -> pdf
 const fileKind = src => (/\/f\/([a-z]+)/.exec(src || '') || [])[1] || null;
-const PAGE = /^\/mod\/\w+\/(view\.php\?id=\d+|discuss\.php\?d=\d+)$/;      // uygulamanın içinde açılabilen etkinlik sayfaları
+// Uygulamanın içinde açılabilen sayfalar: etkinlikler, forum tartışmaları ve dersin not raporu (öğrencinin kendi notları)
+const PAGE = /^(\/mod\/\w+\/(view\.php\?id=\d+|discuss\.php\?d=\d+)|\/grade\/report\/user\/index\.php\?id=\d+)$/;
 const PLUGINFILE = /^\/pluginfile\.php\/[^?#]+$/;
 const SEBCONF = /^\/mod\/quiz\/accessrule\/seb\/config\.php\?cmid=\d+$/;     // Safe Exam Browser yapılandırma dosyası (.seb)
 
@@ -54,19 +55,16 @@ function create(site) {
   const mapCourse = x => ({ id: x.id, name: decode(x.fullname), short: decode(x.shortname), category: decode(x.coursecategory),
     url: x.viewurl, progress: x.hasprogress ? Math.round(x.progress) : null, end: x.enddate * 1000 });
 
-  // Ana ekran: dersler, yaklaşan etkinlikler ve son erişilenler tek istekte.
+  // Ana ekran: dersler ve yaklaşan etkinlikler tek istekte ("son erişilenler" alınmaz: içeriğin kendisiymiş gibi duruyordu).
   async function home() {
     const now = Math.floor(Date.now() / 1000);
-    const [c, e, r] = await call([COURSES,
+    const [c, e] = await call([COURSES,
       ['core_calendar_get_action_events_by_timesort', { limitnum: 20, timesortfrom: now - 7 * 86400, limittononsuspendedevents: true }],
-      ['block_recentlyaccesseditems_get_recent_items', { limit: 9 }],
     ]);
     return {
       courses: (c?.courses ?? []).map(mapCourse),
       events: (e?.events ?? []).map(x => ({ name: decode(x.activityname || x.name), course: decode(x.course?.fullname), courseId: x.course?.id,
         time: x.timesort * 1000, url: x.action?.url || x.url, action: decode(x.action?.name), overdue: !!x.overdue, module: x.modulename })),
-      recent: (r ?? []).map(x => ({ name: decode(x.name), course: decode(x.coursename), courseId: x.courseid, url: x.viewurl, module: x.modname,
-        cmid: x.cmid, time: x.timeaccess * 1000 })),
     };
   }
 

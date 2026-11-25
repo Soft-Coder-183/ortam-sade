@@ -1978,30 +1978,29 @@ const ago = t => { const m = Math.round((Date.now() - t) / 60000); return m < 60
 const ext = (url, label) => `<a href="${esc(url)}" target="_blank" rel="noopener">${esc(label)}</a>`;
 const MOD = { assign: 'Ödev', resource: 'Dosya', quiz: 'Sınav', forum: 'Forum', url: 'Bağlantı', page: 'Sayfa', folder: 'Klasör', attendance: 'Yoklama' };
 
-// #/uzakydb → dersler, yaklaşan etkinlikler, son erişilenler; #/uzakydb/<ders> → dersin içeriği (Uzak'taki gibi).
-// Hiçbir öğe okulun sitesine götürmez: dosyalar görüntüleyicide, etkinlik sayfaları (ödev, forum…) yerinde açılır.
-const moodlePath = url => { try { const u = new URL(url); return /^\/mod\/\w+\/view\.php$/.test(u.pathname) && u.searchParams.get('id') ? `${u.pathname}?id=${u.searchParams.get('id')}` : null; } catch { return null; } };
-function ydbItem(x, label, extra = '') {
-  const p = moodlePath(x.url);
-  if (x.module === 'resource' && p) return `<div class="mi"><button class="mi-main" data-file="/api/file/moodle?site=uzakydb&amp;cm=${esc(p.split('=')[1])}" data-title="${esc(x.name)}">${icon('paperclip')}<span>${esc(x.name)}</span></button>${extra}</div>`;
-  if (p) return lazy(`mpage:uzakydb:${p}`, `${icon(MOD_ICON[x.module] || 'dot')}<span>${esc(x.name)}</span> ${label}`, 'mi', extra);
-  return `<div class="mi"><span>${esc(x.name)}</span>${extra}</div>`;
-}
+// #/uzakydb → dersler (tek ders varsa doğrudan o dersin içeriği); #/uzakydb/<ders> → dersin notları ve içeriği (Uzak'taki gibi).
+// Hiçbir öğe okulun sitesine götürmez: dosyalar görüntüleyicide, etkinlik sayfaları (ödev, forum…) ve notlar yerinde açılır.
 
+// Dersin içeriği: en üstte Notlar (Moodle not raporu, açınca yüklenir), sonra haftalar/konular.
+const ydbCourse = async c => `<div class="card mitems">${lazy(`mpage:uzakydb:/grade/report/user/index.php?id=${c.id}`,
+  `${icon('clipboard')}<span>Notlar</span>`, 'mi')}</div>` + await courseUzak({ uzak: { id: c.id } }, { site: 'uzakydb' });
 async function viewUzakydb(r, ctx) {
   const y = await api('uzakydb');
-  if (!r?.param && ctx) ctx.after = loadYdbExtra;
   if (r?.param) {
     const c = y.courses.find(x => String(x.id) === r.param) ?? { id: r.param, name: 'Ders' };
-    return '<p><a href="#/uzakydb">← UZAKYDB</a></p>' + header(c.name, c.category || '') + await courseUzak({ uzak: { id: c.id } }, { site: 'uzakydb' });
+    const back = y.courses.length > 1 ? '<p><a href="#/uzakydb">← UZAKYDB</a></p>' : '';
+    return back + header(c.name, c.category || '') + await ydbCourse(c);
+  }
+  if (ctx) ctx.after = loadYdbExtra;
+  // Tek ders varsa liste yerine doğrudan dersin içeriği açılır
+  if (y.courses.length === 1) {
+    const c = y.courses[0];
+    return header(c.name, `UZAKYDB · ${c.category || 'Yabancı Diller'}`) + `<div id="ydb-extra"></div>` + await ydbCourse(c);
   }
   return header('UZAKYDB', 'Yabancı Diller') + `<div id="ydb-extra"></div>` +
     `<h2>Derslerim</h2><div class="list">${y.courses.map(c => `<a class="card course-row" href="#/uzakydb/${c.id}"><span><b>${esc(c.name)}</b>
       <span class="muted small">${esc(c.category)}</span></span><span class="badges">${c.progress !== null ? `<span class="pill gray">%${c.progress} tamamlandı</span>` : ''}</span></a>`).join('')
-      || '<div class="card msg">Ders yok.</div>'}</div>` +
-    `<h2>Son erişilenler</h2><div class="card mitems">${y.recent.length ? y.recent.map(x => ydbItem(x,
-      `<span class="pill gray">${esc(MOD[x.module] || x.module)}</span>`, `<div class="muted small">${esc(x.course)} · ${ago(x.time)}</div>`)).join('')
-      : '<span class="muted">Kayıt yok.</span>'}</div>`;
+      || '<div class="card msg">Ders yok.</div>'}</div>`;
 }
 
 // ---------- Webmail ----------
