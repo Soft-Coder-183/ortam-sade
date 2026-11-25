@@ -148,6 +148,8 @@ table.t tbody tr:hover td { background: var(--card-2); }
 .week .bl.online { border-left: 3px dashed var(--muted); }
 .week .bl b { display: block; font-weight: 650; } .week .bl small { color: var(--muted); }
 .agenda { display: none; }
+.prog-mode.wk-btns { display: none; }
+.prog-off { margin-bottom: 10px; }
 .day-chips { display: flex; gap: 6px; overflow-x: auto; margin-bottom: 12px; }
 .slot { display: flex; gap: 14px; padding: 12px 14px; border-radius: 10px; margin-bottom: 8px; background: var(--card); border: 1px solid var(--line);
   border-left: 3px solid var(--red); box-shadow: var(--shadow); }
@@ -407,6 +409,11 @@ a.mlink { color: var(--accent); }
   main { margin-left: 0; padding: 18px 16px 92px; }
   h1 { font-size: 1.35rem; }
   .week { display: none; } .agenda { display: block; }
+  .prog-mode.wk-btns { display: inline-flex; margin: 0 0 10px; }
+  /* Haftalık görünüm: tablo yatay kaydırılır, ders adları gizlenir (kod ve derslik kalır) */
+  .prog-hafta .week { display: grid; min-width: 330px; gap: 2px; padding: 10px 6px; grid-template-columns: 34px repeat(var(--cols), minmax(0, 1fr)) !important; } .prog-hafta .agenda { display: none; }
+  .prog-hafta .week-wrap { overflow-x: auto; margin: 0 -16px; padding: 0 16px; }
+  .prog-hafta .week .bl { padding: 3px 4px; font-size: .66rem; } .prog-hafta .week .h { font-size: .7rem; } .prog-hafta .week .tm { font-size: .64rem; padding-right: 2px; } .prog-hafta .week .bl small { display: none; }
   .mail summary { grid-template-columns: auto 1fr auto; padding: 12px 14px; } .mail summary .subj { grid-column: 2 / -1; grid-row: 2; }
   .mail .mb { padding: 4px 14px 14px; }
   #nav a.side { display: none; }

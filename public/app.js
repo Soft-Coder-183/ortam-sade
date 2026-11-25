@@ -136,6 +136,25 @@ function blocks(schedule) {
   });
 }
 
+// Ders dönemleri (akademik takvim, lisans): "Derslerin … başlaması" ile "Derslerin son günü" arası. Final ve bütünleme
+// haftalarında ve tatilde ders yapılmaz: bu aralıkların dışındaki günlerde programda ders gösterilmez. Takvim alınamazsa null
+// (dersler her hafta gösterilir). Hazırlık programının satırları sayılmaz.
+function classPeriods(cal) {
+  const tab = cal?.tabs?.find(t => /lisans/i.test(t.title) && !/lisansüstü/i.test(t.title)) ?? cal?.tabs?.[0];
+  const out = [];
+  for (const t of tab?.terms ?? []) {
+    const ok = i => !/hazırlık/i.test(i.what);
+    const st = t.items.find(i => ok(i) && /derslerin.*başla/i.test(i.what) && i.start);
+    const en = t.items.find(i => ok(i) && /derslerin son günü/i.test(i.what) && i.end);
+    if (st && en) out.push([st.start, en.end]);
+  }
+  return out.length ? out : null;
+}
+// O günün tarihinde (gece yarısı) ders var mı
+const hasClasses = (periods, date) => !periods || periods.some(([a, b]) => date >= new Date(a).setHours(0, 0, 0, 0) && date <= b);
+// Haftanın günlerinden ders dönemi dışında kalanların dersleri boşaltılır
+const classWeek = (per, periods, offset) => per.map((b, d) => (hasClasses(periods, dayDate(offset, d).getTime()) ? b : []));
+
 // ---------- Ders Programı: haftalar ve sınavlar ----------
 // Dersler her hafta aynıdır; sınavlar (Sınav Takvimi'nden) yalnızca kendi haftasında, kendi gün/saat hücresinde görünür.
 // ‹ › ile haftalar arasında gezilir; "şimdi" çizgisi yalnızca bu haftada. Sınav kutusuna tıklayınca ayrıntı kartı açılır
@@ -195,7 +214,7 @@ function weekGrid(schedule, perDay, exams = [], offset = 0) {
   const tcol = offset === 0 ? cols.indexOf(todayIdx()) : -1;
   const now = `<div class="nowline" hidden></div><div class="nowline today" hidden></div><div class="nowlabel" hidden></div>`;
   return `<div class="week card" data-slots="${ranges.map(([s, e]) => `${hm(s)}-${hm(e)}`).join(',')}" data-tcol="${tcol >= 0 ? tcol + 2 : ''}"
-    style="grid-template-columns:44px repeat(${cols.length},minmax(0,1fr));grid-template-rows:auto repeat(${ranges.length},30px)">${head}${times}${bl}${ex}${now}</div>`;
+    style="--cols:${cols.length};grid-template-columns:44px repeat(${cols.length},minmax(0,1fr));grid-template-rows:auto repeat(${ranges.length},30px)">${head}${times}${bl}${ex}${now}</div>`;
 }
 
 function agenda(schedule, perDay, exams = [], offset = 0) {
@@ -237,15 +256,31 @@ function weekNav(offset, exams, e) {
     <span class="wk-range"><b>${range}</b>${exams.length ? ` · <span class="wk-exams">${exams.length} sınav</span>` : ''}</span>${hint}</div>`;
 }
 
+// Telefonda görünüm: günlük liste (varsayılan) ya da haftalık tablo; seçim bu cihazda saklanır. Masaüstünde hep tablo.
+let progView = (() => { try { return localStorage.getItem('program-gorunum') || 'gun'; } catch { return 'gun'; } })();
 async function viewProgram(r, ctx) {
-  const [s, e] = await Promise.all([api('schedule'), api('exams').catch(() => null)]);
+  const [s, e, cal] = await Promise.all([api('schedule'), api('exams').catch(() => null), api('etu-takvim').catch(() => null)]);
   const offset = state.week ?? 0;
   const exams = progExams = weekExams(e, offset);
-  const per = blocks(s);
+  const all = blocks(s);
+  const per = classWeek(all, classPeriods(cal), offset);
+  // Ders dönemi dışındaki hafta (final, bütünleme, tatil): programda ders yok, yalnızca sınavlar
+  const off = all.some(d => d.length) && per.every(d => !d.length);
   ctx.after = startNowTicker;
+  const toggle = `<div class="prog-mode wk-btns" role="group" aria-label="Görünüm">${[['gun', 'Günlük'], ['hafta', 'Haftalık']].map(([k, l]) =>
+    `<button type="button" data-prog-view="${k}" class="${progView === k ? 'on' : ''}">${l}</button>`).join('')}</div>`;
   return header('Ders Programım', 'Kırmızı kenarlı dersler yüz yüze, gri kesikli kenarlılar çevrimiçi; sınavlar kendi haftasında') +
-    weekNav(offset, exams, e) + weekGrid(s, per, exams, offset) + agenda(s, per, exams, offset);
+    weekNav(offset, exams, e) + toggle +
+    (off ? `<div class="card msg prog-off">Bu hafta ders yok: akademik takvime göre ders dönemi dışında (sınav dönemi ya da tatil).${exams.length ? ' Sınavların aşağıda.' : ''}</div>` : '') +
+    `<div class="prog prog-${progView}"><div class="week-wrap">${weekGrid(s, per, exams, offset)}</div>${agenda(s, per, exams, offset)}</div>`;
 }
+document.addEventListener('click', e => {
+  const b = e.target.closest('#view [data-prog-view]');
+  if (!b) return;
+  progView = b.dataset.progView;
+  try { localStorage.setItem('program-gorunum', progView); } catch {}
+  render();
+});
 
 // Sınav ayrıntı kartı (masaüstünde kutunun yanında, telefonda alttan açılır)
 function examPop(btn) {
@@ -2207,7 +2242,9 @@ function homeToday(res) {
     const lg = Array.isArray(res) && res.find(x => x.site === 'schedule' && x.login);
     return lg ? loginGate(lg.login, lg.siteName, true) : '<p class="muted">Ders programı alınamadı.</p>';
   }
-  const per = blocks(s);
+  // Ders dönemi dışındaki günlerde (final, bütünleme, tatil) ders gösterilmez; takvim gelmezse hepsi gösterilir
+  const periods = classPeriods(Array.isArray(res) ? res.find(x => x.site === 'etu-takvim')?.data : null);
+  const per = classWeek(blocks(s), periods, 0);
   const t = todayIdx();
   const now = new Date().getHours() * 60 + new Date().getMinutes();
   // Satırlar nötr; yalnızca şu anki ders öne çıkar (mavi kenar + "Şimdi"), biten dersler soluk, sıradaki ders etiketli.
@@ -2224,11 +2261,13 @@ function homeToday(res) {
       b === cur ? '<span class="tag now">Şimdi</span>' : b === next ? '<span class="tag">Sıradaki</span>' : '') })),
       ...exams.map(x => ({ m: minutes(x.start), html: examRow(x) }))].sort((a, b) => a.m - b.m).map(x => x.html).join('');
   }
-  for (let i = 1; i < 7; i++) {               // bugün ders yok ya da bitti: sonraki ders günü
-    const d = (t + i) % 7;
-    if (per[d]?.length) return `<p class="muted">${list.length ? 'Bugünkü dersler bitti.' : 'Bugün ders yok.'} ${i === 1 ? 'Yarın' : esc(s.days[d])}:</p>` + per[d].map(b => row(b)).join('');
+  const next = classWeek(blocks(s), periods, 1);          // gelecek haftanın günleri (onun tarihlerine göre)
+  for (let i = 1; i < 7; i++) {               // bugün ders yok ya da bitti: sonraki ders günü (bu hafta ya da gelecek hafta)
+    const d = (t + i) % 7, day = t + i < 7 ? per[d] : next[d];
+    if (day?.length) return `<p class="muted">${list.length ? 'Bugünkü dersler bitti.' : 'Bugün ders yok.'} ${i === 1 ? 'Yarın' : esc(s.days[d])}:</p>` + day.map(b => row(b)).join('');
   }
-  return '<p class="muted">Programda ders yok.</p>';
+  return blocks(s).some(d => d.length) ? '<p class="muted">Yakında ders yok: akademik takvime göre ders dönemi dışındasın (sınav dönemi ya da tatil).</p>'
+    : '<p class="muted">Programda ders yok.</p>';
 }
 
 function homeExams(e) {
@@ -2257,7 +2296,7 @@ function homePiazza(list) {
 }
 
 const HOME_CARDS = [
-  { id: 'today', title: 'Bugünkü dersler', link: '#/donem/program', api: ['schedule', 'exams'], body: homeToday },
+  { id: 'today', title: 'Bugünkü dersler', link: '#/donem/program', api: ['schedule', 'exams', 'etu-takvim'], body: homeToday },
   { id: 'exams', title: 'Sınav Takvimi', link: '#/sinav', api: 'exams', body: homeExams },
   { id: 'mail', title: 'Posta', link: '#/webmail', api: 'webmail?mbox=INBOX', body: homeMail },
   { id: 'piazza', title: 'Piazza', link: '#/donem/derslerim', api: 'piazza', body: homePiazza },
