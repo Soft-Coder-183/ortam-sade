@@ -69,7 +69,7 @@ export async function inbox(mbox = 'INBOX', pageNo = 1) {
   const j = await remote(`_task=mail&_action=list&_mbox=${encodeURIComponent(mbox)}&_page=${Number(pageNo) || 1}&_sort=date_DESC`);
   const exec = j.exec || '';
   let messages = rows(exec, mbox);
-  if (mbox === 'INBOX' && auto.instant.enabled) messages = await dropInstant(messages);
+  if (mbox === 'INBOX' && anyInstant()) messages = await dropInstant(messages);
   const unread = Number((exec.match(/set_unread_count\("INBOX",\s*(\d+)/) || [])[1] ?? messages.filter(m => !m.seen).length);
   const rowcount = plain((exec.match(/set_rowcount\("([^"]*)"/) || [])[1]);
   return { mbox, folders, unread, rowcount, messages, auto: autoView(mbox, messages) };
@@ -384,7 +384,7 @@ const AUTO_FILE = '.cache/webmail-auto.json';
 export const AUTO_CHOICES = [6, 12, 24, 72];         // saat: 6 saat, 12 saat, 24 saat, 3 gün
 const AUTO_EVERY = 60 * 60_000;                     // saatte bir kontrol
 const NOTIF_SUBJECT = /^\[(Ortam Sade|ETÜ Cep) · Bildirim\]/;
-// Anında silinenler (varsayılan AÇIK): gelir gelmez Çöp'e taşınır (kalıcı silinmez). Gelen kutusu her açıldığında ve uygulama
+// Anında silinenler (varsayılan AÇIK; Piazza'nınkiler ayrı ayar, varsayılan KAPALI): gelir gelmez Çöp'e taşınır (kalıcı silinmez). Gelen kutusu her açıldığında ve uygulama
 // açıkken 5 dakikada bir kontrol edilir. Yıldızlananlar ve "Otomatik silinmesin" denenler taşınmaz.
 // Piazza'nın kendi e-postaları (yeni gönderi, günlük özet…): uygulama yeni gönderileri kendi bildirimiyle haber verir. Gönderen
 // piazza.com adresi (ya da adresi gelmezse "… on Piazza" adı); şifre, doğrulama ve kayıt e-postaları silinmez.
@@ -401,7 +401,12 @@ const INSTANT_EVERY = 5 * 60_000;
 // ("New sign in…") 3 gün sonra KALICI silinir. Süre, e-postanın Çöp'te ilk görüldüğü andan sayılır (Çöp saatte bir taranır);
 // özellik ilk açıldığında Çöp'te zaten olanlar için de o andan başlar. Yıldızlı e-postalar silinmez.
 const PURGE = { days: 30, fastDays: 3 };
-const isInstant = m => INSTANT.some(r => r.test(m));
+// Piazza'nın e-postaları ayrı ayardır (varsayılan KAPALI: uygulamanın bildirimleri yeterince güvenilir olunca açılacak);
+// Yabancı Diller "New sign in" ve rezervasyon kopyaları "Anında sil" ayarına bağlıdır.
+const instantOn = (r, s = auto) => (r.id === 'piazza' ? !!s.instant?.piazza : !!s.instant?.enabled);
+const isInstant = (m, s = auto) => INSTANT.some(r => instantOn(r, s) && r.test(m));
+const anyInstant = (s = auto) => !!(s.instant?.enabled || s.instant?.piazza);
+const isInstantKind = m => INSTANT.some(r => r.test(m));          // Çöp'te kısa sürede silinecekler (ayardan bağımsız)
 // Okulun rezervasyon sisteminin aynı e-postayı iki kez göndermesi: aynı gönderen, aynı konu ve aynı tarihteki ikinci kopya anında
 // Çöp'e taşınır, ilki kalır. Yalnızca konusu "rezervasyon" geçen ve okulun adresinden gelen e-postalara uygulanır.
 const isRezMail = m => /rezervasyon/i.test(m.subject || '') && /etu\.edu\.tr|rezervasyon|kütüphane|kutuphane/i.test(m.from || '');
@@ -417,7 +422,7 @@ const rezDuplicates = messages => {
 // Bildirim e-postaları varsayılan olarak 12 saat sonra silinir. notifVer: varsayılan 24 saatken kaydedilmiş ayar (kullanıcı
 // süreyi kendisi değiştirmediyse) bir kez 12 saate çekilir; kullanıcının sonradan seçtiği süreye dokunulmaz.
 const NOTIF_VER = 2;
-let auto = { enabled: false, afterHours: 12, notif: { enabled: true, afterHours: 12, readHours: 6 }, instant: { enabled: true, moved: 0 }, purge: { enabled: true, deleted: 0 }, trashAt: {}, notifVer: NOTIF_VER, readAt: {}, seenAt: {}, exempt: {},
+let auto = { enabled: false, afterHours: 12, notif: { enabled: true, afterHours: 12, readHours: 6 }, instant: { enabled: true, piazza: false, moved: 0 }, purge: { enabled: true, deleted: 0 }, trashAt: {}, notifVer: NOTIF_VER, readAt: {}, seenAt: {}, exempt: {},
   lastRun: null, nextRun: null, lastMoved: 0, totalMoved: 0, lastError: null };
 try {
   const f = JSON.parse(fs.readFileSync(AUTO_FILE, 'utf8'));
@@ -463,7 +468,7 @@ export function selectDue(messages, s, now = Date.now(), mbox = 'INBOX') {
   return messages.filter(m => {
     const k = akey(mbox, m.uid);
     if (m.flagged || s.exempt[k]) return false;
-    if (isInstant(m) && s.instant?.enabled) return true;
+    if (isInstant(m, s)) return true;
     // Bildirim e-postası: okunduysa okunduktan readHours (varsayılan 6 saat), okunmasa da gelişinden afterHours (12 saat) sonra
     if (isNotif(m) && s.notif?.enabled) return (m.seen && !!s.readAt?.[k] && now - s.readAt[k] >= hoursOf(s.notif.readHours ?? 6))
       || (!!s.seenAt?.[k] && now - s.seenAt[k] >= hoursOf(s.notif.afterHours));
@@ -500,7 +505,7 @@ async function allInbox(mbox = 'INBOX', pages = 10) {
 
 // Anında silinecekleri Çöp'e taşır; taşınamazsa (ör. bağlantı) listede kalırlar, sonraki kontrolde yeniden denenir.
 async function dropInstant(messages) {
-  const dups = rezDuplicates(messages);
+  const dups = auto.instant.enabled ? rezDuplicates(messages) : [];
   const due = [...new Set([...messages.filter(m => isInstant(m) && !m.flagged && !auto.exempt[akey('INBOX', m.uid)]).map(m => m.uid), ...dups])];
   if (!due.length) return messages;
   try {
@@ -521,7 +526,7 @@ export function selectPurge(messages, s, now = Date.now()) {
   return messages.filter(m => {
     const t = s.trashAt?.[m.uid];
     if (!t || m.flagged) return false;
-    return now - t >= (isNotif(m) || isInstant(m) ? PURGE.fastDays : PURGE.days) * 86_400_000;
+    return now - t >= (isNotif(m) || isInstantKind(m) ? PURGE.fastDays : PURGE.days) * 86_400_000;
   }).map(m => m.uid);
 }
 
@@ -543,7 +548,7 @@ async function purgeTrash(dryRun) {
 
 // dryRun: hiçbir şey taşımadan hangi e-postaların taşınacağını (ve Çöp'ten kalıcı silineceğini) söyler.
 export async function runAuto({ dryRun = false } = {}) {
-  const on = auto.enabled || auto.notif.enabled || auto.instant.enabled || auto.purge.enabled;
+  const on = auto.enabled || auto.notif.enabled || anyInstant() || auto.purge.enabled;
   if (!folders.length) await freshToken();
   const boxes = ['INBOX', ...(auto.notif.enabled && sentFolder() ? [sentFolder()] : [])];
   const info = [];
@@ -573,7 +578,7 @@ const SWEEP_AT = [20_000, 60_000, 3 * 60_000, 8 * 60_000];
 let sweepTimers = [];
 export function sweepInstantSoon() {
   sweepTimers.forEach(clearTimeout);
-  sweepTimers = SWEEP_AT.map(ms => setTimeout(() => { if (auto.instant.enabled) inbox('INBOX', 1).catch(() => {}); }, ms));
+  sweepTimers = SWEEP_AT.map(ms => setTimeout(() => { if (anyInstant()) inbox('INBOX', 1).catch(() => {}); }, ms));
 }
 
 let autoTimer = null, instantTimer = null;
@@ -581,7 +586,7 @@ export function startAuto() {
   clearInterval(autoTimer);
   clearInterval(instantTimer);
   // Anında silinecekler: Gelen kutusunun ilk sayfası 5 dakikada bir (listeleme taşımayı kendisi yapar)
-  instantTimer = setInterval(() => { if (auto.instant.enabled) inbox('INBOX', 1).catch(() => {}); }, INSTANT_EVERY);
+  instantTimer = setInterval(() => { if (anyInstant()) inbox('INBOX', 1).catch(() => {}); }, INSTANT_EVERY);
   const tick = async () => {
     auto.nextRun = Date.now() + AUTO_EVERY;
     if (!auto.enabled && !auto.notif.enabled && !auto.purge.enabled) return saveAuto();
@@ -594,15 +599,18 @@ export function startAuto() {
 
 export function autoStatus() {
   return { enabled: auto.enabled, afterHours: auto.afterHours, choices: AUTO_CHOICES, notif: auto.notif, lastRun: auto.lastRun,
-    instant: { enabled: auto.instant.enabled, moved: auto.instant.moved, rules: [...INSTANT.map(r => r.label), 'okulun aynı rezervasyon e-postasının ikinci kopyası'] },
+    instant: { enabled: auto.instant.enabled, piazza: !!auto.instant.piazza, moved: auto.instant.moved,
+      rules: [...INSTANT.filter(r => r.id !== 'piazza').map(r => r.label), 'okulun aynı rezervasyon e-postasının ikinci kopyası'],
+      piazzaLabel: INSTANT.find(r => r.id === 'piazza').label },
     purge: { enabled: auto.purge.enabled, deleted: auto.purge.deleted, days: PURGE.days, fastDays: PURGE.fastDays },
     nextRun: auto.enabled || auto.notif.enabled ? auto.nextRun : null,
     lastMoved: auto.lastMoved, totalMoved: auto.totalMoved, lastError: auto.lastError, tracked: Object.keys(auto.readAt).length };
 }
-export async function setAuto({ enabled, afterHours, notifEnabled, notifHours, notifReadHours, instant, purge }) {
+export async function setAuto({ enabled, afterHours, notifEnabled, notifHours, notifReadHours, instant, instantPiazza, purge }) {
   if (typeof enabled === 'boolean') auto.enabled = enabled;
   if (typeof purge === 'boolean') auto.purge.enabled = purge;
   if (typeof instant === 'boolean') auto.instant.enabled = instant;
+  if (typeof instantPiazza === 'boolean') auto.instant.piazza = instantPiazza;
   if (AUTO_CHOICES.includes(afterHours)) auto.afterHours = afterHours;
   if (typeof notifEnabled === 'boolean') auto.notif.enabled = notifEnabled;
   if (AUTO_CHOICES.includes(notifHours)) auto.notif.afterHours = notifHours;

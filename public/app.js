@@ -2478,7 +2478,11 @@ async function fillWmSettings() {
     ${s.instant ? `<div class="wm-opt"><label class="check"><input type="checkbox" data-wm-instant${s.instant.enabled ? ' checked' : ''}> Anında sil:</label>
       <span class="small">${s.instant.rules.map(esc).join(', ')}</span></div>
     <p class="muted small" style="margin:4px 0 8px">Bu e-postalar gelir gelmez Çöp'e taşınır (Gelen kutusu açılınca ve uygulama açıkken 5 dakikada bir bakılır).
-      Yıldızlananlar taşınmaz.${s.instant.moved ? ` Şimdiye kadar ${s.instant.moved} e-posta taşındı.` : ''}</p>` : ''}
+      Yıldızlananlar taşınmaz.${s.instant.moved ? ` Şimdiye kadar ${s.instant.moved} e-posta taşındı.` : ''}</p>
+    <div class="wm-opt"><label class="check"><input type="checkbox" data-wm-instant-pz${s.instant.piazza ? ' checked' : ''}> Piazza'nın e-postalarını anında sil:</label>
+      <span class="small">${esc(s.instant.piazzaLabel || '')}</span></div>
+    <p class="muted small" style="margin:4px 0 8px">Piazza'nın yeni gönderi ve özet e-postaları gelir gelmez Çöp'e taşınır; şifre ve doğrulama e-postalarına dokunulmaz.
+      Varsayılan kapalıdır: uygulamanın Piazza bildirimleri sana yetiyorsa aç.</p>` : ''}
     ${s.purge ? `<div class="wm-opt"><label class="check"><input type="checkbox" data-wm-purge${s.purge.enabled ? ' checked' : ''}> Çöp kutusunu boşalt:</label>
       <span class="small">${s.purge.days} gün sonra; bildirim e-postaları ve anında silinenler ${s.purge.fastDays} gün sonra</span></div>
     <p class="muted small" style="margin:4px 0 8px">Çöp'teki e-postalar bu sürelerden sonra <b>kalıcı olarak silinir</b> (geri alınamaz). Süre, e-postanın Çöp'e
@@ -2497,7 +2501,8 @@ $view.addEventListener('change', async e => {
     'data-wm-notif-hours': [v => ({ notifHours: +v.value }), () => 'Süre kaydedildi'],
     'data-wm-notif-read': [v => ({ notifReadHours: +v.value }), () => 'Süre kaydedildi'],
     'data-wm-purge': [v => ({ purge: v.checked }), v => (v.checked ? 'Çöp kutusu süresi dolunca boşaltılacak' : 'Çöp kutusu boşaltma kapatıldı')],
-    'data-wm-instant': [v => ({ instant: v.checked }), v => (v.checked ? 'Bu e-postalar gelir gelmez silinecek' : 'Anında silme kapatıldı')] };
+    'data-wm-instant': [v => ({ instant: v.checked }), v => (v.checked ? 'Bu e-postalar gelir gelmez silinecek' : 'Anında silme kapatıldı')],
+    'data-wm-instant-pz': [v => ({ instantPiazza: v.checked }), v => (v.checked ? 'Piazza e-postaları gelir gelmez silinecek' : 'Piazza e-postaları silinmeyecek')] };
   const k = Object.keys(wm).find(x => t.hasAttribute?.(x));
   if (k) {
     const r = await post('/api/webmail/auto-settings', wm[k][0](t));
