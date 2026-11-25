@@ -4,7 +4,7 @@
 //   node tanitim/yap.mjs ses             yalnızca seslendirme dosyaları
 //   node tanitim/yap.mjs kayit [sahne…]  yalnızca kayıt (ad verilirse o sahneler, ör. 04-dersler)
 //   node tanitim/yap.mjs birlestir       var olan kayıtlardan videoyu yeniden kur
-// Gerekenler: Google Chrome, ffmpeg, uv (uvx edge-tts). Ayrıntı: HANDOFF.md → Tanıtım videosu
+// Gerekenler: Google Chrome, ffmpeg, uv (uvx edge-tts). Ayrıntı: HANDOVER.md → Tanıtım videosu
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';

@@ -42,7 +42,7 @@ npm run tanitim
 `dist\tanitim\OrtamSade-tanitim.mp4` (1920×1080, yaklaşık 5 dakika, Türkçe seslendirme + müzik, altyazı içinde) ve yanında
 `OrtamSade-tanitim.srt` çıkar; 10 dakika kadar sürer. Gerekenler: Google Chrome, ffmpeg (`winget install Gyan.FFmpeg`),
 uv (`winget install astral-sh.uv`), internet (seslendirme ve ilk seferde müzik). Videodaki öğrenci ve verileri uydurmadır;
-okula giriş yapılmaz. 3100 portu boş olmalı. Müzik künyesi (CC BY 4.0) paylaşırken yazılmalıdır: `HANDOFF.md` → Tanıtım videosu.
+okula giriş yapılmaz. 3100 portu boş olmalı. Müzik künyesi (CC BY 4.0) paylaşırken yazılmalıdır: `HANDOVER.md` → Tanıtım videosu.
 
 ## Nasıl denenir
 
