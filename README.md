@@ -160,8 +160,9 @@ Yapı: `server/` (her site için bir modül: `ortam`, `ubs`, `moodle` (Uzak/UZAK
 
 *(English, for code signing reviewers.)* Windows releases (`OrtamSade-kurulum.exe`, `OrtamSade.exe` in `OrtamSade-win-x64.zip`)
 are built only by the [GitHub Actions release workflow](.github/workflows/surum.yml) from this repository; every release file
-carries a GitHub build provenance attestation. **Signing status:** an application for free code signing by
-[SignPath Foundation](https://signpath.org) is pending; until it is approved, release files are unsigned.
+carries a GitHub build provenance attestation. The Android app (`EtuCep.apk`) is built by the same workflow and signed
+there with the project's own Android key (kept as a GitHub secret); SignPath is not used for it. **Signing status:** an application for free code signing by
+[SignPath Foundation](https://signpath.org) is pending; until it is approved, Windows release files are unsigned.
 
 - **Committers and reviewers:** Eren Akyurt ([@Soft-Coder-183](https://github.com/Soft-Coder-183)). Changes from anyone else
   (pull requests) are reviewed before merging.
