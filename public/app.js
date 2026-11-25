@@ -413,8 +413,7 @@ async function focusCourseItem(tab, c, item) {
       || x.querySelector(`[data-ulink="${CSS.escape(item)}"]`) || x.querySelector('[data-file]')?.dataset.file.endsWith('cm=' + item));
   if (!el) return;
   if (el.tagName === 'DETAILS') el.open = true;
-  el.scrollIntoView({ block: 'start' });
-  el.classList.add('mv-flash');
+  el.scrollIntoView({ block: 'start' });             // yanıp sönme yok: açık gelen öğe yeterli (efekt kafa karıştırıyordu)
 }
 
 // Uzak: haftalar/konular. Dosyalar görüntüleyicide açılır ya da iner; diğer etkinliklerin sayfası açılınca yüklenir.
