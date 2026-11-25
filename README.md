@@ -70,6 +70,8 @@ Görüntülerdeki öğrenci ve veriler uydurmadır.
 
 ## İndir
 
+**Kurmadan dene:** [tarayıcıda tanıtım sürümü](https://soft-coder-183.github.io/ortam-sade/demo/) (uydurma bir öğrencinin verisiyle; okula bağlanmaz).
+
 Bağlantılar her zaman en son sürümü indirir. Hangisini seçeceğini bilmiyorsan bilgisayarda birincisini, telefonda üçüncüsünü al.
 
 | | Dosya | Kimin için |

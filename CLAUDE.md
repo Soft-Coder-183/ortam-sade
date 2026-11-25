@@ -15,6 +15,8 @@ Ayrıntılar `HANDOVER.md`'de; bir alana dokunmadan önce ilgili bölümünü ok
 - **Tanıtım videosu:** `npm run tanitim` → `dist\tanitim\OrtamSade-tanitim.mp4` (sahte veri, 3100 portu; ffmpeg ve uv gerekir).
   Tek sahne: `node tanitim/yap.mjs kayit 04-dersler`, sonra `node tanitim/yap.mjs birlestir`
 - **Tanıtım sayfası:** `docs/index.html` (GitHub Pages, soft-coder-183.github.io/ortam-sade); README ile aynı içerik, kısa hâli.
+- **Tarayıcı demosu:** `node tanitim/demo.mjs` → `docs/demo/` (GitHub Pages `…/ortam-sade/demo/`; arayüz + `veri.mjs` sahte verisi tarayıcıda,
+  sunucu yok, okula istek yok). Arayüz değişince yeniden üret ve commit'le.
 - **README ekran görüntüleri:** `node tanitim/ekran.mjs` → `docs/ekran/*.png` (sahte veri, sunucu açılmaz). Arayüz değişince yenile.
 - **Deneme:** Kullanıcının kurulu kopyası (`%LOCALAPPDATA%\Programs\Ortam Sade`) 3000 portunu tutar ve depodaki kodu göstermez;
   onu durdurma. Depodaki sürümü `PORT=3100 node server/server.mjs` ile aç, başsız Chrome (`playwright-core`, `channel: 'chrome'`)
@@ -80,5 +82,6 @@ Ayrıntılar `HANDOVER.md`'de; bir alana dokunmadan önce ilgili bölümünü ok
 - **Android (ETÜ Cep):** telefon tarafında, imza ve derlemede
 - **Güvenlik modeli:** şifre, çerez, şifreleme, PIN işlerinde
 - **Sürüm, paketleme ve güncelleme:** kurulum dosyası, paket ve uygulama içi güncellemede
+- **Tarayıcı demosu:** `docs/demo/` üretimi ve sahte sunucu
 - **Tanıtım videosu:** videoyu yeniden üretirken, sahne ya da seslendirme değiştirirken (müzik künyesi zorunlu)
 - **Geliştirme ortamı ve tuzaklar:** Windows/Git Bash tuzakları, test düzeni

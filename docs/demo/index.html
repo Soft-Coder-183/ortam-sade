@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#ffffff">
+  <script>
+    // Tema: kayıtlı tercih (aydınlık/karanlık) ilk çizimden önce uygulanır; yoksa cihazın ayarı geçerli (otomatik).
+    try { var t = localStorage.getItem('tema'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch (e) {}
+  </script>
+  <title>Ortam Sade · Tanıtım</title>
+  <meta name="robots" content="noindex">
+  <!-- Simge: TOBB ETÜ logosunun üç rengi (mavi, kırmızı, turuncu). Yazı tipi sistemin kendi yazı tipi: uygulama çevrimdışı da aynı görünür. -->
+  <link rel="icon" type="image/png" sizes="256x256" href="simge.png">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23ffffff'/%3E%3Crect x='7' y='7' width='5' height='18' rx='2' fill='%231b449c'/%3E%3Crect x='13.5' y='7' width='5' height='18' rx='2' fill='%23b21f28'/%3E%3Crect x='20' y='7' width='5' height='18' rx='2' fill='%23f08921'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <nav id="nav"></nav>
+  <main id="view"></main>
+  <div class="demo-serit" role="note"><span>Tanıtım sürümü<span class="uzun">: öğrenci ve bütün veriler uydurmadır, okul sitelerine bağlanılmaz</span><span class="kisa"> · veriler uydurma</span></span>
+  <a href="../">İndir</a><button type="button" aria-label="Kapat" onclick="this.parentNode.remove()">×</button></div>
+  <style>.demo-serit{position:fixed;z-index:9999;left:50%;bottom:12px;transform:translateX(-50%);display:flex;align-items:center;gap:8px;white-space:nowrap;
+  max-width:calc(100% - 24px);padding:5px 6px 5px 14px;border-radius:999px;background:#1b449c;color:#fff;font:600 12.5px/1.4 system-ui,sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.2)}
+  .demo-serit a{color:#ffd28a}.demo-serit button{border:0;background:rgba(255,255,255,.15);color:#fff;width:22px;height:22px;border-radius:50%;font:inherit;line-height:1;cursor:pointer}
+  .demo-serit .kisa{display:none}@media (max-width:800px){.demo-serit{bottom:74px}.demo-serit .uzun{display:none}.demo-serit .kisa{display:inline}}</style>
+  <script src="demo.js" type="module"></script>
+</body>
+</html>
