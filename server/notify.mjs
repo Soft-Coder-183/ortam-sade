@@ -20,10 +20,16 @@ import * as vault from './vault.mjs';
 const FILE = '.cache/notify.json';
 const EVERY = { piazza: 10, uzak: 60, takvim: 180 };   // dakika (okul sunucularını yormamak için seyrek)
 // Platform ayarları: Android bildirimi kendi gösterir, Uzak'ı 30 dakikada bir denetler ve özet e-postayı varsayılan kapalı tutar.
-// E-postadaki bağlantı her cihazda aynıdır (docs/ac.html, GitHub Pages): sayfa cihaza göre ETÜ Cep'i ya da Ortam Sade'yi açar, uygulama yoksa indirme sayfasına gider.
-const OPEN_URL = 'https://soft-coder-183.github.io/ortam-sade/ac.html';
-// appLink: e-postadaki "Aç:" bağlantısı (bildirimin sayfasını uygulamada açar). Windows'ta yerel adres, telefonda etucep:// bağlantısı.
-const platform = { toast: null, brand: 'Ortam Sade', appLink: link => `${OPEN_URL}${link || ''}` };
+// E-postadaki bağlantı her cihazda aynıdır (docs/a/index.html, GitHub Pages): sayfa cihaza göre ETÜ Cep'i ya da Ortam Sade'yi açar.
+// Bağlantı kısadır: "#p/<ders>/<gönderi no>" (Piazza), "#u/<ders>/<etkinlik>" (Uzak); diğer sayfalar "#/…" olarak kalır.
+const OPEN_URL = 'https://soft-coder-183.github.io/ortam-sade/a/';
+export function shortLink(link, n = {}) {
+  const m = /^#\/donem\/derslerim\/([^/]+)\/(piazza|uzak)\/([^/]+)$/.exec(link || '');
+  if (!m) return link || '#/';
+  return `#${m[2] === 'piazza' ? 'p' : 'u'}/${m[1]}/${m[2] === 'piazza' && n.nr ? n.nr : m[3]}`;
+}
+// appLink: e-postadaki "Aç:" bağlantısı (bildirimin sayfasını uygulamada açar)
+const platform = { toast: null, brand: 'Ortam Sade', appLink: (link, n) => `${OPEN_URL}${shortLink(link, n)}` };
 export const brand = () => platform.brand;
 export function configure({ every, defaults, ...rest }) {
   Object.assign(EVERY, every);
@@ -112,7 +118,7 @@ async function checkPiazza() {
     const fresh = max === undefined ? [] : f.posts.filter(p => p.nr > max).map(p => ({ p }));
     for (const p of fresh) p.who = await piazza.authorName(n.id, p.p.uid, p.p.role === 'Öğrenci' && !p.p.uid).catch(() => '');
     for (const p of fresh) out.push({
-      key: `piazza|${n.id}|${p.p.id}`, at: p.p.created || p.p.updated || null,
+      key: `piazza|${n.id}|${p.p.id}`, at: p.p.created || p.p.updated || null, nr: p.p.nr || null,
       source: 'piazza', course: key, courseName: `${n.code}`, title: `${n.code} · Piazza`,
       text: p.p.subject + ((p.who || p.p.role) ? ` (${p.who || p.p.role})` : ''), link: `#/donem/derslerim/${encodeURIComponent(key)}/piazza/${encodeURIComponent(p.p.id)}`,
     });
@@ -222,7 +228,7 @@ function toast(title, body, link) {
   child.stdin.end(payload);
 }
 
-// Özet e-posta: kullanıcının kendi adresine, okulun Webmail'i üzerinden (bir kontrol turunda tek e-posta).
+// Özet e-posta: kullanıcının kendi adresine, okulun Webmail'i üzerinden; her ders ve kaynak (Piazza / Uzak) için ayrı e-posta.
 // İki adımdır: yazma sayfası açılır (başarısızsa e-posta giden kutusunda kalır), sonra gönder() gönderir. Gönderme isteği
 // çıktıktan sonra hata alınsa da yeniden denenmez: okul e-postayı göndermiş olabilir, aynı bildirim ikinci kez gitmemeli.
 const isOurs = m => /·\s*Bildirim\]/.test(m.subject || '');
@@ -240,20 +246,26 @@ async function dropDuplicateMails() {
   if (extra.length) { await webmail.remove(extra, 'INBOX'); console.log(`yinelenen bildirim e-postası silindi (${extra.length})`); }
 }
 
-async function mail(items) {
+// Bir e-posta bir grubu taşır: aynı dersin Piazza'sı ya da Uzak'ı (takvim hatırlatmaları kendi grubunda). Konu grubun adıyla başlar.
+const groupKey = n => `${n.course ?? '-'}|${n.source}`;
+function subjectOf(items) {
+  const n = items[0];
+  if (items.length === 1) return `${n.title}: ${n.text}`;
+  return `${n.title}: ${items.length} yeni ${n.source === 'piazza' ? 'gönderi' : n.source === 'uzak' ? 'içerik' : 'hatırlatma'}`;
+}
+async function mail(items, box) {
   const to = credentials.get()?.email;
   if (!to) return null;
-  const tail = items.length === 1 ? `${items[0].title}: ${items[0].text}` : `${items.length} yeni içerik`;
+  const tail = subjectOf(items);
   // Aynı hesapta başka bir cihaz (telefon/bilgisayar) aynı bildirimi zaten e-postalamışsa gelen kutusunda aynı başlıklı e-posta durur: yinelenmez.
-  const box = await webmail.inbox('INBOX', 1).catch(() => null);
   if (box?.messages?.some(m => isOurs(m) && same(m.subject) === same(tail))) return () => Promise.resolve();
   const c = await webmail.compose({ mode: 'new' });
-  // Başlık, metin ve sayfayı uygulamada açan bağlantı; alttaki tek satır e-postanın Ortam Sade'den geldiğini ve nasıl kapatılacağını söyler.
-  const lines = items.map(n => `• ${n.title}: ${n.text}${n.link ? `\n  Aç: ${platform.appLink(n.link)}` : ''}`).join('\n');
+  // Grubun adı bir kez, altında her içerik ve onu uygulamada açan kısa bağlantı; alttaki satır e-postanın nereden geldiğini söyler.
+  const lines = items.map(n => `• ${n.text}${n.link ? `\n  Aç: ${platform.appLink(n.link, n)}` : ''}`).join('\n');
   const rule = '-'.repeat(40);
   return () => webmail.send({ id: c.id, from: c.from.find(f => f.selected)?.id ?? c.from[0]?.id, to,
     subject: `[${platform.brand} · Bildirim] ${tail}`.slice(0, 180),
-    text: `${platform.brand.toLocaleUpperCase('tr')} BİLDİRİMİ\n${rule}\n${lines}\n${rule}\n\n` +
+    text: `${items[0].title.toLocaleUpperCase('tr')}\n${rule}\n${lines}\n${rule}\n\n` +
       `Bu bildirim ${platform.brand} tarafından gönderildi; ${platform.brand} ayarlarından kapatılabilir.` });
 }
 
@@ -271,27 +283,32 @@ export function flushMail() {
     if (db.settings.mail && credentials.get()?.email) await dropDuplicateMails().catch(e => console.error('yinelenen e-posta denetimi:', e.message));
     if (!db.outbox.length) return save();
     if (!credentials.get()?.email) { console.error(`bildirim e-postası bekliyor (${db.outbox.length}): kayıtlı hesap yok`); return save(); }
-    const items = db.outbox;
-    let send;
-    try {
-      send = await mail(items);
-    } catch (e) {
-      console.error(`bildirim e-postası hazırlanamadı, sonra yeniden denenecek (${items.length}):`, e.message);
-      return save();
-    }
-    if (!send) return save();
-    // Göndermeden önce giden kutusundan çıkarılır ve kaydedilir: ne olursa olsun ikinci kez gönderilmez
-    const now = Date.now();
-    db.outbox = db.outbox.filter(n => !items.includes(n));
-    for (const n of items) db.mailed[n.id] = now;
-    for (const [k, t] of Object.entries(db.mailed)) if (now - t > SENT_KEEP) delete db.mailed[k];
-    await save();
-    try {
-      await send();
-      db.lastMail = Date.now();
-      console.log(`bildirim e-postası gönderildi (${items.length})`);
-    } catch (e) {
-      console.error(`bildirim e-postası gönderilemedi (${items.length}); okul göndermiş olabileceği için yinelenmiyor:`, e.message);
+    // Her ders ve kaynak (Piazza / Uzak) ayrı e-posta; yineleme denetimi için gelen kutusu bir kez okunur
+    const groups = new Map();
+    for (const n of db.outbox) { const k = groupKey(n); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(n); }
+    const box = await webmail.inbox('INBOX', 1).catch(() => null);
+    for (const items of groups.values()) {
+      let send;
+      try {
+        send = await mail(items, box);
+      } catch (e) {
+        console.error(`bildirim e-postası hazırlanamadı, sonra yeniden denenecek (${items.length}):`, e.message);
+        continue;
+      }
+      if (!send) continue;
+      // Göndermeden önce giden kutusundan çıkarılır ve kaydedilir: ne olursa olsun ikinci kez gönderilmez
+      const now = Date.now();
+      db.outbox = db.outbox.filter(n => !items.includes(n));
+      for (const n of items) db.mailed[n.id] = now;
+      for (const [k, t] of Object.entries(db.mailed)) if (now - t > SENT_KEEP) delete db.mailed[k];
+      await save();
+      try {
+        await send();
+        db.lastMail = Date.now();
+        console.log(`bildirim e-postası gönderildi (${items.length})`);
+      } catch (e) {
+        console.error(`bildirim e-postası gönderilemedi (${items.length}); okul göndermiş olabileceği için yinelenmiyor:`, e.message);
+      }
     }
     await save();
   })().finally(() => { flushing = null; });

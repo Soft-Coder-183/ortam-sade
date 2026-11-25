@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Ortam Sade · Aç</title>
+<style>
+  :root { --bg:#f4f5f7; --fg:#1c1f26; --mut:#5b6270; --card:#fff; --acc:#2f6fed; --line:#dfe2e8; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#121418; --fg:#e8eaee; --mut:#9aa1ad; --card:#1b1e25; --acc:#6a9bff; --line:#2b2f38; } }
+  * { box-sizing: border-box; }
+  body { margin:0; min-height:100vh; display:grid; place-items:center; padding:16px; background:var(--bg); color:var(--fg);
+         font:16px/1.5 system-ui, "Segoe UI", Roboto, sans-serif; }
+  main { width:100%; max-width:420px; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:24px; }
+  h1 { font-size:1.25rem; margin:0 0 4px; }
+  p { margin:0 0 16px; color:var(--mut); }
+  a.b { display:block; text-align:center; padding:12px 16px; margin-top:10px; border-radius:10px; text-decoration:none;
+        background:var(--acc); color:#fff; font-weight:600; }
+  a.b.alt { background:transparent; color:var(--acc); border:1px solid var(--line); }
+  small { display:block; margin-top:18px; color:var(--mut); }
+  small a { color:var(--acc); }
+  [hidden] { display:none !important; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Bildirimi aç</h1>
+  <p id="d">Bildirimdeki sayfa uygulamada açılır.</p>
+  <a class="b" id="open" href="#">Uygulamada aç</a>
+  <a class="b alt" id="web" href="#" hidden>Tarayıcıda aç (localhost)</a>
+  <small id="dl">Uygulama yüklü değil mi? <a href="https://github.com/Soft-Coder-183/ortam-sade/releases/latest">İndirme sayfası</a></small>
+</main>
+<script>
+  // Bildirim e-postasındaki bağlantı her cihazda aynıdır. Kısa biçimler:
+  //   #p/<ders>/<gönderi no ya da kimliği>  → dersin Piazza'sında o gönderi
+  //   #u/<ders>/<etkinlik no>               → dersin Uzak'ında o etkinlik
+  //   #/<sayfa>                             → uygulamanın o sayfası (eski uzun bağlantılar da böyle)
+  // Sayfa uygulamayı bir kez açmayı dener; açılmazsa düğme durur. Hiçbir zaman kendiliğinden başka bir siteye gitmez.
+  const raw = location.hash;
+  const m = /^#([pu])\/([A-Za-z0-9]{2,12})\/([A-Za-z0-9]{1,40})$/.exec(raw);
+  const page = m ? `#/donem/derslerim/${m[2]}/${m[1] === 'p' ? 'piazza' : 'uzak'}/${m[3]}`
+    : /^#\/[\w\-\/.%~]*$/.test(raw) ? raw : '#/';                   // yalnızca uygulamanın kendi sayfa yolları
+  const ua = navigator.userAgent;
+  const $ = id => document.getElementById(id);
+  let target = null;
+  if (/Android/i.test(ua)) {
+    target = `intent://ac${page}#Intent;scheme=etucep;end`;          // yedek adres yok: uygulama yoksa sayfa olduğu gibi kalır
+    $('d').textContent = 'ETÜ Cep açılmadıysa "Uygulamada aç"a bas.';
+  } else if (/Windows/i.test(ua)) {
+    target = `ortamsade:${page}`;
+    $('d').textContent = 'Ortam Sade açılmadıysa "Uygulamada aç"a bas. Tarayıcı izin isterse "Aç"ı seç.';
+    $('web').href = `http://localhost:3000/${page}`;
+    $('web').hidden = false;
+  } else {
+    $('d').textContent = 'Ortam Sade Windows ve Android için hazırlandı.';
+    $('open').hidden = true;
+  }
+  if (target) { $('open').href = target; location.href = target; }
+</script>
+</body>
+</html>

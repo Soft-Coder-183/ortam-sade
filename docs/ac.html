@@ -17,44 +17,45 @@
   a.b { display:block; text-align:center; padding:12px 16px; margin-top:10px; border-radius:10px; text-decoration:none;
         background:var(--acc); color:#fff; font-weight:600; }
   a.b.alt { background:transparent; color:var(--acc); border:1px solid var(--line); }
+  small { display:block; margin-top:18px; color:var(--mut); }
+  small a { color:var(--acc); }
   [hidden] { display:none !important; }
 </style>
 </head>
 <body>
 <main>
-  <h1 id="t">Uygulama açılıyor…</h1>
-  <p id="d">Bildirimdeki sayfa Ortam Sade'de açılacak.</p>
-  <a class="b" id="open" href="#" hidden>Uygulamada aç</a>
-  <a class="b alt" id="dl" href="https://github.com/Soft-Coder-183/ortam-sade/releases/latest" hidden>Uygulamayı indir</a>
+  <h1>Bildirimi aç</h1>
+  <p id="d">Bildirimdeki sayfa uygulamada açılır.</p>
+  <a class="b" id="open" href="#">Uygulamada aç</a>
   <a class="b alt" id="web" href="#" hidden>Tarayıcıda aç (localhost)</a>
+  <small id="dl">Uygulama yüklü değil mi? <a href="https://github.com/Soft-Coder-183/ortam-sade/releases/latest">İndirme sayfası</a></small>
 </main>
 <script>
-  // Tek bağlantı her cihazda çalışır: Android → ETÜ Cep, Windows → Ortam Sade; uygulama yoksa indirme sayfası.
-  const DL = 'https://github.com/Soft-Coder-183/ortam-sade/releases/latest';
+  // Bildirim e-postasındaki bağlantı her cihazda aynıdır. Kısa biçimler:
+  //   #p/<ders>/<gönderi no ya da kimliği>  → dersin Piazza'sında o gönderi
+  //   #u/<ders>/<etkinlik no>               → dersin Uzak'ında o etkinlik
+  //   #/<sayfa>                             → uygulamanın o sayfası (eski uzun bağlantılar da böyle)
+  // Sayfa uygulamayı bir kez açmayı dener; açılmazsa düğme durur. Hiçbir zaman kendiliğinden başka bir siteye gitmez.
   const raw = location.hash;
-  const page = /^#\/[\w\-\/.%~]*$/.test(raw) ? raw : '#/';       // yalnızca uygulamanın kendi sayfa yolları
+  const m = /^#([pu])\/([A-Za-z0-9]{2,12})\/([A-Za-z0-9]{1,40})$/.exec(raw);
+  const page = m ? `#/donem/derslerim/${m[2]}/${m[1] === 'p' ? 'piazza' : 'uzak'}/${m[3]}`
+    : /^#\/[\w\-\/.%~]*$/.test(raw) ? raw : '#/';                   // yalnızca uygulamanın kendi sayfa yolları
   const ua = navigator.userAgent;
   const $ = id => document.getElementById(id);
-  const show = (...ids) => ids.forEach(i => $(i).hidden = false);
-  const fail = msg => { $('t').textContent = 'Uygulama bulunamadı'; $('d').textContent = msg; show('dl'); };
-
+  let target = null;
   if (/Android/i.test(ua)) {
-    const target = `intent://ac${page}#Intent;scheme=etucep;S.browser_fallback_url=${encodeURIComponent(DL)};end`;
-    $('open').href = target; show('open', 'dl');
-    $('d').textContent = 'ETÜ Cep yüklüyse açılır; değilse indirme sayfasına gidilir.';
-    location.href = target;
+    target = `intent://ac${page}#Intent;scheme=etucep;end`;          // yedek adres yok: uygulama yoksa sayfa olduğu gibi kalır
+    $('d').textContent = 'ETÜ Cep açılmadıysa "Uygulamada aç"a bas.';
   } else if (/Windows/i.test(ua)) {
-    const target = `ortamsade:${page}`;
-    $('open').href = target; show('open');
+    target = `ortamsade:${page}`;
+    $('d').textContent = 'Ortam Sade açılmadıysa "Uygulamada aç"a bas. Tarayıcı izin isterse "Aç"ı seç.';
     $('web').href = `http://localhost:3000/${page}`;
-    let left = false;
-    addEventListener('blur', () => left = true);
-    document.addEventListener('visibilitychange', () => left = true);
-    location.href = target;
-    setTimeout(() => { if (!left) { fail('Ortam Sade bu bilgisayarda yüklü görünmüyor.'); show('web'); } }, 2000);
+    $('web').hidden = false;
   } else {
-    fail('Ortam Sade Windows ve Android için hazırlandı.');
+    $('d').textContent = 'Ortam Sade Windows ve Android için hazırlandı.';
+    $('open').hidden = true;
   }
+  if (target) { $('open').href = target; location.href = target; }
 </script>
 </body>
 </html>
