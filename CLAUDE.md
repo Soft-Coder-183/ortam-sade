@@ -3,7 +3,7 @@
 TOBB ETÜ'nün okul sitelerini (Ortam, UBS, Uzak, UZAKYDB, Webmail, Piazza) tek sade arayüzde toplayan açık kaynak uygulama.
 Windows'ta **Ortam Sade** (yerel Node sunucusu + `OrtamSade.exe` WebView2 penceresi), Android'de **ETÜ Cep** (aynı `server/` kodu
 WebView içinde). Sahibi Eren Akyurt; Türkçe konuşulur. Depo herkese açık (MIT): https://github.com/Soft-Coder-183/ortam-sade
-Ayrıntılar `HANDOFF.md`'de; bir alana dokunmadan önce ilgili bölümünü oku (en altta liste).
+Ayrıntılar `HANDOVER.md`'de; bir alana dokunmadan önce ilgili bölümünü oku (en altta liste).
 
 ## Komutlar
 - Kurulum: `npm install` · Geliştirme: `npm run dev` (server/ değişince yeniden başlar) · `npm start`
@@ -57,6 +57,8 @@ Ayrıntılar `HANDOFF.md`'de; bir alana dokunmadan önce ilgili bölümünü oku
 - `.cache`, `.profile`, `dump`, `tools`, `yeni`, `arsiv`, `mobile/android/imza/` yayımlanmaz (gitignore).
 
 ## Commit ve sürüm (global G2, G6, G7)
+- **Dil:** proje baştan sona Türkçedir: arayüz, belgeler (`CLAUDE.md`, `HANDOVER.md`, notlar), kod yorumları ve commit
+  mesajları Türkçe (global G8 istisnası). Yalnızca README'deki "Code signing policy" ve "Privacy policy" İngilizce.
 - Her istek commit'le biter; yalnızca değişen dosyalar adıyla eklenir; push serbest; `main`'de çalışılır.
 - Sürüm numarasının tek kaynağı `package.json` (Android `versionCode` ondan türer). Yayımlanmamış değişiklikler sıradaki
   `notlar/vX.Y.Z.md`'de birikir; notlar kullanıcıya dönük, başta özet tablo, bölümlü ve sayılı.
@@ -68,10 +70,10 @@ Ayrıntılar `HANDOFF.md`'de; bir alana dokunmadan önce ilgili bölümünü oku
   `releases/latest/download/…` bağlantıları bu adlara dayanır.
 - Yayımlanmış etiket taşınmaz; hata çıkarsa yeni PATCH. Zorla gönderme ve kalıcı silme izin denetimine takılır: komutu hazırla,
   kullanıcı `!` ile çalıştırır.
-- Her işten sonra bu dosya ve `HANDOFF.md` güncellenir (`handoff` skill'i). Kullanıcıya Türkçe, kısa rapor: ne yapıldı,
+- Her işten sonra bu dosya ve `HANDOVER.md` güncellenir (`handoff` skill'i). Kullanıcıya Türkçe, kısa rapor: ne yapıldı,
   neyin gerçekten denendiği, neyin denenmediği.
 
-## HANDOFF.md'de
+## HANDOVER.md'de
 - **Mimari, Dosya haritası:** yeni modül ya da uç eklerken
 - **Özellikler:** bir ekranı değiştirmeden önce o ekranın paragrafı (planlayıcı, rezervasyon, webmail, masaüstü, ilk açılış…)
 - **Arka plan işleri ve bildirimler:** zamanlayıcı, bildirim, otomatik silme işlerinde
