@@ -71,7 +71,7 @@ function diff(key, items) {
 // Uygulamanın kendi sunucusu olmadığı için bilgisayar ve telefon okundu bilgisini Piazza'nın kendisinden alır: Piazza, açılan
 // gönderiyi hesapta okundu sayar (akıştaki is_new düşer). Bir cihazda okunan bildirimin gönderisi Piazza'da okundu yapılır
 // (gönderi bir kez açılır), diğer cihaz akışta bunu görünce kendi bildirimini okundu yapar. piazza.com'da okunanlar da sayılır.
-// Uzak'ın okundu bilgisi yok; Uzak bildirimleri cihazlar arasında eşitlenmez.
+// Uzak'ın okundu bilgisi yok: Uzak bildirimleri aşağıdaki e-posta taslağıyla eşitlenir.
 const pzKey = n => (n.source === 'piazza' && n.key ? n.key.split('|') : null);   // ['piazza', nid, gönderi]
 function applyPiazzaSeen(nid, posts) {
   const byId = new Map(posts.map(p => [p.id, p]));
@@ -84,16 +84,59 @@ function applyPiazzaSeen(nid, posts) {
   }
   return changed;
 }
-// Açılışta ve listeye bakılınca (en sık 5 dakikada bir): okunmamış Piazza bildirimi olan sınıfların akışı denetlenir.
+// ---------- Okundu eşitlemesi (e-posta taslağı: Uzak ve diğerleri) ----------
+// Uzak'ın okundu bilgisi olmadığı için okunan bildirimler kullanıcının kendi Webmail'inde, Taslaklar'daki tek bir taslakta
+// tutulur (webmail.syncRead / syncWrite; taslak gönderilmez, uygulamanın Webmail ekranında görünmez). Satır başına
+// "<bildirim anahtarının özeti>:<okunma anı, 36 tabanında saniye>"; 30 günden eskiler atılır. Bir cihazda okununca taslak
+// birkaç saniye sonra güncellenir; öbür cihaz listeye bakınca (en sık 5 dakikada bir) taslağı okur ve aynı bildirimleri okundu yapar.
+const hashKey = k => { let h = 2166136261; for (const ch of k) { h ^= ch.codePointAt(0); h = Math.imul(h, 16777619) >>> 0; } return h.toString(36); };
+const SYNC_LINE = /^([0-9a-z]{1,8}):([0-9a-z]{1,8})\s*$/gm;
+function parseSync(texts) {
+  const m = new Map();
+  for (const t of texts) for (const [, h, ts] of String(t).matchAll(SYNC_LINE)) {
+    const v = parseInt(ts, 36) * 1000;
+    if (!(m.get(h) >= v)) m.set(h, v);
+  }
+  return m;
+}
+async function syncMailRead({ push = false } = {}) {
+  if (!credentials.get()?.email) return 0;
+  const { uid, texts } = await webmail.syncRead();
+  const remote = parseSync(texts);
+  let changed = 0;
+  for (const n of db.items) if (!n.read && n.key && remote.has(hashKey(n.key))) { n.read = true; changed++; }
+  if (changed) await save();
+  if (!push) return changed;
+  const now = Date.now();
+  const merged = new Map([...remote].filter(([, t]) => now - t < SENT_KEEP));
+  let added = 0;
+  for (const n of db.items) {
+    if (!n.read || !n.key || now - (n.t ?? 0) >= SENT_KEEP) continue;
+    const h = hashKey(n.key);
+    if (!merged.has(h)) { merged.set(h, now); added++; }
+  }
+  if (!added && texts.length <= 1) return changed;                 // taslak güncel (birden çok kopya varsa tek taslakta birleşir)
+  const lines = [...merged].map(([h, t]) => `${h}:${Math.floor(t / 1000).toString(36)}`);
+  await webmail.syncWrite(['Ortam Sade / ETU Cep okundu bilgisi. Bu taslagi silmeyin; uygulama kendisi gunceller.', '', ...lines].join('\n'), uid);
+  return changed;
+}
+let pushTimer = null;
+function pushMailRead() {
+  clearTimeout(pushTimer);
+  pushTimer = setTimeout(() => syncMailRead({ push: true }).catch(e => console.error('okundu taslağı yazılamadı:', e.message)), 8000);
+}
+
+// Açılışta ve listeye bakılınca (en sık 5 dakikada bir), okunmamış bildirim varsa: Piazza akışı ve eşitleme taslağı denetlenir.
 let syncing = null, syncAt = 0;
 function syncPiazzaRead() {
-  const nids = [...new Set(db.items.filter(n => !n.read).map(pzKey).filter(Boolean).map(k => k[1]))];
-  if (!nids.length || syncing || Date.now() - syncAt < 300_000) return syncing;
+  if (!db.items.some(n => !n.read && n.key) || syncing || Date.now() - syncAt < 300_000) return syncing;
   syncAt = Date.now();
+  const nids = [...new Set(db.items.filter(n => !n.read).map(pzKey).filter(Boolean).map(k => k[1]))];
   syncing = (async () => {
     let changed = 0;
-    for (const nid of nids) changed += applyPiazzaSeen(nid, (await piazza.feed(nid)).posts);
+    for (const nid of nids) changed += applyPiazzaSeen(nid, (await piazza.feed(nid).catch(() => ({ posts: [] }))).posts);
     if (changed) await save();
+    await syncMailRead();
   })().catch(e => console.error('okundu eşitlemesi:', e.message)).finally(() => { syncing = null; });
   return syncing;
 }
@@ -396,6 +439,7 @@ export async function markRead(course) {
   for (const n of now) n.read = true;
   await save();
   pushPiazzaRead(now);
+  if (now.length) pushMailRead();
   return list();
 }
 

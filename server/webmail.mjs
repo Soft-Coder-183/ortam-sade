@@ -68,7 +68,7 @@ export async function inbox(mbox = 'INBOX', pageNo = 1) {
   // Sıra belirtilmezse Roundcube klasöre giriş sırasını verir: Çöp'te e-postalar silinme sırasına göre dizilir. Her klasör e-postanın tarihine göre, yeniden eskiye.
   const j = await remote(`_task=mail&_action=list&_mbox=${encodeURIComponent(mbox)}&_page=${Number(pageNo) || 1}&_sort=date_DESC`);
   const exec = j.exec || '';
-  let messages = rows(exec, mbox);
+  let messages = rows(exec, mbox).filter(m => !isSync(m));             // eşitleme taslağı gösterilmez
   if (mbox === 'INBOX' && anyInstant()) messages = await dropInstant(messages);
   const unread = Number((exec.match(/set_unread_count\("INBOX",\s*(\d+)/) || [])[1] ?? messages.filter(m => !m.seen).length);
   const rowcount = plain((exec.match(/set_rowcount\("([^"]*)"/) || [])[1]);
@@ -307,6 +307,40 @@ export async function send({ id, from, to, cc = '', bcc = '', subject = '', text
   const res = await getPage(SITE, `/roundcube/?_task=mail&_unlock=loading${Date.now()}&_framed=1`, { method: 'POST', headers: { 'Content-Type': FORM }, body });
   if (!/sent_successfully/.test(res)) throw new Error(errorIn(res) || 'Posta gönderilemedi');
   composes.delete(id);
+  return { ok: true };
+}
+
+// ---------- Eşitleme taslağı ----------
+// Uygulamanın kendi sunucusu yok: bilgisayar ve telefon arasında paylaşılması gereken küçük bilgiler (bildirimlerin okundu
+// bilgisi) kullanıcının kendi posta kutusunda, Taslaklar klasöründeki tek bir taslakta durur. Taslak kimseye gönderilmez;
+// alıcısı yoktur. Uygulamanın Webmail ekranında gösterilmez. Metin düz yazı ve yalnızca ASCII'dir (kodlama sorunu çıkmasın).
+export const SYNC_SUBJECT = '[Ortam Sade · Eşitleme] Okundu bilgisi (silmeyin)';
+const isSync = m => m.subject === SYNC_SUBJECT;
+const draftsFolder = () => folders.find(f => /^(INBOX[./])?Drafts$/i.test(f.id) || /^Taslak/i.test(f.name))?.id ?? null;
+
+// Taslakların ham metinleri (yeniden eskiye) ve en yenisinin numarası; taslak yoksa boş.
+export async function syncRead() {
+  if (!folders.length) await freshToken();
+  const mb = draftsFolder();
+  if (!mb) throw new Error('Taslaklar klasörü bulunamadı');
+  const j = await remote(`_task=mail&_action=list&_mbox=${encodeURIComponent(mb)}&_page=1&_sort=date_DESC`);
+  const found = rows(j.exec || '', mb).filter(isSync);
+  const texts = [];
+  for (const m of found.slice(0, 3)) texts.push(await getPage(SITE, `/roundcube/?_task=mail&_action=viewsource&_uid=${m.uid}&_mbox=${encodeURIComponent(mb)}`));
+  return { uid: found[0]?.uid ?? null, texts };
+}
+
+// Taslağı yazar; replaceUid verilirse Roundcube eski taslağı yenisi kaydedilince kaldırır (_draft_saveid).
+export async function syncWrite(text, replaceUid = null) {
+  const c = await compose({ mode: 'new' });
+  const s = composes.get(c.id);
+  const body = new URLSearchParams({ _token: s.token, _task: 'mail', _action: 'send', _id: c.id, _attachments: '',
+    _from: c.from.find(f => f.selected)?.id ?? c.from[0]?.id ?? '', _to: '', _cc: '', _bcc: '', _replyto: '', _followupto: '',
+    _subject: SYNC_SUBJECT, _draft_saveid: replaceUid && /^\d+$/.test(replaceUid) ? replaceUid : '', _draft: '1', _is_html: '0',
+    _framed: '1', _message: text, _priority: '0', _store_target: s.storeTarget }).toString();
+  const res = await getPage(SITE, `/roundcube/?_task=mail&_unlock=loading${Date.now()}&_framed=1`, { method: 'POST', headers: { 'Content-Type': FORM }, body });
+  composes.delete(c.id);
+  if (errorIn(res)) throw new Error(errorIn(res));
   return { ok: true };
 }
 

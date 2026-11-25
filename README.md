@@ -179,7 +179,9 @@ The program runs entirely on the user's device; it has no server of its own and 
 - **GitHub** (`api.github.com`, `github.com`), to check for a new release every 6 hours. No personal data is sent. Updates are
   downloaded and installed only when the user clicks "Update".
 - **The user's own school e-mail account**: optional notification summaries are sent from the user's address to the same address
-  (can be turned off in settings); the feedback form sends a message to the developer only when the user clicks "Send".
+  (can be turned off in settings); the feedback form sends a message to the developer only when the user clicks "Send". To keep notifications read on all of the
+  user's devices, the app keeps one unsent draft ("[Ortam Sade · Eşitleme]") in the user's own Drafts folder holding only
+  short hashes of read notifications and their times; it has no recipient and is never sent.
 
 System changes, all announced and reversible: the installer installs per user (no administrator rights), adds Start menu and
 optional desktop shortcuts, an optional start-at-login entry (a checkbox in the installer) and registers the `ortamsade:` link
