@@ -118,7 +118,7 @@ function cleanHtml($, el, pzKey = null) {
     }
   });
   el.find('a[href]').attr('target', '_blank').attr('rel', 'noopener noreferrer');
-  // Ortam Sade / ETÜ Cep bildirim e-postasındaki "Aç:" bağlantısı (…github.io/ortam-sade/ac.html#/sayfa) uygulamanın içinde açılır
+  // ETÜ Ortam / ETÜ Cep bildirim e-postasındaki "Aç:" bağlantısı (…github.io/ortam-sade/ac.html#/sayfa) uygulamanın içinde açılır
   el.find('a[href]').each((_, a) => {
     const m = /^https:\/\/soft-coder-183\.github\.io\/ortam-sade\/ac\.html(#\/[\w\-\/.%~]*)$/i.exec($(a).attr('href') || '');
     if (m) $(a).attr('href', m[1]).removeAttr('target').removeAttr('rel').attr('class', 'inapp');
@@ -314,8 +314,9 @@ export async function send({ id, from, to, cc = '', bcc = '', subject = '', text
 // Uygulamanın kendi sunucusu yok: bilgisayar ve telefon arasında paylaşılması gereken küçük bilgiler (bildirimlerin okundu
 // bilgisi) kullanıcının kendi posta kutusunda, Taslaklar klasöründeki tek bir taslakta durur. Taslak kimseye gönderilmez;
 // alıcısı yoktur. Uygulamanın Webmail ekranında gösterilmez. Metin düz yazı ve yalnızca ASCII'dir (kodlama sorunu çıkmasın).
-export const SYNC_SUBJECT = '[Ortam Sade · Eşitleme] Okundu bilgisi (silmeyin)';
-const isSync = m => m.subject === SYNC_SUBJECT;
+export const SYNC_SUBJECT = '[ETÜ Ortam · Eşitleme] Okundu bilgisi (silmeyin)';
+// 1.11.0'dan önceki ad "Ortam Sade" idi: eski konulu taslak da tanınır (yenisi yazılınca _draft_saveid ile yerini alır)
+const isSync = m => m.subject === SYNC_SUBJECT || m.subject === '[Ortam Sade · Eşitleme] Okundu bilgisi (silmeyin)';
 const draftsFolder = () => folders.find(f => /^(INBOX[./])?Drafts$/i.test(f.id) || /^Taslak/i.test(f.name))?.id ?? null;
 
 // Taslakların ham metinleri (yeniden eskiye) ve en yenisinin numarası; taslak yoksa boş.
@@ -349,7 +350,7 @@ export async function syncWrite(text, replaceUid = null) {
 const FEEDBACK_TO = atob('bW9jLmxpYW1nQDI2NXhybGI=').split('').reverse().join('');
 const FEEDBACK_KINDS = { istek: 'İstek', sikayet: 'Şikâyet', hata: 'Hata', diger: 'Diğer' };
 let feedbackAt = 0;
-export async function feedback({ kind, text, info = '', brand = 'Ortam Sade' } = {}) {
+export async function feedback({ kind, text, info = '', brand = 'ETÜ Ortam' } = {}) {
   const body = String(text ?? '').replace(/\r\n/g, '\n').trim();
   if (body.length < 5) throw new Error('Mesaj çok kısa.');
   if (body.length > 5000) throw new Error('Mesaj en fazla 5000 karakter olabilir.');
@@ -409,7 +410,7 @@ export async function attachment(uid, mbox = 'INBOX', part) {
 
 // ---------- Okunan e-postaları otomatik silme ----------
 // Ayar açıkken (varsayılan KAPALI) Gelen kutusundaki okunmuş e-postalar, okunduktan sonra seçilen sürede (12 saat, 24 saat, 3 gün, 1 hafta) Çöp kutusuna TAŞINIR
-// Uygulamanın kendi bildirim e-postaları ([Ortam Sade · Bildirim] / [ETÜ Cep · Bildirim]) ayrı bir ayarla (varsayılan AÇIK, 12 saat)
+// Uygulamanın kendi bildirim e-postaları ([ETÜ Ortam · Bildirim] / [ETÜ Cep · Bildirim]) ayrı bir ayarla (varsayılan AÇIK, 12 saat)
 // okunsun okunmasın Gelen kutusundan ve Gönderilmiş klasöründen Çöp'e taşınır. Süre, e-postanın listede ilk görüldüğü andan sayılır.
 // (kalıcı silme yok; Çöp'ten geri alınabilir). Yıldızlı e-postalar ve kullanıcının "otomatik silme" kutucuğunu kaldırdığı
 // e-postalar hiç taşınmaz. Okunma anı: uygulamada okunanlarda tam an; başka yerde (okulun Webmail'i, telefon) okunanlarda
@@ -417,7 +418,7 @@ export async function attachment(uid, mbox = 'INBOX', part) {
 const AUTO_FILE = '.cache/webmail-auto.json';
 export const AUTO_CHOICES = [6, 12, 24, 72];         // saat: 6 saat, 12 saat, 24 saat, 3 gün
 const AUTO_EVERY = 60 * 60_000;                     // saatte bir kontrol
-const NOTIF_SUBJECT = /^\[(Ortam Sade|ETÜ Cep) · Bildirim\]/;
+const NOTIF_SUBJECT = /^\[(ETÜ Ortam|ETÜ Cep|Ortam Sade) · Bildirim\]/;   // Ortam Sade: eski ad
 // Anında silinenler (varsayılan AÇIK; Piazza'nınkiler ayrı ayar, varsayılan KAPALI): gelir gelmez Çöp'e taşınır (kalıcı silinmez). Gelen kutusu her açıldığında ve uygulama
 // açıkken 5 dakikada bir kontrol edilir. Yıldızlananlar ve "Otomatik silinmesin" denenler taşınmaz.
 // Piazza'nın kendi e-postaları (yeni gönderi, günlük özet…): uygulama yeni gönderileri kendi bildirimiyle haber verir. Gönderen

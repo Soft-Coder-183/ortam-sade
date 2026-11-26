@@ -1,7 +1,7 @@
-# Ortam Sade · ETÜ Cep
+# ETÜ Ortam · ETÜ Cep
 
 TOBB ETÜ'nün okul sitelerini (**Ortam, UBS, Uzak, UZAKYDB, Webmail, Piazza**) tek, sade bir uygulamada toplar.
-Bilgisayarda **Ortam Sade** (Windows), telefonda **ETÜ Cep** (Android) adıyla çalışır. Ücretsiz ve açık kaynaklı bir öğrenci projesidir.
+Bilgisayarda **ETÜ Ortam** (Windows), telefonda **ETÜ Cep** (Android) adıyla çalışır. Ücretsiz ve açık kaynaklı bir öğrenci projesidir.
 
 **[Tanıtım ve indirme sayfası](https://soft-coder-183.github.io/ortam-sade/) · [İndir: Windows](#indir) · [İndir: Android](#indir) · [Ekran görüntüleri](#ekran-görüntüleri)**
 
@@ -62,7 +62,7 @@ Görüntülerdeki öğrenci ve veriler uydurmadır.
 
 | Windows · Ana Sayfa | Android (ETÜ Cep) · Ana Sayfa |
 |---|---|
-| <img src="docs/ekran/windows-anasayfa.png" alt="Ortam Sade, Windows ana sayfa" width="600"> | <img src="docs/ekran/telefon-anasayfa.png" alt="ETÜ Cep, telefon ana sayfa" width="230"> |
+| <img src="docs/ekran/windows-anasayfa.png" alt="ETÜ Ortam, Windows ana sayfa" width="600"> | <img src="docs/ekran/telefon-anasayfa.png" alt="ETÜ Cep, telefon ana sayfa" width="230"> |
 
 **Açılan Dersler ve haftalık plan**
 
@@ -182,12 +182,13 @@ The program runs entirely on the user's device; it has no server of its own and 
   downloaded and installed only when the user clicks "Update".
 - **The user's own school e-mail account**: optional notification summaries are sent from the user's address to the same address
   (can be turned off in settings); the feedback form sends a message to the developer only when the user clicks "Send". To keep notifications read on all of the
-  user's devices, the app keeps one unsent draft ("[Ortam Sade · Eşitleme]") in the user's own Drafts folder holding only
+  user's devices, the app keeps one unsent draft ("[ETÜ Ortam · Eşitleme]") in the user's own Drafts folder holding only
   short hashes of read notifications and their times; it has no recipient and is never sent.
 
 System changes, all announced and reversible: the installer installs per user (no administrator rights), adds Start menu and
 optional desktop shortcuts, an optional start-at-login entry (a checkbox in the installer) and registers the `ortamsade:` link
-type under the current user. The uninstaller removes all of these and asks before deleting the user's saved data. The portable zip version installs
+type under the current user. When updating from a version released under the old name "Ortam Sade" (before 1.11.0), the
+installer removes only the app's own old-named shortcuts. The uninstaller removes all of these and asks before deleting the user's saved data. The portable zip version installs
 nothing; it only registers the `ortamsade:` link type for the current user when first started. Downloaded files are written only
 when the user asks: to the user's Downloads folder (a bulk Piazza download "to a folder" creates a new subfolder there and opens it
 in Explorer).

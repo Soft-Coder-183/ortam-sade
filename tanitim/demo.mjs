@@ -40,7 +40,7 @@ const SERIT = `<div class="demo-serit" role="note"><span>Tanıtım sürümü<spa
   .demo-serit a{color:#ffd28a}.demo-serit button{border:0;background:rgba(255,255,255,.15);color:#fff;width:22px;height:22px;border-radius:50%;font:inherit;line-height:1;cursor:pointer}
   .demo-serit .kisa{display:none}@media (max-width:800px){.demo-serit{bottom:74px}.demo-serit .uzun{display:none}.demo-serit .kisa{display:inline}}</style>`;
 let html = fs.readFileSync(path.join(ROOT, 'public', 'index.html'), 'utf8')
-  .replace('<title>Ortam Sade</title>', '<title>Ortam Sade · Tanıtım</title>\n  <meta name="robots" content="noindex">')
+  .replace('<title>ETÜ Ortam</title>', '<title>ETÜ Ortam · Tanıtım</title>\n  <meta name="robots" content="noindex">')
   .replace('<script src="app.js" type="module"></script>', `${SERIT}\n  <script src="demo.js" type="module"></script>`);
 if (!html.includes('demo.js')) throw new Error('index.html beklenen biçimde değil');
 fs.writeFileSync(path.join(OUT, 'index.html'), html);

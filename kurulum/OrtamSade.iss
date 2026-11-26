@@ -1,4 +1,4 @@
-﻿; Ortam Sade Windows kurulumu (Inno Setup 6). GitHub Actions'ta derlenir: iscc /DSurum=X.Y.Z kurulum\OrtamSade.iss
+﻿; ETÜ Ortam Windows kurulumu (Inno Setup 6). GitHub Actions'ta derlenir: iscc /DSurum=X.Y.Z kurulum\OrtamSade.iss
 ; Yönetici izni istemez: kullanıcının kendi klasörüne (%LOCALAPPDATA%\Programs\Ortam Sade) kurar. Uygulamanın "Güncelle" düğmesi
 ; bu klasörde de çalışır. Kişisel veriler (.cache, .profile) kaldırırken yalnızca kullanıcı onaylarsa silinir.
 #ifndef Surum
@@ -7,23 +7,24 @@
 
 [Setup]
 AppId={{6F0B8A0E-3C7E-4F59-9E1B-2C5D8B7A4E11}
-AppName=Ortam Sade
+AppName=ETÜ Ortam
 AppVersion={#Surum}
-AppVerName=Ortam Sade {#Surum}
-AppPublisher=Ortam Sade (bağımsız öğrenci projesi)
+AppVerName=ETÜ Ortam {#Surum}
+AppPublisher=ETÜ Ortam (bağımsız öğrenci projesi)
 AppPublisherURL=https://github.com/Soft-Coder-183/ortam-sade
 AppSupportURL=https://github.com/Soft-Coder-183/ortam-sade/issues
 AppUpdatesURL=https://github.com/Soft-Coder-183/ortam-sade/releases
 DefaultDirName={localappdata}\Programs\Ortam Sade
 DisableProgramGroupPage=yes
-DefaultGroupName=Ortam Sade
+DefaultGroupName=ETÜ Ortam
+UsePreviousGroup=no
 PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
 OutputDir=..\dist
 OutputBaseFilename=OrtamSade-{#Surum}-kurulum
 SetupIconFile=simge.ico
 UninstallDisplayIcon={app}\simge.ico
-UninstallDisplayName=Ortam Sade
+UninstallDisplayName=ETÜ Ortam
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
@@ -44,21 +45,29 @@ Name: "acilis"; Description: "Bilgisayar açılınca arka planda başlat (bildir
 Source: "..\dist\OrtamSade\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "simge.ico"; DestDir: "{app}"; Flags: ignoreversion
 
+[InstallDelete]
+; Eski ad (1.11.0 öncesi "Ortam Sade") ile kurulmuş kısayollar
+Type: files; Name: "{userprograms}\Ortam Sade\Ortam Sade.lnk"
+Type: files; Name: "{userprograms}\Ortam Sade\Ortam Sade'yi kaldır.lnk"
+Type: dirifempty; Name: "{userprograms}\Ortam Sade"
+Type: files; Name: "{userdesktop}\Ortam Sade.lnk"
+Type: files; Name: "{userstartup}\Ortam Sade.lnk"
+
 [Icons]
 ; Tek pencereli uygulama (OrtamSade.exe): siyah konsol yok, kapatınca sistem tepsisine iner
-Name: "{group}\Ortam Sade"; Filename: "{app}\OrtamSade.exe"; WorkingDir: "{app}"
-Name: "{group}\Ortam Sade'yi kaldır"; Filename: "{uninstallexe}"
-Name: "{userdesktop}\Ortam Sade"; Filename: "{app}\OrtamSade.exe"; WorkingDir: "{app}"; Tasks: masaustu
-Name: "{userstartup}\Ortam Sade"; Filename: "{app}\OrtamSade.exe"; Parameters: "--arka"; WorkingDir: "{app}"; Tasks: acilis
+Name: "{group}\ETÜ Ortam"; Filename: "{app}\OrtamSade.exe"; WorkingDir: "{app}"
+Name: "{group}\ETÜ Ortam'ı kaldır"; Filename: "{uninstallexe}"
+Name: "{userdesktop}\ETÜ Ortam"; Filename: "{app}\OrtamSade.exe"; WorkingDir: "{app}"; Tasks: masaustu
+Name: "{userstartup}\ETÜ Ortam"; Filename: "{app}\OrtamSade.exe"; Parameters: "--arka"; WorkingDir: "{app}"; Tasks: acilis
 
 [Registry]
 ; Windows bildirimine tıklanınca uygulama penceresinde ilgili sayfa açılır (ortamsade: bağlantıları; uygulama da kendisi yazar)
-Root: HKCU; Subkey: "Software\Classes\ortamsade"; ValueType: string; ValueName: ""; ValueData: "URL:Ortam Sade"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\ortamsade"; ValueType: string; ValueName: ""; ValueData: "URL:ETÜ Ortam"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\ortamsade"; ValueType: string; ValueName: "URL Protocol"; ValueData: ""
 Root: HKCU; Subkey: "Software\Classes\ortamsade\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\OrtamSade.exe"" ""%1"""
 
 [Run]
-Filename: "{app}\OrtamSade.exe"; WorkingDir: "{app}"; Description: "Ortam Sade'yi şimdi aç"; Flags: postinstall nowait skipifsilent
+Filename: "{app}\OrtamSade.exe"; WorkingDir: "{app}"; Description: "ETÜ Ortam'ı şimdi aç"; Flags: postinstall nowait skipifsilent
 
 [UninstallRun]
 ; Kaldırmadan önce açık uygulama (ve sunucusu) kapatılır

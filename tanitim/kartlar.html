@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="utf-8">
-<title>Ortam Sade tanıtım kartları</title>
+<title>ETÜ Ortam tanıtım kartları</title>
 <style>
   /* Tanıtım videosunun tam ekran kartları (1920×1080). Hangi kartın görüneceği adresteki #ad ile seçilir; kayıt betiği
      window.adim(n) çağırarak kartı seslendirmeyle eşzamanlı ilerletir. Renkler uygulamanınkiyle aynı (TOBB ETÜ kılavuzu). */
@@ -100,7 +100,7 @@
 <section class="kart" id="acilis">
   <div class="zemin"></div><div class="cubuklar"><i></i><i></i><i></i></div>
   <div class="soru">Altı site. Altı giriş. Altı farklı arayüz.</div>
-  <div class="marka"><span class="isaret"><i></i><i></i><i></i></span><h1>Ortam Sade</h1><p>Okulun bütün siteleri, tek ve sade bir arayüzde.</p></div>
+  <div class="marka"><span class="isaret"><i></i><i></i><i></i></span><h1>ETÜ Ortam</h1><p>Okulun bütün siteleri, tek ve sade bir arayüzde.</p></div>
 </section>
 
 <section class="kart" id="bildirim">
@@ -121,13 +121,13 @@
 
 <section class="kart" id="kapanis">
   <div class="zemin"></div><div class="cubuklar"><i></i><i></i><i></i></div>
-  <div class="orta"><span class="isaret"><i></i><i></i><i></i></span><h1>Ortam Sade</h1><p class="slogan">Bir kez giriş yap, gerisini ona bırak.</p>
+  <div class="orta"><span class="isaret"><i></i><i></i><i></i></span><h1>ETÜ Ortam</h1><p class="slogan">Bir kez giriş yap, gerisini ona bırak.</p>
     <div class="rozetler"><span>Ücretsiz</span><span>Açık kaynak</span><span>Windows</span><span>Android</span></div>
     <div class="adres">github.com/Soft-Coder-183/ortam-sade</div></div>
   <div class="dip">Bağımsız bir öğrenci projesidir; TOBB ETÜ'nün resmî uygulaması değildir. Videodaki öğrenci, notlar ve e-postalar örnektir.<br><span id="muzik"></span></div>
 </section>
 
-<div id="baslik" hidden><span class="mini"><i></i><i></i><i></i></span><span>Ortam Sade</span>
+<div id="baslik" hidden><span class="mini"><i></i><i></i><i></i></span><span>ETÜ Ortam</span>
   <span class="tuslar"><span><svg viewBox="0 0 10 10"><path d="M0 5h10"/></svg></span><span><svg viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9"/></svg></span><span><svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10"/></svg></span></span></div>
 
 <script>
@@ -160,7 +160,7 @@
   };
   function balon(baslik, metin, gecikme) {
     const b = document.createElement('div'); b.className = 'balon';
-    b.innerHTML = `<div class="ust"><span class="mini"><i></i><i></i><i></i></span>Ortam Sade</div><b>${baslik}</b><span class="m">${metin}</span>`;
+    b.innerHTML = `<div class="ust"><span class="mini"><i></i><i></i><i></i></span>ETÜ Ortam</div><b>${baslik}</b><span class="m">${metin}</span>`;
     $('#bildirim .yigin').append(b); setTimeout(() => b.classList.add('gel'), gecikme);
   }
   window.adim = n => ADIMLAR[ad]?.[n]?.();

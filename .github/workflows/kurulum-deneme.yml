@@ -41,9 +41,9 @@ jobs:
           foreach ($f in 'OrtamSade.exe', 'WebView2Loader.dll', 'Microsoft.Web.WebView2.Core.dll', 'Ortam Sade.cmd', 'runtime\node.exe', 'server\server.mjs', 'public\app.js', 'simge.ico', 'unins000.exe') {
             if (-not (Test-Path "$dir\$f")) { throw "Kurulumda eksik: $f" }
           }
-          $lnk = Get-ChildItem "$env:APPDATA\Microsoft\Windows\Start Menu\Programs" -Recurse -Filter 'Ortam Sade.lnk' | Select-Object -First 1
+          $lnk = Get-ChildItem "$env:APPDATA\Microsoft\Windows\Start Menu\Programs" -Recurse -Filter 'ETÜ Ortam.lnk' | Select-Object -First 1
           if (-not $lnk) { throw 'Başlat menüsü kısayolu yok' }
-          if (-not (Test-Path "$env:USERPROFILE\Desktop\Ortam Sade.lnk")) { throw 'Masaüstü kısayolu yok' }
+          if (-not (Test-Path "$env:USERPROFILE\Desktop\ETÜ Ortam.lnk")) { throw 'Masaüstü kısayolu yok' }
           Start-Process "$dir\unins000.exe" -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait
           Start-Sleep -Seconds 3
           if (Test-Path "$dir\server") { throw 'Kaldırma uygulama dosyalarını silmedi' }

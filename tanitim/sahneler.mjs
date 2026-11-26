@@ -12,7 +12,7 @@ export const SAHNELER = [
   { ad: '01-acilis', tur: 'kart', kart: 'acilis', adimlar: [
     { s: 'Ortam, UBS, Uzak, UZAKYDB, Webmail, Piazza… Altı ayrı site, altı ayrı giriş, altı ayrı arayüz.',
       oku: 'Ortam, U B S, Uzak, Uzak Y D B, Webmail, Piazza. Altı ayrı site, altı ayrı giriş, altı ayrı arayüz.', is: k => k.adim(0) },
-    { s: 'Ortam Sade hepsini tek ve sade bir uygulamada topluyor.', is: k => k.adim(1), sonra: 700 },
+    { s: 'ETÜ Ortam hepsini tek ve sade bir uygulamada topluyor.', is: k => k.adim(1), sonra: 700 },
   ] },
 
   { ad: '02-giris', durum: {}, hazirla: k => k.git('', { bekle: '.lg-form' }), adimlar: [
@@ -154,7 +154,7 @@ export const SAHNELER = [
   ] },
 
   { ad: '09-acilan', hazirla: k => k.git('#/ekstra/acilan', { bekle: '.ac-search' }), adimlar: [
-    { s: 'Ekstra bölümündeki Açılan Dersler ile kayıttan önce haftanı planla. Dersi ara, Enter\'a bas, plana eklensin.', is: async k => {
+    { s: 'Ekstralar bölümündeki Açılan Dersler ile kayıttan önce haftanı planla. Dersi ara, Enter\'a bas, plana eklensin.', is: async k => {
       await bekle(500);
       for (const d of ['BİL 331', 'MAT 202', 'BİL 214', 'ELE 224']) { await k.yaz('[data-ac-q]', d, { hiz: 60, sonra: 420 }); await k.tus('Enter', 380); }
     } },
@@ -202,7 +202,7 @@ export const SAHNELER = [
   ] },
 
   { ad: '11-bildirim', tur: 'kart', kart: 'bildirim', adimlar: [
-    { s: 'Ortam Sade arka planda Piazza\'yı ve Uzak\'ı senin yerine kontrol eder. Yeni bir gönderi, yeni bir dosya ya da yaklaşan bir sınav olduğunda Windows bildirimi gelir; istersen özet e-posta da.', is: k => k.adim(0) },
+    { s: 'ETÜ Ortam arka planda Piazza\'yı ve Uzak\'ı senin yerine kontrol eder. Yeni bir gönderi, yeni bir dosya ya da yaklaşan bir sınav olduğunda Windows bildirimi gelir; istersen özet e-posta da.', is: k => k.adim(0) },
     { s: 'Pencereyi kapatsan bile sistem tepsisinde çalışmaya devam eder.', is: k => k.adim(1), sonra: 500 },
   ] },
 
@@ -252,8 +252,8 @@ export const SAHNELER = [
   ] },
 
   { ad: '15-kapanis', tur: 'kart', kart: 'kapanis', adimlar: [
-    { s: 'Ortam Sade ücretsiz ve açık kaynaklı; bağımsız bir öğrenci projesi. Kurulum dosyaları GitHub\'da, herkesin görebildiği koddan derlenir.', is: k => k.adim(0) },
-    { s: 'Hemen indir, bir kez giriş yap, gerisini Ortam Sade\'ye bırak.', is: k => k.adim(1), sonra: 2600 },
+    { s: 'ETÜ Ortam ücretsiz ve açık kaynaklı; bağımsız bir öğrenci projesi. Kurulum dosyaları GitHub\'da, herkesin görebildiği koddan derlenir.', is: k => k.adim(0) },
+    { s: 'Hemen indir, bir kez giriş yap, gerisini ETÜ Ortam\'a bırak.', is: k => k.adim(1), sonra: 2600 },
   ] },
 ];
 for (const s of SAHNELER) if (!s.tur && !s.durum) s.durum = GIRISLI;

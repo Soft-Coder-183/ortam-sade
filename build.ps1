@@ -1,4 +1,4 @@
-﻿# Ortam Sade / ETÜ Cep: Windows kurulum dosyası, Windows zip'i ve Android APK'yı tek seferde üretir. Çıktılar dist\ altına gelir.
+﻿# ETÜ Ortam / ETÜ Cep: Windows kurulum dosyası, Windows zip'i ve Android APK'yı tek seferde üretir. Çıktılar dist\ altına gelir.
 # Kullanım (proje kökünde): powershell -ExecutionPolicy Bypass -File .\build.ps1          (hepsi)
 #                           powershell -ExecutionPolicy Bypass -File .\build.ps1 -AndroidYok  (APK'sız)
 # Ayrıntı ve gerekenler: BUILD.md
@@ -12,7 +12,7 @@ function Adim($ad, [scriptblock]$is) {
 }
 
 $v = node -p "require('./package.json').version"
-Write-Host "Ortam Sade $v derleniyor" -ForegroundColor Green
+Write-Host "ETÜ Ortam $v derleniyor" -ForegroundColor Green
 
 Adim 'Bağımlılıklar (npm install)' { npm install --no-audit --no-fund }
 Adim 'Windows paketi (zip + OrtamSade.exe)' { npm run paketle }

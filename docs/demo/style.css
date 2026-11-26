@@ -438,6 +438,9 @@ a.mlink { color: var(--accent); }
 .week .nowline { grid-column: 2 / -1; align-self: start; height: 0; border-top: 1.5px solid var(--red); opacity: .35; transform: translateY(-1px);
   position: relative; z-index: 0; pointer-events: none; }
 .week .bl { position: relative; z-index: 1; }
+/* Tablo çizgileri: satır başında yatay, gün sütunlarının solunda dikey */
+.week .gl-r { border-top: 1px solid var(--line-2); margin: 0 0 0 -2px; pointer-events: none; }
+.week .gl-c { border-left: 1px solid var(--line-2); margin: -2px 0 -2px -2px; pointer-events: none; }
 .week .nowline.today { opacity: 1; border-top-width: 2px; z-index: 2; }
 .week .nowline.today::before { content: ""; position: absolute; left: -5px; top: -6px; width: 10px; height: 10px; border-radius: 50%; background: var(--red); }
 .week .nowlabel { grid-column: 1; align-self: start; justify-self: end; transform: translateY(-50%); z-index: 3; padding: 1px 4px; border-radius: 5px;
@@ -764,8 +767,8 @@ a.inapp { color: var(--accent); font-weight: 600; }
 .tk-list li.now .tk-when, .tk-next li.now .tk-when { color: var(--red, var(--bad)); }
 .tk-list li.now { background: color-mix(in srgb, var(--red) 7%, transparent); }
 /* Bugün çizgisi: geçmişle gelecek arasında; açılışta sayfa buraya kayar */
-.tk-list li.tk-today { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 0; color: var(--red); font-size: .8rem; font-weight: 700; scroll-margin: 90px; }
-.tk-list li.tk-today::before, .tk-list li.tk-today::after { content: ""; height: 2px; background: var(--red); border-radius: 2px; }
+.tk-list li.tk-today { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 0; color: var(--accent); font-size: .8rem; font-weight: 700; scroll-margin: 90px; }
+.tk-list li.tk-today::before, .tk-list li.tk-today::after { content: ""; height: 2px; background: var(--accent); border-radius: 2px; }
 .tk-list li.tk-today::before { flex: 0 0 14px; }
 .tk-list li.tk-today::after { flex: 1; }
 .tk-next { border-left: 4px solid var(--accent); margin-bottom: 8px; }
@@ -1281,3 +1284,19 @@ body.lgs main { padding: 0; max-width: none; }
 @media (max-width: 1100px) { .rz-wrap { grid-template-columns: minmax(0, 1fr); } }
 
 .sec-sum { white-space: pre-line; }
+
+/* Ekstralar (ve okul açılmadan önceki hafta Açılan Dersler): sınav takvimindeki gibi dönen mavi–kırmızı–sarı çerçeve ve renkli simge */
+.glow-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+#nav a.glow, #drawer .glow { position: relative; isolation: isolate; }
+#nav a.glow::after, #drawer .glow::after { content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; padding: 1.5px; pointer-events: none;
+  background: conic-gradient(from var(--exam-ang), var(--accent), var(--red), var(--yellow), var(--accent));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude;
+  animation: exam-spin 8s linear infinite; }
+#nav a.glow .ic, #drawer .glow .ic { stroke: url(#etu-grad); }
+#nav .subs a.glow, #drawer .dr-subs a.glow { border-radius: 8px; }
+@media (max-width: 800px) { #nav a.grp.glow::after { display: none; } }
+@media (prefers-reduced-motion: reduce) { #nav a.glow::after, #drawer .glow::after { animation: none; } }
+/* Bildirimden açılan öğe: kullanıcı bir yere basana kadar turuncu vurgulu */
+.nt-hl { border-radius: 8px; background: var(--hi-soft); box-shadow: 0 0 0 6px var(--hi-soft); animation: nt-pulse 2.4s ease-in-out infinite; }
+@keyframes nt-pulse { 50% { box-shadow: 0 0 0 9px color-mix(in srgb, var(--hi-soft) 60%, transparent); } }
+@media (prefers-reduced-motion: reduce) { .nt-hl { animation: none; } }

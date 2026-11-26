@@ -166,7 +166,7 @@ async function birlestir() {
 
   const son = path.join(CIKTI, 'OrtamSade-tanitim.mp4');
   ff('-i', goruntu, '-i', ses, '-i', srt, '-map', '0:v', '-map', '1:a', '-map', '2:s', '-c:v', 'libx264', '-preset', 'slow', '-crf', '19', '-pix_fmt', 'yuv420p',
-    '-c:a', 'copy', '-c:s', 'mov_text', '-metadata:s:s:0', 'language=tur', '-metadata', 'title=Ortam Sade tanıtım', '-metadata', `comment=Müzik: ${MUZIK.kunye}`, '-movflags', '+faststart', son);      // -shortest yok: altyazı akışı son cümlede biter, videoyu erken keserdi
+    '-c:a', 'copy', '-c:s', 'mov_text', '-metadata:s:s:0', 'language=tur', '-metadata', 'title=ETÜ Ortam tanıtım', '-metadata', `comment=Müzik: ${MUZIK.kunye}`, '-movflags', '+faststart', son);      // -shortest yok: altyazı akışı son cümlede biter, videoyu erken keserdi
   console.log(`\nHazır: ${son}\n  süre ${Math.floor(toplam / 60)} dk ${Math.round(toplam % 60)} sn · ${(fs.statSync(son).size / 1048576).toFixed(1)} MB · ${n} seslendirme parçası\n  altyazı: ${srt}\n  müzik: ${MUZIK.kunye}`);
 }
 

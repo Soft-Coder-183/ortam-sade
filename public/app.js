@@ -2379,7 +2379,7 @@ async function viewHome(r, ctx) {
       <div class="hc-h"><a href="${c.link}">${esc(c.title)}</a><a class="muted" href="${c.link}">Tümü →</a></div>
       <div class="hc-b">${homeData[c.id] ? c.body(homeData[c.id]) : '<p class="muted">Yükleniyor…</p>'}</div></section>`).join('')}</div>` +
     `<h2>Son kullanılanlar</h2><div class="chips">${shortcuts().map(([href, label]) => `<a class="chip" href="${esc(href)}">${esc(label)}</a>`).join('')}</div>` +
-    `<p class="muted small home-more">Diğer bölümler: <a href="#/ekstra/acilan">Ekstra</a> · <a href="#/ekstra/mevzuat">Mevzuat</a> · <a href="#/ekstra/cap">ÇAP/YAP - Başvurular</a> · <a href="#/hakkinda/hakkimizda">Hakkında ve SSS</a></p>`;
+    `<p class="muted small home-more">Diğer bölümler: <a href="#/ekstra/acilan">Ekstralar</a> · <a href="#/ekstra/mevzuat">Mevzuat</a> · <a href="#/ekstra/cap">ÇAP/YAP - Başvurular</a> · <a href="#/hakkinda/hakkimizda">Hakkında ve SSS</a></p>`;
 }
 
 // Kart birden çok uçtan besleniyorsa (api dizi) gövde her ucun sonucunu alır: { site, data | login, siteName }.
@@ -2511,10 +2511,10 @@ async function fillWmSettings() {
       ${hoursSelect('data-wm-hours', s.afterHours, s.choices)}<span class="muted small">sonra</span></div>
     <p class="muted small" style="margin:4px 0 12px">Gelen kutusundaki okunmuş e-postalar okunduktan seçilen süre sonra <b>Çöp kutusuna taşınır</b> (kalıcı silinmez, Çöp'ten geri alınabilir).
       Yıldızlı e-postalar hiç taşınmaz; okunmuş bir e-postayı açıp alttaki "Otomatik silinmesin" düğmesine basarak tek tek de koruyabilirsiniz. Varsayılan kapalıdır.</p>
-    <div class="wm-opt"><label class="check"><input type="checkbox" data-wm-notif${s.notif.enabled ? ' checked' : ''}> Ortam Sade bildirim e-postalarını sil:</label>
+    <div class="wm-opt"><label class="check"><input type="checkbox" data-wm-notif${s.notif.enabled ? ' checked' : ''}> ETÜ Ortam bildirim e-postalarını sil:</label>
       <span class="muted small">okunduktan</span>${hoursSelect('data-wm-notif-read', s.notif.readHours ?? 6, s.choices)}<span class="muted small">ya da okunmasa da gelişinden</span>
       ${hoursSelect('data-wm-notif-hours', s.notif.afterHours, s.choices)}<span class="muted small">sonra</span></div>
-    <p class="muted small" style="margin:4px 0 8px">Uygulamanın sana gönderdiği "[Ortam Sade · Bildirim]" e-postaları (Uzak ve Piazza) okunduktan sonra ilk seçilen sürede,
+    <p class="muted small" style="margin:4px 0 8px">Uygulamanın sana gönderdiği "[ETÜ Ortam · Bildirim]" e-postaları (Uzak ve Piazza) okunduktan sonra ilk seçilen sürede,
       hiç okunmasa da gelişinden ikinci seçilen sürede Gelen kutusundan ve Gönderilmiş klasöründen Çöp'e taşınır. Kontrol saatte bir, uygulama açıkken yapılır.</p>
     ${s.instant ? `<div class="wm-opt"><label class="check"><input type="checkbox" data-wm-instant${s.instant.enabled ? ' checked' : ''}> Anında sil:</label>
       <span class="small">${s.instant.rules.map(esc).join(', ')}</span></div>
@@ -2674,8 +2674,8 @@ $view.addEventListener('click', e => {
 const aboutCard = (title, html) => `<section class="card about"><h3>${esc(title)}</h3>${html}</section>`;
 async function viewHakkimizda() {
   updateInfo ??= await fetch('/api/update').then(r => r.json()).catch(() => null);
-  return header('Hakkımızda', 'Ortam Sade nedir, nasıl çalışır') +
-    aboutCard('Ortam Sade', `<p>TOBB ETÜ öğrencilerinin her gün açtığı okul sitelerini — Ortam, UBS, Uzak, UZAKYDB, Webmail ve Piazza — tek, sade bir
+  return header('Hakkımızda', 'ETÜ Ortam nedir, nasıl çalışır') +
+    aboutCard('ETÜ Ortam', `<p>TOBB ETÜ öğrencilerinin her gün açtığı okul sitelerini — Ortam, UBS, Uzak, UZAKYDB, Webmail ve Piazza — tek, sade bir
       arayüzde toplayan bağımsız bir öğrenci projesidir. Amaç aynı bilgiye daha az tıklamayla, daha rahat okunur biçimde ulaşmaktır:
       derslerin Piazza ve Uzak içerikleri tek sayfada, sınavlar ders programında, notlar ortalama hesaplayıcıyla birlikte.</p>`) +
     aboutCard('Nasıl çalışır?', `<ul>
@@ -2689,17 +2689,17 @@ async function viewHakkimizda() {
       <li>Bildirim e-postaları senin okul adresinden yine sana gönderilir.</li></ul>`) +
     aboutCard('Açık kaynak', `<p>Kodun tamamı herkese açıktır; ne yaptığını kendin inceleyebilir, sorun bildirebilir ya da katkıda bulunabilirsin:
       <a href="https://github.com/Soft-Coder-183/ortam-sade" target="_blank" rel="noopener">github.com/Soft-Coder-183/ortam-sade</a> (MIT lisansı).</p>`) +
-    aboutCard('Sürüm', `<div class="row" style="justify-content:space-between;gap:12px;flex-wrap:wrap"><p style="margin:0">Ortam Sade <b id="app-ver">${esc(updateInfo?.current || '…')}</b>.
+    aboutCard('Sürüm', `<div class="row" style="justify-content:space-between;gap:12px;flex-wrap:wrap"><p style="margin:0">ETÜ Ortam <b id="app-ver">${esc(updateInfo?.current || '…')}</b>.
       Yeni sürüm çıkınca uygulama sorar; onaylamadan hiçbir şey indirilmez ya da kurulmaz.</p>
       <button type="button" class="btn" data-upd-check>${icon('download')}Güncellemeleri denetle</button></div>`) +
     `<p class="muted small">Sorular için: <a href="#/hakkinda/sss">Sık Sorulan Sorular</a> · İstek ya da sorun: <a href="#/hakkinda/geri-bildirim">Geri Bildirim</a> · Önemli: <a href="#/hakkinda/sorumluluk">Sorumluluk Reddi</a></p>`;
 }
 const SSS = [
-  ['Bu, okulun resmî uygulaması mı?', 'Hayır. Ortam Sade bağımsız bir öğrenci projesidir; TOBB ETÜ tarafından geliştirilmemiş, onaylanmamış ya da desteklenmemektedir. Ayrıntılar Sorumluluk Reddi sayfasında.'],
+  ['Bu, okulun resmî uygulaması mı?', 'Hayır. ETÜ Ortam bağımsız bir öğrenci projesidir; TOBB ETÜ tarafından geliştirilmemiş, onaylanmamış ya da desteklenmemektedir. Ayrıntılar Sorumluluk Reddi sayfasında.'],
   ['Şifrem nerede duruyor, güvende mi?', '"Beni hatırla" seçiliyse yalnızca bu bilgisayarda, Windows\'un şifreli kasasında saklanır; başka bir yere gönderilmez. Seçili değilse yalnızca uygulama açıkken bellekte tutulur. Hesap sayfasındaki "Kayıtlı bilgileri sil" ile istediğin an silebilirsin.'],
   ['Şifrelerim her sitede aynı değil, ne yapmalıyım?', 'Hesap sayfasında "Siteye özel şifreler" bölümünü aç; farklı olan sitenin şifresini oraya yaz. Boş bıraktığın siteler ana şifreni kullanır.'],
   ['Okulun sunucularını yorar mı?', 'Hayır, normal kullanıma yakındır. Yalnızca açtığın ekran okuldan istenir ve kısa süre önbellekte tutulur. Arka planda oturumu açık tutmak için seyrek kontroller yapılır; siteye zaten bir istek gittiyse o kontrol atlanır. Bildirimler için Piazza 10 dakikada, Uzak saatte bir sorulur.'],
-  ['Bildirimler nasıl geliyor?', 'Uygulama açıkken Piazza ve Uzak\'taki yeni içerikleri ve Akademik Takvimde yaklaşan önemli tarihleri kontrol eder (Uzak turuncu, Piazza mavi noktayla gösterilir); yenilik varsa Windows bildirimi gösterir ve (açıksa) okul adresine "[Ortam Sade · Bildirim]" konulu bir özet e-posta yollar. Uygulama kapalıyken kontrol yapılmaz. Hesap > Bildirimler\'den kapatabilirsin.'],
+  ['Bildirimler nasıl geliyor?', 'Uygulama açıkken Piazza ve Uzak\'taki yeni içerikleri ve Akademik Takvimde yaklaşan önemli tarihleri kontrol eder (Uzak turuncu, Piazza mavi noktayla gösterilir); yenilik varsa Windows bildirimi gösterir ve (açıksa) okul adresine "[ETÜ Ortam · Bildirim]" konulu bir özet e-posta yollar. Uygulama kapalıyken kontrol yapılmaz. Hesap > Bildirimler\'den kapatabilirsin.'],
   ['İndirdiğim paketin bu koddan üretildiğini nasıl anlarım?', 'Sürüm paketleri elle yüklenmez: GitHub Actions bu depodaki koddan üretir ve imzalı kaynak kanıtı ekler. GitHub CLI kuruluysa indirdiğin dosyanın yanında şu komutu çalıştır: gh attestation verify OrtamSade-win-x64.zip --repo Soft-Coder-183/ortam-sade (kurulum dosyası için OrtamSade-kurulum.exe, telefon için EtuCep.apk). "Verification succeeded" yazıyorsa dosya bu depodan ve bu iş akışından çıkmıştır.'],
   ['Otomatik silme e-postalarımı kalıcı olarak siler mi?', 'Hayır. Ayar açıksa okunmuş e-postalar seçtiğin süre (6 saat, 12 saat, 24 saat ya da 3 gün) sonra, uygulamanın bildirim e-postaları da (varsayılan) okunduktan 6 saat, okunmasa da gelişinden 12 saat sonra Çöp kutusuna taşınır; oradan geri alınabilir. Yıldızlı e-postalar ve "Otomatik silinmesin" düğmesine basılanlar taşınmaz. Ayar varsayılan olarak kapalıdır.'],
   ['Bazı bilgiler neden yok (ör. açılan derslerin şube ve saatleri)?', 'Ortam bu bilgileri yalnızca doğrulamalı (reCAPTCHA) aramayla veriyor. Uygulama doğrulamaları aşmadığı için bu bilgiler için okulun sayfasına bağlantı verilir.'],
@@ -2741,7 +2741,7 @@ const SITE_LINKS = [
     ['Bilişim Portalı', 'https://bilisim.etu.edu.tr/linkler', 'Okulun bilişim hizmetleri'],
   ]],
   ['Bu proje', [
-    ['Ortam Sade (GitHub)', 'https://github.com/Soft-Coder-183/ortam-sade', 'Kaynak kod'],
+    ['ETÜ Ortam (GitHub)', 'https://github.com/Soft-Coder-183/ortam-sade', 'Kaynak kod'],
     ['Sürümler', 'https://github.com/Soft-Coder-183/ortam-sade/releases', 'İndirme ve sürüm notları'],
     ['Sorun bildir', 'https://github.com/Soft-Coder-183/ortam-sade/issues', ''],
   ]],
@@ -2754,7 +2754,7 @@ const viewSiteler = () => header('Okulun Siteleri', 'Uygulamanın bağlandığı
 const viewSss = () => header('Sık Sorulan Sorular') +
   `<div class="list">${SSS.map(([q, a]) => `<details class="card faq"><summary>${esc(q)}</summary><p>${esc(a)}</p></details>`).join('')}</div>`;
 const viewSorumluluk = () => header('Sorumluluk Reddi') + aboutCard('Lütfen okuyun', `<ul>
-  <li><b>Resmî değildir.</b> Ortam Sade, TOBB Ekonomi ve Teknoloji Üniversitesi'nin resmî bir uygulaması değildir; üniversite tarafından geliştirilmemiş, onaylanmamış ve desteklenmemektedir. Okulun adları ve sistemleri yalnızca hangi siteye bağlanıldığını belirtmek için anılır.</li>
+  <li><b>Resmî değildir.</b> ETÜ Ortam, TOBB Ekonomi ve Teknoloji Üniversitesi'nin resmî bir uygulaması değildir; üniversite tarafından geliştirilmemiş, onaylanmamış ve desteklenmemektedir. Okulun adları ve sistemleri yalnızca hangi siteye bağlanıldığını belirtmek için anılır.</li>
   <li><b>Bilgiler okulun sitelerinden anlık alınır.</b> Gösterim sırasında hata, eksik ya da gecikme olabilir. Ders kaydı, not, sınav tarihi ve yeri, başvuru ve ödeme gibi resmî konularda <b>okulun kendi sistemleri esastır</b>.</li>
   <li><b>Hesaplamalar tahmindir.</b> Ortalama ve ders planı hesapları yönetmeliğe göre yapılır ama resmî sonuç yerine geçmez.</li>
   <li><b>İşlemler senin onayınla yapılır.</b> Form gönderme, e-posta gönderme/silme gibi işlemler yalnızca senin tıklamanla ya da açtığın bir ayarla okulun sistemine iletilir ve oradaki işlemle aynı sonucu doğurur.</li>
@@ -3020,7 +3020,7 @@ function showLock(msg = '') {
   if (document.getElementById('lock')) { if (msg) document.querySelector('#lock .lock-msg').textContent = msg; return; }
   const d = document.createElement('div');
   d.id = 'lock';
-  d.innerHTML = `<form class="lock-box" data-lock-form><span class="mark" aria-hidden="true"><i></i><i></i><i></i></span><h2>Ortam Sade kilitli</h2>
+  d.innerHTML = `<form class="lock-box" data-lock-form><span class="mark" aria-hidden="true"><i></i><i></i><i></i></span><h2>ETÜ Ortam kilitli</h2>
     <p class="muted">Devam etmek için PIN'ini gir.</p>
     <input name="pin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" pattern="[0-9]*" aria-label="PIN" autofocus>
     <button type="submit">Kilidi aç</button><p class="lock-msg">${esc(msg)}</p></form>`;
@@ -3065,8 +3065,8 @@ async function checkServer() {
   if (!ok && !b) {
     b = document.createElement('div');
     b.id = 'srv-down';
-    b.innerHTML = `<b>Uygulama kapalı.</b> Ortam Sade kapatılmış ya da bilgisayar yeniden başlatılmış olabilir.
-      Yeniden açmak için Başlat menüsünden <b>Ortam Sade</b>'yi (ya da klasördeki <b>OrtamSade.exe</b>'yi) aç. Bu sayfa kendiliğinden yenilenecek.`;
+    b.innerHTML = `<b>Uygulama kapalı.</b> ETÜ Ortam kapatılmış ya da bilgisayar yeniden başlatılmış olabilir.
+      Yeniden açmak için Başlat menüsünden <b>ETÜ Ortam</b>'ı (ya da klasördeki <b>OrtamSade.exe</b>'yi) aç. Bu sayfa kendiliğinden yenilenecek.`;
     document.body.prepend(b);
   } else if (ok && b) { b.remove(); render(); }
 }
@@ -3233,7 +3233,7 @@ const GLOW_DEFS = '<svg class="glow-defs" aria-hidden="true" width="0" height="0
 function renderNav({ group, sub }) {
   const firstBottom = NAV.find(n => n.bottom);
   // Marka: TOBB ETÜ logosundaki üç renk (mavi, kırmızı, turuncu) küçük bir işaret olarak
-  $nav.innerHTML = `<a class="brand" href="#/anasayfa"><span class="mark" aria-hidden="true"><i></i><i></i><i></i></span>Ortam</a>` + NAV.map(n => {
+  $nav.innerHTML = `<a class="brand" href="#/anasayfa"><span class="mark" aria-hidden="true"><i></i><i></i><i></i></span>ETÜ Ortam</a>` + NAV.map(n => {
     const href = '#/' + n.id + (n.items ? '/' + n.items[0][0] : '');
     const subs = n === group && n.items ? `<div class="subs">${n.items.map(([id, label]) =>
       `<a href="#/${n.id}/${id}" class="${[id === sub && 'on', glowSub(n, id) && 'glow'].filter(Boolean).join(' ')}">${esc(label)}${n.id === 'donem' && id === 'derslerim' ? srcDots(notif.bySource, true) : ''}</a>`).join('')}</div>` : '';
@@ -3452,7 +3452,7 @@ function updateCard(u, { manual = false } = {}) {
   card.className = 'card upd';
   card.setAttribute('role', 'dialog');
   card.setAttribute('aria-label', 'Yeni sürüm');
-  card.innerHTML = `<div class="upd-h">${icon('download')}<b>Ortam Sade ${esc(u.latest)} yayınlandı</b></div>
+  card.innerHTML = `<div class="upd-h">${icon('download')}<b>ETÜ Ortam ${esc(u.latest)} yayınlandı</b></div>
     <p class="muted small">Şu an ${esc(u.current)} kullanıyorsun. Güncellemek ister misin?${size}</p>
     ${u.notes ? `<details><summary class="small">Neler yeni?</summary><div class="upd-notes small">${esc(plainNotes(u.notes))}</div></details>` : ''}
     <div class="upd-act"><button type="button" class="btn ghost" data-upd-later>Sonra</button>
@@ -3525,7 +3525,7 @@ const wcMark = '<span class="wc-mark" aria-hidden="true"><i></i><i></i><i></i></
 const loginScreen = () => `<section class="lg">
   <aside class="lg-brand">
     <span class="lg-deco" aria-hidden="true"><i></i><i></i><i></i></span>
-    <div class="lg-logo">${wcMark}<span>Ortam Sade</span></div>
+    <div class="lg-logo">${wcMark}<span>ETÜ Ortam</span></div>
     <div class="lg-pitch">
       <h2>Okulun bütün siteleri, tek ve sade bir arayüzde.</h2>
       <p>Dersler, notlar, sınavlar, e-posta ve duyurular aynı yerde. Bir kez giriş yaparsın; gerisini uygulama halleder.</p>

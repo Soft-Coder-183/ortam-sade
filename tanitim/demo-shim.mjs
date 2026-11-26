@@ -17,6 +17,6 @@ const pdf = metin => {
   s += `trailer\n<< /Size ${nesneler.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
   return new TextEncoder().encode(s);
 };
-export const readFileSync = () => pdf('Ortam Sade demo - ornek belge (uydurma)');
+export const readFileSync = () => pdf('ETU Ortam demo - ornek belge (uydurma)');
 export const fileURLToPath = u => String(u);
 export default { readFileSync };

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
-<title>Ortam Sade · Aç</title>
+<title>ETÜ Ortam · Aç</title>
 <style>
   :root { --bg:#f4f5f7; --fg:#1c1f26; --mut:#5b6270; --card:#fff; --acc:#2f6fed; --line:#dfe2e8; }
   @media (prefers-color-scheme: dark) { :root { --bg:#121418; --fg:#e8eaee; --mut:#9aa1ad; --card:#1b1e25; --acc:#6a9bff; --line:#2b2f38; } }
@@ -48,11 +48,11 @@
     $('d').textContent = 'ETÜ Cep açılmadıysa "Uygulamada aç"a bas.';
   } else if (/Windows/i.test(ua)) {
     target = `ortamsade:${page}`;
-    $('d').textContent = 'Ortam Sade açılmadıysa "Uygulamada aç"a bas. Tarayıcı izin isterse "Aç"ı seç.';
+    $('d').textContent = 'ETÜ Ortam açılmadıysa "Uygulamada aç"a bas. Tarayıcı izin isterse "Aç"ı seç.';
     $('web').href = `http://localhost:3000/${page}`;
     $('web').hidden = false;
   } else {
-    $('d').textContent = 'Ortam Sade Windows ve Android için hazırlandı.';
+    $('d').textContent = 'ETÜ Ortam Windows ve Android için hazırlandı.';
     $('open').hidden = true;
   }
   if (target) { $('open').href = target; location.href = target; }

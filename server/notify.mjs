@@ -20,7 +20,7 @@ import * as vault from './vault.mjs';
 const FILE = '.cache/notify.json';
 const EVERY = { piazza: 10, uzak: 60, takvim: 180 };   // dakika (okul sunucularını yormamak için seyrek)
 // Platform ayarları: Android bildirimi kendi gösterir, Uzak'ı 30 dakikada bir denetler ve özet e-postayı varsayılan kapalı tutar.
-// E-postadaki bağlantı her cihazda aynıdır (docs/a/index.html, GitHub Pages): sayfa cihaza göre ETÜ Cep'i ya da Ortam Sade'yi açar.
+// E-postadaki bağlantı her cihazda aynıdır (docs/a/index.html, GitHub Pages): sayfa cihaza göre ETÜ Cep'i ya da ETÜ Ortam'ı açar.
 // Bağlantı kısadır: "#p/<ders>/<gönderi no>" (Piazza), "#u/<ders>/<etkinlik>" (Uzak); diğer sayfalar "#/…" olarak kalır.
 const OPEN_URL = 'https://soft-coder-183.github.io/ortam-sade/a/';
 export function shortLink(link, n = {}) {
@@ -29,7 +29,7 @@ export function shortLink(link, n = {}) {
   return `#${m[2] === 'piazza' ? 'p' : 'u'}/${m[1]}/${m[2] === 'piazza' && n.nr ? n.nr : m[3]}`;
 }
 // appLink: e-postadaki "Aç:" bağlantısı (bildirimin sayfasını uygulamada açar)
-const platform = { toast: null, brand: 'Ortam Sade', appLink: (link, n) => `${OPEN_URL}${shortLink(link, n)}` };
+const platform = { toast: null, brand: 'ETÜ Ortam', appLink: (link, n) => `${OPEN_URL}${shortLink(link, n)}` };
 export const brand = () => platform.brand;
 export function configure({ every, defaults, ...rest }) {
   Object.assign(EVERY, every);
@@ -117,7 +117,7 @@ async function syncMailRead({ push = false } = {}) {
   }
   if (!added && texts.length <= 1) return changed;                 // taslak güncel (birden çok kopya varsa tek taslakta birleşir)
   const lines = [...merged].map(([h, t]) => `${h}:${Math.floor(t / 1000).toString(36)}`);
-  await webmail.syncWrite(['Ortam Sade / ETU Cep okundu bilgisi. Bu taslagi silmeyin; uygulama kendisi gunceller.', '', ...lines].join('\n'), uid);
+  await webmail.syncWrite(['ETÜ Ortam / ETU Cep okundu bilgisi. Bu taslagi silmeyin; uygulama kendisi gunceller.', '', ...lines].join('\n'), uid);
   return changed;
 }
 let pushTimer = null;
@@ -255,7 +255,7 @@ function toast(title, body, link) {
   if (process.platform !== 'win32') return;
   // Masaüstü uygulamasıyla (OrtamSade.exe) çalışıyorsa bildirim uygulamanın penceresini açar, değilse tarayıcıyı
   const target = process.env.ORTAM_MASAUSTU ? `ortamsade:${link || '#/'}` : `http://localhost:${process.env.PORT || 3000}/${link || ''}`;
-  const payload = Buffer.from(JSON.stringify({ title: `Ortam Sade · ${title}`, body, link: target }), 'utf8').toString('base64');
+  const payload = Buffer.from(JSON.stringify({ title: `ETÜ Ortam · ${title}`, body, link: target }), 'utf8').toString('base64');
   const script = `
     $d = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String([Console]::In.ReadToEnd().Trim())) | ConvertFrom-Json
     [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null

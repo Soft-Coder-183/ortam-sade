@@ -1,9 +1,11 @@
-# Ortam Sade / ETÜ Cep
+# ETÜ Ortam / ETÜ Cep
 
 TOBB ETÜ'nün okul sitelerini (Ortam, UBS, Uzak, UZAKYDB, Webmail, Piazza) tek sade arayüzde toplayan açık kaynak uygulama.
-Windows'ta **Ortam Sade** (yerel Node sunucusu + `OrtamSade.exe` WebView2 penceresi), Android'de **ETÜ Cep** (aynı `server/` kodu
+Windows'ta **ETÜ Ortam** (yerel Node sunucusu + `OrtamSade.exe` WebView2 penceresi), Android'de **ETÜ Cep** (aynı `server/` kodu
 WebView içinde). Sahibi Eren Akyurt; Türkçe konuşulur. Depo herkese açık (MIT): https://github.com/Soft-Coder-183/ortam-sade
 Ayrıntılar `HANDOVER.md`'de; bir alana dokunmadan önce ilgili bölümünü oku (en altta liste).
+**Ad:** görünen ad 1.11.0'dan beri "ETÜ Ortam" (önce "Ortam Sade"). Teknik adlar bilerek eski kaldı, değiştirme: `OrtamSade.exe`,
+`ortamsade:`, kurulum klasörü `Programs\Ortam Sade`, Inno `AppId`, `Ortam Sade.cmd`, yayın dosya adları, depo `ortam-sade` (HANDOVER > Sürüm, paketleme).
 
 ## Komutlar
 - Kurulum: `npm install` · Geliştirme: `npm run dev` (server/ değişince yeniden başlar) · `npm start`
@@ -59,14 +61,14 @@ Ayrıntılar `HANDOVER.md`'de; bir alana dokunmadan önce ilgili bölümünü ok
 - `.cache`, `.profile`, `dump`, `tools`, `yeni`, `arsiv`, `mobile/android/imza/` yayımlanmaz (gitignore).
 
 ## Commit ve sürüm (global G2, G6, G7)
-- **Dil:** proje baştan sona Türkçedir: arayüz, belgeler (`CLAUDE.md`, `HANDOVER.md`, notlar), kod yorumları ve commit
+- **Dil:** proje baştan sona Türkçedir: arayüz, belgeler (`AGENTS.md`, `HANDOVER.md`, notlar), kod yorumları ve commit
   mesajları Türkçe (global G8 istisnası). Yalnızca README'deki "Code signing policy" ve "Privacy policy" İngilizce.
 - Her istek commit'le biter; yalnızca değişen dosyalar adıyla eklenir; push serbest; `main`'de çalışılır.
 - Sürüm numarasının tek kaynağı `package.json` (Android `versionCode` ondan türer). Yayımlanmamış değişiklikler sıradaki
   `notlar/vX.Y.Z.md`'de birikir; notlar kullanıcıya dönük, başta özet tablo, bölümlü ve sayılı.
   Notlarda (GitHub ve uygulama içi) emoji kullanılmaz; başlık ve tablo düz metin.
 - **Yayın** (sürüm artırma, etiket ve yayın kullanıcı tarafından önceden onaylı): `package.json` sürümü → not tamam → commit →
-  `git tag -a vX.Y.Z -m "Ortam Sade X.Y.Z"` → `git push origin vX.Y.Z`. `surum.yml` GitHub'ın Windows makinesinde kurulum exe'si,
+  `git tag -a vX.Y.Z -m "ETÜ Ortam X.Y.Z"` → `git push origin vX.Y.Z`. `surum.yml` GitHub'ın Windows makinesinde kurulum exe'si,
   zip ve imzalı APK üretir (imza: `ETUCEP_KEY_B64`, `ETUCEP_KEY_PASSWORD` gizli değişkenleri), kaynak kanıtı ekler, yayımlar.
   Yayın dosyaları sürüm numarasız adlarla çıkar (`OrtamSade-kurulum.exe`, `OrtamSade-win-x64.zip`, `EtuCep.apk`); README'deki
   `releases/latest/download/…` bağlantıları bu adlara dayanır.

@@ -2,7 +2,7 @@
 //
 // Kimlik (User-Agent): Chrome'un tarayıcı dizgesi korunur (okulun siteleri sayfayı tarayıcıya göre biçimliyor; ör. ASP.NET
 // tanımadığı istemciye eksik sayfa verebilir), sonuna uygulamanın adı, sürümü ve depo adresi eklenir. Böylece okulun sistem
-// yöneticisi isteklerin Ortam Sade / ETÜ Cep'ten geldiğini ve kodun nerede olduğunu görebilir.
+// yöneticisi isteklerin ETÜ Ortam / ETÜ Cep'ten geldiğini ve kodun nerede olduğunu görebilir.
 //
 // Fren (siteye göre): üst üste ikinci hatadan (ağ hatası, 5xx, 429) sonra o siteye bir süre istek gönderilmez; süre her yeni
 // hatada ikiye katlanır (15 sn, 30 sn, 1 dk … en çok 30 dk), ilk başarılı yanıtta sıfırlanır. Ayrıca bir siteye dakikada

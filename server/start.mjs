@@ -14,7 +14,7 @@ function run(first) {
   if (!first) delete env.ORTAM_AC;
   const child = spawn(fs.existsSync(NODE) ? NODE : process.execPath, ['server/server.mjs'], { cwd: ROOT, env, stdio: 'inherit' });
   child.on('exit', code => {
-    if (code === RESTART_CODE) { console.log('\nGüncelleme kuruldu, Ortam Sade yeniden başlatılıyor…\n'); return run(false); }
+    if (code === RESTART_CODE) { console.log('\nGüncelleme kuruldu, ETÜ Ortam yeniden başlatılıyor…\n'); return run(false); }
     process.exit(code ?? 0);
   });
   for (const sig of ['SIGINT', 'SIGTERM']) process.once(sig, () => child.kill());

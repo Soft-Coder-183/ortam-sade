@@ -156,7 +156,7 @@ function gitUpdate(ver) {
 // eski süreç kapanınca siyah pencere yeniden açılır, böylece uygulama görünmez çalışmaz.
 export function restart() {
   if (packaged || process.env.ORTAM_GOZETIM || process.platform !== 'win32') process.exit(RESTART_CODE);
-  spawn('cmd.exe', ['/c', 'ping -n 3 127.0.0.1 >nul & set ORTAM_YENIDEN=1& start "Ortam Sade" "Ortam Sade.cmd"'],
+  spawn('cmd.exe', ['/c', 'ping -n 3 127.0.0.1 >nul & set ORTAM_YENIDEN=1& start "ETÜ Ortam" "Ortam Sade.cmd"'],
     { cwd: ROOT, detached: true, stdio: 'ignore', windowsHide: true, windowsVerbatimArguments: true }).unref();
   process.exit(0);
 }

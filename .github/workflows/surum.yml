@@ -107,5 +107,5 @@ jobs:
             printf '```\n'
             printf '\n[Code signing policy](https://github.com/%s#code-signing-policy) · [Privacy policy](https://github.com/%s#privacy-policy)\n' "$GITHUB_REPOSITORY" "$GITHUB_REPOSITORY"
           } > surum-notu.md
-          gh release create "$GITHUB_REF_NAME" "$exe#Windows · kurulum dosyası, önerilen (Ortam Sade $v)" "$zip#Windows · kurulumsuz, açıp çalıştır (Ortam Sade $v)" "$apk#Android · ETÜ Cep telefon uygulaması ($v)" --title "Ortam Sade ${GITHUB_REF_NAME#v}" --notes-file surum-notu.md --verify-tag
+          gh release create "$GITHUB_REF_NAME" "$exe#Windows · kurulum dosyası, önerilen (ETÜ Ortam $v)" "$zip#Windows · kurulumsuz, açıp çalıştır (ETÜ Ortam $v)" "$apk#Android · ETÜ Cep telefon uygulaması ($v)" --title "ETÜ Ortam ${GITHUB_REF_NAME#v}" --notes-file surum-notu.md --verify-tag
           sha256sum "$exe" "$zip" "$apk" >> "$GITHUB_STEP_SUMMARY"

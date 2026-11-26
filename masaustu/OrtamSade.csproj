@@ -1,5 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- Ortam Sade masaüstü penceresi: tek pencere, siyah konsol yok, sistem tepsisi simgesi. .NET Framework 4.8 her Windows 10/11'de
+  <!-- ETÜ Ortam masaüstü penceresi: tek pencere, siyah konsol yok, sistem tepsisi simgesi. .NET Framework 4.8 her Windows 10/11'de
        hazır gelir; görüntüleme için Windows'taki Edge WebView2 kullanılır. Derleme: dotnet publish masaustu -c Release -o <klasör> -->
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -10,9 +10,9 @@
     <RootNamespace>OrtamSade</RootNamespace>
     <ApplicationIcon>..\kurulum\simge.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Product>Ortam Sade</Product>
-    <Description>Ortam Sade</Description>
-    <Company>Ortam Sade (bağımsız öğrenci projesi)</Company>
+    <Product>ETÜ Ortam</Product>
+    <Description>ETÜ Ortam</Description>
+    <Company>ETÜ Ortam (bağımsız öğrenci projesi)</Company>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <SatelliteResourceLanguages>tr</SatelliteResourceLanguages>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>

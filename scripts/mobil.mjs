@@ -31,7 +31,8 @@ await esbuild.build({
 
 // Arayüz: aynı dosyalar; telefona özgü davranışı app.js window.Native'den anlar
 copyDir(path.join(ROOT, 'public'), WWW);
-const rename = s => s.replaceAll('Ortam Sade', 'ETÜ Cep');
+const EKLER = { 'ı': 'i', 'a': 'e', 'da': 'te', 'dan': 'ten', 'ın': 'in', 'la': 'le', 'dır': 'dir' };
+const rename = s => s.replace(/ETÜ Ortam(\\?')(dan|dır|da|ın|la|ı|a)(?![a-zçğıöşü])/g, (_, q, ek) => `ETÜ Cep${q}${EKLER[ek]}`).replaceAll('ETÜ Ortam', 'ETÜ Cep');
 // Satır sonları eşitlenir: Windows'ta (GitHub'ın Windows makinesi dahil) dosyalar CRLF gelebilir, metinler.mjs ise LF'li çok satırlı metin içerir
 let app = fs.readFileSync(path.join(WWW, 'app.js'), 'utf8').replace(/\r\n/g, '\n');
 for (const [from, to] of TELEFON.map(([f, t]) => [f.replace(/\r\n/g, '\n'), t.replace(/\r\n/g, '\n')])) {

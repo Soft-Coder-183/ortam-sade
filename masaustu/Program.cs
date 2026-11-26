@@ -1,4 +1,4 @@
-// Ortam Sade masaüstü penceresi. Yerel sunucuyu (Node.js, server\start.mjs) görünmez başlatır, arayüzü tek pencerede
+// ETÜ Ortam masaüstü penceresi. Yerel sunucuyu (Node.js, server\start.mjs) görünmez başlatır, arayüzü tek pencerede
 // (Edge WebView2) gösterir. Pencere kapatılınca uygulama sistem tepsisine iner, bildirimler gelmeye devam eder; tepsideki
 // "Kapat" sunucuyu da durdurur. "--arka": pencere açılmadan yalnızca tepside başlar (bilgisayar açılınca).
 // "ortamsade:#/..." bağlantısı (Windows bildirimine tıklama) açık pencerede o sayfayı açar. Aynı anda tek kopya çalışır.
@@ -40,7 +40,7 @@ namespace OrtamSade
                 var root = FindRoot();
                 if (root == null)
                 {
-                    MessageBox.Show("Uygulama dosyaları bulunamadı (server\\start.mjs). Ortam Sade'yi yeniden kurun.", "Ortam Sade", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show("Uygulama dosyaları bulunamadı (server\\start.mjs). ETÜ Ortam'ı yeniden kurun.", "ETÜ Ortam", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     return;
                 }
                 // Beklenmeyen hatalar .cache\pencere-hata.log'a yazılır (uygulama sessizce kapanmasın, nedeni bulunabilsin)
@@ -73,7 +73,7 @@ namespace OrtamSade
                 string exe = Application.ExecutablePath, cmd = $"\"{exe}\" \"%1\"";
                 using (var k = Registry.CurrentUser.CreateSubKey(@"Software\Classes\ortamsade"))
                 {
-                    k.SetValue("", "URL:Ortam Sade");
+                    k.SetValue("", "URL:ETÜ Ortam");
                     k.SetValue("URL Protocol", "");
                     using (var ic = k.CreateSubKey("DefaultIcon")) ic.SetValue("", $"\"{exe}\",0");
                     using (var c = k.CreateSubKey(@"shell\open\command")) if ((c.GetValue("") as string) != cmd) c.SetValue("", cmd);
@@ -153,10 +153,10 @@ namespace OrtamSade
             _ = ui.Handle;                        // diğer iş parçacıklarından gelen istekler (Post) bu tutamaçla arayüze aktarılır
             icon = LoadIcon();
             var menu = new ContextMenuStrip();
-            menu.Items.Add("Ortam Sade'yi aç", null, (s, e) => Show());
+            menu.Items.Add("ETÜ Ortam'ı aç", null, (s, e) => Show());
             menu.Items.Add(new ToolStripSeparator());
             menu.Items.Add("Kapat (bildirimler de durur)", null, (s, e) => Exit());
-            tray = new NotifyIcon { Icon = icon, Text = "Ortam Sade", ContextMenuStrip = menu, Visible = true };
+            tray = new NotifyIcon { Icon = icon, Text = "ETÜ Ortam", ContextMenuStrip = menu, Visible = true };
             tray.MouseClick += (s, e) => { if (e.Button == MouseButtons.Left) Show(); };
             StartServer();
             pendingLink = link;
@@ -208,7 +208,7 @@ namespace OrtamSade
             if (!hintShown)
             {
                 hintShown = true;
-                tray.ShowBalloonTip(4000, "Ortam Sade arka planda çalışıyor", "Bildirimler gelmeye devam eder. Açmak için tepsideki simgeye, kapatmak için sağ tıklayıp Kapat'a bas.", ToolTipIcon.Info);
+                tray.ShowBalloonTip(4000, "ETÜ Ortam arka planda çalışıyor", "Bildirimler gelmeye devam eder. Açmak için tepsideki simgeye, kapatmak için sağ tıklayıp Kapat'a bas.", ToolTipIcon.Info);
             }
         }
 
@@ -243,7 +243,7 @@ namespace OrtamSade
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Uygulamanın sunucusu başlatılamadı: " + ex.Message, "Ortam Sade", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("Uygulamanın sunucusu başlatılamadı: " + ex.Message, "ETÜ Ortam", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 ExitThread();
             }
         }
@@ -256,7 +256,7 @@ namespace OrtamSade
             try { code = server.ExitCode; } catch { }
             try { lock (w) { w.WriteLine($"---- {DateTime.Now:HH:mm:ss} sunucu kapandı ({code})"); w.Dispose(); } } catch { }
             if (code != 0 && !Program.PortOpen())
-                MessageBox.Show("Uygulamanın sunucusu beklenmedik şekilde kapandı. Ayrıntılar: .cache\\sunucu.log", "Ortam Sade", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("Uygulamanın sunucusu beklenmedik şekilde kapandı. Ayrıntılar: .cache\\sunucu.log", "ETÜ Ortam", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             Exit(false);
         }
 
@@ -302,14 +302,14 @@ namespace OrtamSade
     {
         readonly string root;
         readonly WebView2 web = new WebView2 { Dock = DockStyle.Fill };
-        readonly Label wait = new Label { Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, Text = "Ortam Sade açılıyor…" };
+        readonly Label wait = new Label { Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, Text = "ETÜ Ortam açılıyor…" };
         string boundsFile => Path.Combine(root, ".cache", "pencere.txt");
         string pendingHash;
 
         public MainWindow(string root, Icon icon)
         {
             this.root = root;
-            Text = "Ortam Sade";
+            Text = "ETÜ Ortam";
             Icon = icon;
             MinimumSize = new Size(420, 520);
             StartPosition = FormStartPosition.CenterScreen;
@@ -347,7 +347,7 @@ namespace OrtamSade
             core.Settings.AreDevToolsEnabled = false;
             core.Settings.IsPasswordAutosaveEnabled = false;
             core.Settings.IsGeneralAutofillEnabled = false;
-            core.DocumentTitleChanged += (s, e) => Text = string.IsNullOrWhiteSpace(core.DocumentTitle) ? "Ortam Sade" : core.DocumentTitle;
+            core.DocumentTitleChanged += (s, e) => Text = string.IsNullOrWhiteSpace(core.DocumentTitle) ? "ETÜ Ortam" : core.DocumentTitle;
             core.NewWindowRequested += (s, e) => { e.Handled = true; OpenExternal(e.Uri); };
             core.NavigationStarting += (s, e) =>
             {

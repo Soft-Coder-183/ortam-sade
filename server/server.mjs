@@ -85,12 +85,12 @@ async function openBrowser() {
 }
 srv.on('error', e => {
   if (e.code !== 'EADDRINUSE') { console.error(e); process.exit(1); }
-  console.log(`Ortam Sade zaten çalışıyor: ${APP_URL}`);
+  console.log(`ETÜ Ortam zaten çalışıyor: ${APP_URL}`);
   if (process.env.ORTAM_AC) openBrowser();
   setTimeout(() => process.exit(0), 500);
 });
 srv.listen(PORT, '127.0.0.1', () => {
-  console.log(`Ortam Sade çalışıyor: ${APP_URL}`);
+  console.log(`ETÜ Ortam çalışıyor: ${APP_URL}`);
   if (process.env.ORTAM_AC) openBrowser();
 });
 await new Promise(ok => srv.once('listening', ok));          // arka plan işleri yalnızca bu kopya sunucuyu açabildiyse başlar
