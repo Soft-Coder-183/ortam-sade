@@ -3196,6 +3196,12 @@ function route() {
     location.replace(s === 'duyurular' ? `#/ekstra/duyurular${rest ? '/' + rest : ''}` : s === 'tumu' ? `#/ekstra/mevzuat/${rest ? 'belge/' + rest : 'tumu'}`
       : `#/ekstra/mevzuat${rest ? '/ara/' + rest : ''}`);
   }
+  // Güncelleme bildirimine basıldı (#/guncelle): "Sonra" denmiş olsa da güncelleme kartı yeniden açılır, sayfa Ana Sayfa olur
+  if (location.hash === '#/guncelle') {
+    location.replace('#/anasayfa');
+    try { sessionStorage.removeItem('guncellemeSonra'); } catch {}
+    setTimeout(() => checkUpdate(true), 0);
+  }
   // ÇAP/YAP - Başvurular da Ekstra'nın altına taşındı
   const cap = location.hash.match(/^#\/cap(?:\/(capyap|staj|ogrenim|mezun))?/);
   if (cap) location.replace(`#/ekstra/cap${cap[1] && cap[1] !== 'capyap' ? '/' + cap[1] : ''}`);

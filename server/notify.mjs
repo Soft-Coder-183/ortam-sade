@@ -457,13 +457,13 @@ export function checkNow() {
   return checking;
 }
 
-// Yeni sürüm: her sürüm için bir kez Windows bildirimi (tıklayınca uygulama açılır, güncelleme sorusu orada).
+// Yeni sürüm: her sürüm için bir kez bildirim. Basınca #/guncelle açılır: "Sonra" denmiş olsa da güncelleme kartı yeniden çıkar.
 export async function announceUpdate(version) {
   await load();
   if (db.updateToasted === version) return;
   db.updateToasted = version;
   await save();
-  toast(`Yeni sürüm: ${version}`, 'Güncellemek ister misiniz? Uygulamayı açıp "Güncelle"ye basın.', '');
+  toast(`Yeni sürüm: ${version}`, 'Güncellemek için bas.', '#/guncelle');
 }
 
 // Hesap ekranındaki "deneme bildirimi": yalnızca Windows bildirimi gösterir (e-posta göndermez).
