@@ -50,4 +50,4 @@ okula giriş yapılmaz. 3100 portu boş olmalı. Müzik künyesi (CC BY 4.0) pay
   Kurmadan denemek için: `npm start` ve tarayıcıda `http://localhost:3000`; kurulu kopya 3000'i tutuyorsa `$env:PORT=3100; npm start`.
 - **Android:** Telefonu USB hata ayıklamayla bağla, `C:\Android\Sdk\platform-tools\adb.exe install -r dist\EtuCep-X.Y.Z.apk`.
   Hata günlüğü: `adb logcat -s EtuCep`.
-- **Yayın** (herkese dağıtılan sürüm GitHub'da derlenir, yerel çıktı yüklenmez): `CLAUDE.md` → Commit ve sürüm.
+- **Yayın** (herkese dağıtılan sürüm GitHub'da derlenir, yerel çıktı yüklenmez): `AGENTS.md` → Commit ve sürüm.
