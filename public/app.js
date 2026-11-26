@@ -6,19 +6,19 @@ const NAV = [
     ['bilgilerim', 'Bilgilerim'], ['notlar', 'Not Görüntüleme'], ['ortalama', 'Ortalama ve Ders Planı'], ['mufredat', 'Müfredat Görüntüleme'],
     ['ortak', 'Ortak Eğitim Bilgilerim'], ['yabanci-dil', 'İkinci Yabancı Dil Bilgilerim'], ['odeme', 'Ödeme Bilgilerim'], ['adres', 'Adres ve İletişim Bilgilerim']] },
   { id: 'anasayfa', label: 'Ana Sayfa', short: 'Anasayfa', icon: 'home' },
-  { id: 'donem', label: 'Dönem Bilgilerim', short: 'Dönem', icon: 'calendar', items: [['derslerim', 'Derslerim'], ['program', 'Ders Programım']] },
+  { id: 'donem', label: 'Dersler', short: 'Dersler', icon: 'calendar', items: [['derslerim', 'Derslerim'], ['program', 'Ders Programım']] },
   { id: 'sinav', label: 'Sınav Takvimi', short: 'Sınavlar', icon: 'clipboard' },
   { id: 'webmail', label: 'Webmail', short: 'Webmail', icon: 'mail' },
   { id: 'piazza', label: 'Piazza', short: 'Piazza', icon: 'message' },
   { id: 'ubs', label: 'UBS', short: 'UBS', icon: 'landmark', side: true },
   { id: 'uzakydb', label: 'UZAKYDB', short: 'YDB', icon: 'globe', side: true },
-  // Ekstra: telefonda alt çubukta yok (Ana Sayfa kısayollarında)
-  { id: 'ekstra', label: 'Ekstra', short: 'Ekstra', icon: 'star', rare: true, side: true, items: [
+  // Ekstralar: telefonda alt çubukta yok (Menü'de); göze çarpsın diye renkli, dönen çerçeveyle (glow)
+  { id: 'ekstra', label: 'Ekstralar', short: 'Ekstralar', icon: 'star', rare: true, side: true, glow: true, items: [
     ['acilan', 'Açılan Dersler'], ['rezervasyon', 'Rezervasyon'], ['takvim', 'Akademik Takvim'], ['kadro', 'Akademik Kadro'], ['yabanci-diller', 'Yabancı Diller'],
     ['mevzuat', 'Mevzuat'], ['duyurular', 'Öğrenci İşleri Duyuruları'], ['cap', 'ÇAP/YAP - Başvurular']] },
   { id: 'hakkinda', label: 'Hakkında ve SSS', short: 'Hakkında', icon: 'help', bottom: true, rare: true, side: true, items: [
     ['hakkimizda', 'Hakkımızda'], ['siteler', 'Okulun Siteleri'], ['sss', 'Sık Sorulan Sorular'], ['sorumluluk', 'Sorumluluk Reddi'], ['geri-bildirim', 'Geri Bildirim']] },
-  { id: 'hesap', label: 'Hesap', short: 'Hesap', icon: 'settings', bottom: true, side: true },
+  { id: 'hesap', label: 'Hesap ve Ayarlar', short: 'Hesap', icon: 'settings', bottom: true, side: true },
 ];
 
 const $nav = document.getElementById('nav');
@@ -201,6 +201,8 @@ function weekGrid(schedule, perDay, exams = [], offset = 0) {
   const head = cols.map((d, i) => { const dt = dayDate(offset, d);
     return `<div class="h ${isToday(d) ? 'today' : ''}" style="grid-column:${i + 2};grid-row:1">${esc(schedule.days[d] ?? DAY_LONG[d])}<small>${dt.getDate()} ${MONTHS[dt.getMonth()]}</small></div>`; }).join('');
   const times = ranges.map(([s], i) => `<div class="tm" style="grid-column:1;grid-row:${i + 2}">${hm(s)}</div>`).join('');
+  const lines = ranges.map((_, i) => `<div class="gl-r" style="grid-column:2/-1;grid-row:${i + 2}"></div>`).join('') +
+    cols.map((_, i) => `<div class="gl-c" style="grid-column:${i + 2};grid-row:2/span ${ranges.length}"></div>`).join('');
   const bl = cols.map((d, i) => perDay[d].map(b => `<div class="bl ${mode(b)}" title="${esc(b.name)} · ${esc(b.instructor)}${b.inPerson ? '' : ' · çevrimiçi'}" style="grid-column:${i + 2};grid-row:${b.first + 2}/span ${b.last - b.first + 1}">
       <b>${esc(b.code)}</b>${esc(b.room)}<br><small>${esc(b.name)}</small></div>`).join('')).join('');
   const ex = exams.map((x, k) => {
@@ -214,7 +216,7 @@ function weekGrid(schedule, perDay, exams = [], offset = 0) {
   const tcol = offset === 0 ? cols.indexOf(todayIdx()) : -1;
   const now = `<div class="nowline" hidden></div><div class="nowline today" hidden></div><div class="nowlabel" hidden></div>`;
   return `<div class="week card" data-slots="${ranges.map(([s, e]) => `${hm(s)}-${hm(e)}`).join(',')}" data-tcol="${tcol >= 0 ? tcol + 2 : ''}"
-    style="--cols:${cols.length};grid-template-columns:44px repeat(${cols.length},minmax(0,1fr));grid-template-rows:auto repeat(${ranges.length},30px)">${head}${times}${bl}${ex}${now}</div>`;
+    style="--cols:${cols.length};grid-template-columns:44px repeat(${cols.length},minmax(0,1fr));grid-template-rows:auto repeat(${ranges.length},30px)">${head}${times}${lines}${bl}${ex}${now}</div>`;
 }
 
 function agenda(schedule, perDay, exams = [], offset = 0) {
@@ -448,7 +450,10 @@ async function focusCourseItem(tab, c, item) {
       || x.querySelector(`[data-ulink="${CSS.escape(item)}"]`) || x.querySelector('[data-file]')?.dataset.file.endsWith('cm=' + item));
   if (!el) return;
   if (el.tagName === 'DETAILS') el.open = true;
-  el.scrollIntoView({ block: 'start' });             // yanıp sönme yok: açık gelen öğe yeterli (efekt kafa karıştırıyordu)
+  el.scrollIntoView({ block: 'start' });
+  // Turuncu vurgu, kullanıcı sayfada bir yere basana kadar kalır (kendiliğinden sönüp kafa karıştırmasın)
+  el.classList.add('nt-hl');
+  setTimeout(() => document.addEventListener('pointerdown', () => el.classList.remove('nt-hl'), { once: true, capture: true }), 300);
 }
 
 // Uzak: haftalar/konular. Dosyalar görüntüleyicide açılır ya da iner; diğer etkinliklerin sayfası açılınca yüklenir.
@@ -2459,7 +2464,6 @@ function notifSection() {
     ${phoneNotif()}
     <div class="row" style="justify-content:flex-start;gap:8px;margin-top:10px"><button type="button" class="btn" data-notif-check>Şimdi kontrol et</button>
       <button type="button" class="btn ghost" data-notif-test>Deneme bildirimi</button></div>
-    <p class="muted small">Son kontrol — Piazza: ${ago2(notif.last.piazza)} · Uzak: ${ago2(notif.last.uzak)}</p>
     ${recent.length ? `<ul class="notif-list">${recent.map(n => `<li class="${n.read ? 'read' : ''}"><span class="sdot src-${esc(n.source)}"></span><a href="${esc(n.link)}"><b>${esc(n.title)}</b> ${esc(n.text)}</a> <span class="muted small">${whenTR(n.t)}</span></li>`).join('')}</ul>`
       : '<p class="muted small">Henüz bildirim yok.</p>'}</div>`;
 }
@@ -2601,7 +2605,7 @@ async function viewHesap(r, ctx) {
     return x.ok ? '<span class="pill ok">giriş yapıldı</span>' : x.later ? '<span class="pill gray">açınca girilir</span>' : x.rejected ? '<span class="pill bad">şifre kabul edilmedi</span>' : `<span class="pill warn">${esc(x.error)}</span>`;
   };
   const rows = Object.keys(a.sessions).map(site => ({ site, alive: a.sessions[site], direct: a.direct.includes(site), blocked: a.blocked.includes(site) }));
-  return header('Hesap', 'Tek giriş: e-posta ve şifreyi bir kez girin, uygulama sitelere kendisi girsin') + banner +
+  return header('Hesap ve Ayarlar', 'Tek giriş: e-posta ve şifreyi bir kez girin, uygulama sitelere kendisi girsin') + banner +
     `<div class="card"><form id="acct" class="acct">
       <label>E-posta<input name="email" type="email" autocomplete="username" placeholder="isim@etu.edu.tr" value="${esc(a.email || '')}" required></label>
       <label>Şifre<input name="password" type="password" autocomplete="current-password" ${a.email ? 'placeholder="Boş bırakırsanız kayıtlı şifre kullanılır"' : 'required'}></label>
@@ -3214,22 +3218,34 @@ function route() {
   return { group, sub: item?.[0] ?? null, param, key: item ? `${group.id}/${item[0]}` : group.id };
 }
 
+// Okulun açılmasına (derslerin başlaması) 7 gün ya da daha az kaldıysa Açılan Dersler menüde parlar. Takvim bir kez alınır.
+let acilanGlow = false;
+fetch('/api/etu-takvim').then(r => (r.ok ? r.json() : null)).then(cal => {
+  const now = Date.now();
+  acilanGlow = (classPeriods(cal) ?? []).some(([a]) => a - now > -864e5 && a - now <= 7 * 864e5);
+  if (acilanGlow) renderNav(route());
+}).catch(() => {});
+const glowSub = (n, id) => n.id === 'ekstra' && id === 'acilan' && acilanGlow;
+// Renkli simge için menüde bir kez tanımlanan, yavaşça dönen mavi–kırmızı–sarı geçiş
+const GLOW_DEFS = '<svg class="glow-defs" aria-hidden="true" width="0" height="0"><defs><linearGradient id="etu-grad" x1="0" y1="0" x2="1" y2="1">' +
+  '<stop offset="0" style="stop-color:var(--accent)"/><stop offset=".5" style="stop-color:var(--red)"/><stop offset="1" style="stop-color:var(--yellow)"/>' +
+  '<animateTransform attributeName="gradientTransform" type="rotate" from="0 .5 .5" to="360 .5 .5" dur="8s" repeatCount="indefinite"/></linearGradient></defs></svg>';
 function renderNav({ group, sub }) {
   const firstBottom = NAV.find(n => n.bottom);
   // Marka: TOBB ETÜ logosundaki üç renk (mavi, kırmızı, turuncu) küçük bir işaret olarak
   $nav.innerHTML = `<a class="brand" href="#/anasayfa"><span class="mark" aria-hidden="true"><i></i><i></i><i></i></span>Ortam</a>` + NAV.map(n => {
     const href = '#/' + n.id + (n.items ? '/' + n.items[0][0] : '');
     const subs = n === group && n.items ? `<div class="subs">${n.items.map(([id, label]) =>
-      `<a href="#/${n.id}/${id}" class="${id === sub ? 'on' : ''}">${esc(label)}${n.id === 'donem' && id === 'derslerim' ? srcDots(notif.bySource, true) : ''}</a>`).join('')}</div>` : '';
-    const cls = ['grp', n === firstBottom && 'push', n.side && 'side', n === group && 'on'].filter(Boolean).join(' ');
+      `<a href="#/${n.id}/${id}" class="${[id === sub && 'on', glowSub(n, id) && 'glow'].filter(Boolean).join(' ')}">${esc(label)}${n.id === 'donem' && id === 'derslerim' ? srcDots(notif.bySource, true) : ''}</a>`).join('')}</div>` : '';
+    const cls = ['grp', n === firstBottom && 'push', n.side && 'side', n === group && 'on', n.glow && 'glow'].filter(Boolean).join(' ');
     return `<a href="${href}" class="${cls}"${n === group ? ' aria-current="page"' : ''}>${icon(n.icon)}<span class="full">${esc(n.label)}</span><span class="short">${esc(n.short)}</span>${n.id === 'donem' ? srcDots(notif.bySource, true) : ''}</a>${subs}`;
-  }).join('') + srvStateHtml() +
+  }).join('') + srvStateHtml() + GLOW_DEFS +
     // Telefon: alt çubuğa sığmayan bölümler yan çekmecede
     `<button type="button" class="grp menu-btn${group.side ? ' on' : ''}" data-drawer>${icon('menu')}<span class="short">Menü</span></button>
     <div id="drawer-bg" data-drawer-close></div><div id="drawer" role="dialog" aria-label="Menü">${NAV.filter(n => n.side).map(n => n.items
       // Alt sayfası olan bölüm masaüstündeki gibi açılır; alt sayfaya basınca gidilir
-      ? `<div class="dr-sec${n === group ? ' on open' : ''}"><button type="button" class="dr-grp" data-dr-toggle aria-expanded="${n === group}">${icon(n.icon)}<span>${esc(n.label)}</span><span class="chev">›</span></button>
-        <div class="dr-subs">${n.items.map(([id, label]) => `<a href="#/${n.id}/${id}" class="${n === group && id === sub ? 'on' : ''}">${esc(label)}</a>`).join('')}</div></div>`
+      ? `<div class="dr-sec${n === group ? ' on open' : ''}"><button type="button" class="dr-grp${n.glow ? ' glow' : ''}" data-dr-toggle aria-expanded="${n === group}">${icon(n.icon)}<span>${esc(n.label)}</span><span class="chev">›</span></button>
+        <div class="dr-subs">${n.items.map(([id, label]) => `<a href="#/${n.id}/${id}" class="${[n === group && id === sub && 'on', glowSub(n, id) && 'glow'].filter(Boolean).join(' ')}">${esc(label)}</a>`).join('')}</div></div>`
       : `<a href="#/${n.id}" class="${n === group ? 'on' : ''}">${icon(n.icon)}<span>${esc(n.label)}</span></a>`).join('')}</div>`;
 }
 const closeDrawer = () => document.body.classList.remove('drawer-open');
